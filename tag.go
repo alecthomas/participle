@@ -1,16 +1,15 @@
 package parser
 
 import (
-	"bytes"
+	"strconv"
 	"strings"
 	"text/scanner"
 )
 
-func parseTag(tag string) *expression {
+func parseTag(tag string) expression {
 	scan := &scanner.Scanner{}
 	scan.Init(strings.NewReader(tag))
 	scan.Whitespace = 0
-	scan.Mode = 0
 	e := parseExpression(scan)
 	if peekNextNonSpace(scan) != scanner.EOF {
 		panic("unexpected end of input")
@@ -18,12 +17,10 @@ func parseTag(tag string) *expression {
 	return e
 }
 
-type expression struct {
-	Alternatives []*alternative
-}
+type expression []alternative
 
-func parseExpression(scan *scanner.Scanner) *expression {
-	alternatives := []*alternative{parseAlternative(scan)}
+func parseExpression(scan *scanner.Scanner) expression {
+	expression := expression{parseAlternative(scan)}
 outer:
 	for {
 	inner:
@@ -41,16 +38,14 @@ outer:
 				break outer
 			}
 		}
-		alternatives = append(alternatives, parseAlternative(scan))
+		expression = append(expression, parseAlternative(scan))
 	}
-	return &expression{alternatives}
+	return expression
 }
 
-type alternative struct {
-	Terms []interface{}
-}
+type alternative []interface{}
 
-func parseAlternative(scan *scanner.Scanner) *alternative {
+func parseAlternative(scan *scanner.Scanner) alternative {
 	elements := []interface{}{}
 loop:
 	for {
@@ -68,14 +63,14 @@ loop:
 			elements = append(elements, term)
 		}
 	}
-	return &alternative{elements}
+	return alternative(elements)
 }
 
 func parseTerm(scan *scanner.Scanner) interface{} {
 	switch scan.Peek() {
 	case '@':
 		scan.Next()
-		return &self{}
+		return self{}
 	case '"':
 		return parseQuotedStringOrRange(scan)
 	case '[':
@@ -91,13 +86,11 @@ func parseTerm(scan *scanner.Scanner) interface{} {
 	}
 }
 
-type optional struct {
-	Expression *expression
-}
+type optional expression
 
-func parseOptional(scan *scanner.Scanner) *optional {
+func parseOptional(scan *scanner.Scanner) optional {
 	scan.Next() // [
-	optional := &optional{parseExpression(scan)}
+	optional := optional(parseExpression(scan))
 	next := scan.Next()
 	if next != ']' {
 		panic("expected ] but got " + string(next))
@@ -105,13 +98,11 @@ func parseOptional(scan *scanner.Scanner) *optional {
 	return optional
 }
 
-type repitition struct {
-	Expression *expression
-}
+type repitition expression
 
-func parseRepitition(scan *scanner.Scanner) *repitition {
+func parseRepitition(scan *scanner.Scanner) repitition {
 	scan.Next() // {
-	n := &repitition{parseExpression(scan)}
+	n := repitition(parseExpression(scan))
 	next := scan.Next()
 	if next != '}' {
 		panic("expected } but got " + string(next))
@@ -119,13 +110,11 @@ func parseRepitition(scan *scanner.Scanner) *repitition {
 	return n
 }
 
-type group struct {
-	Expression *expression
-}
+type group expression
 
-func parseGroup(scan *scanner.Scanner) *group {
+func parseGroup(scan *scanner.Scanner) group {
 	scan.Next() // (
-	n := &group{parseExpression(scan)}
+	n := group(parseExpression(scan))
 	next := scan.Next()
 	if next != ')' {
 		panic("expected ) but got " + string(next))
@@ -144,37 +133,26 @@ func parseQuotedStringOrRange(scan *scanner.Scanner) interface{} {
 	if peekNextNonSpace(scan) != '"' {
 		panic("expected ending quoted string for range but got " + string(scan.Peek()))
 	}
-	return &stringRange{n, parseQuotedString(scan)}
+	return srange{n, parseQuotedString(scan)}
 }
 
-type stringRange struct {
-	Start *quotedString
-	End   *quotedString
+type srange struct {
+	start str
+	end   str
 }
 
-type quotedString struct {
-	Text string
-}
+type str string
 
-func parseQuotedString(scan *scanner.Scanner) *quotedString {
-	scan.Next() // "
-	out := bytes.Buffer{}
-loop:
-	for {
-		switch scan.Peek() {
-		case '\\':
-			scan.Next()
-			out.WriteRune(scan.Next())
-		case '"':
-			scan.Next()
-			break loop
-		case scanner.EOF:
-			panic("unexpected EOF")
-		default:
-			out.WriteRune(scan.Next())
-		}
+func parseQuotedString(scan *scanner.Scanner) str {
+	r := scan.Scan()
+	if r != scanner.String && r != scanner.RawString && r != scanner.Char {
+		panic("expected string but got " + string(r))
 	}
-	return &quotedString{out.String()}
+	token, err := strconv.Unquote(scan.TokenText())
+	if err != nil {
+		panic("invalid string")
+	}
+	return str(token)
 }
 
 func peekNextNonSpace(scan *scanner.Scanner) rune {
