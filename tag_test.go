@@ -36,7 +36,7 @@ var tagParserTestData = []struct {
 		},
 	},
 	{
-		`( "a" @ )`,
+		`( "a" @@ )`,
 		expression{
 			alternative{
 				group{
@@ -46,7 +46,7 @@ var tagParserTestData = []struct {
 		},
 	},
 	{
-		`{ "a" | @ }`,
+		`{ "a" | @@ }`,
 		expression{
 			alternative{
 				repitition{
@@ -72,6 +72,61 @@ var tagParserTestData = []struct {
 					alternative{str("_")},
 				},
 			},
+		},
+	},
+	{
+		`{"\\" . | .}`,
+		expression{
+			alternative{
+				repitition{
+					alternative{str("\\"), dot{}},
+					alternative{dot{}},
+				},
+			},
+		},
+	},
+	{
+		`hello`,
+		expression{
+			alternative{
+				identifier("hello"),
+			},
+		},
+	},
+	{
+		`@Identifier`,
+		expression{
+			alternative{
+				reference{identifier("Identifier")},
+			},
+		},
+	},
+	{
+		`@"Hello"`,
+		expression{
+			alternative{
+				reference{str("Hello")},
+			},
+		},
+	},
+	{
+		`@("Hello" "world" | "Hola" "mundo")`,
+		expression{
+			alternative{
+				reference{
+					group{
+						alternative{str("Hello"), str("world")},
+						alternative{str("Hola"), str("mundo")},
+					},
+				},
+			},
+		},
+	},
+	{
+		`@ID |`,
+		expression{
+			alternative{reference{identifier("ID")}},
+			alternative{},
 		},
 	},
 }

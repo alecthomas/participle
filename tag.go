@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"bytes"
 	"strconv"
 	"strings"
 	"text/scanner"
@@ -63,14 +64,33 @@ loop:
 			elements = append(elements, term)
 		}
 	}
-	return alternative(elements)
+	return elements
+}
+
+type dot struct{}
+
+type self struct{}
+
+type reference alternative
+
+func isIdentifierStart(r rune) bool {
+	return r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r == '_'
 }
 
 func parseTerm(scan *scanner.Scanner) interface{} {
-	switch scan.Peek() {
+	r := scan.Peek()
+	switch r {
+	case '.':
+		scan.Next()
+		return dot{}
 	case '@':
 		scan.Next()
-		return self{}
+		r := scan.Peek()
+		if r == '@' {
+			scan.Next()
+			return self{}
+		}
+		return reference{parseTerm(scan)}
 	case '"':
 		return parseQuotedStringOrRange(scan)
 	case '[':
@@ -82,8 +102,27 @@ func parseTerm(scan *scanner.Scanner) interface{} {
 	case scanner.EOF:
 		return nil
 	default:
+		if isIdentifierStart(r) {
+			return parseIdentifier(scan)
+		}
 		return nil
 	}
+}
+
+type identifier string
+
+func parseIdentifier(scan *scanner.Scanner) identifier {
+	out := bytes.Buffer{}
+	out.WriteRune(scan.Next())
+	for {
+		r := scan.Peek()
+		if r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r == '_' || r >= '0' && r <= '9' {
+			out.WriteRune(scan.Next())
+		} else {
+			break
+		}
+	}
+	return identifier(out.String())
 }
 
 type optional expression
@@ -122,8 +161,6 @@ func parseGroup(scan *scanner.Scanner) group {
 	return n
 }
 
-type self struct{}
-
 func parseQuotedStringOrRange(scan *scanner.Scanner) interface{} {
 	n := parseQuotedString(scan)
 	if peekNextNonSpace(scan) != '…' {
@@ -136,6 +173,7 @@ func parseQuotedStringOrRange(scan *scanner.Scanner) interface{} {
 	return srange{n, parseQuotedString(scan)}
 }
 
+// "a" … "b"
 type srange struct {
 	start str
 	end   str
