@@ -48,11 +48,11 @@ Here is an example of defining a lexer and parser for a form of EBNF:
 
 func main() {
   p := parser.New(&Lexer{}, &EBNF{})
-  g, err := p.Parse(`Hello = "Hello" | "Hola" | "Kon'nichiwa"`)
+  ebnf := &EBNF{}
+  err := p.Parse(`Hello = "Hello" | "Hola" | "Kon'nichiwa"`, ebnf)
   if err != nil {
     panic(err)
   }
-  ebnf := g.(*EBNF)
   // ...
 }
 
@@ -75,11 +75,7 @@ type Production struct {
 }
 
 type Expression struct {
-  Alternatives []*Alternative `@@ { "|" @@ }`
-}
-
-type Alternative struct {
-  Term Term
+  Alternatives []*Term `@@ { "|" @@ }`
 }
 
 type Term struct {

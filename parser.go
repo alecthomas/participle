@@ -1,36 +1,140 @@
+// Package parser constructs parsers from definitions in struct tags and parses directly into those
+// structs. The approach is philosophically similar to how other marshallers work in Go,
+// "unmarshalling" an instance of a grammar into a struct.
+//
+// Here's an example of an EBNF parser. First, we define some convenience lexer tokens:
+//
+//     type Lexer struct {
+//       Identifier string      `("a"…"z" | "A"…"Z" | "_") {"a"…"z" | "A"…"Z" | "0"…"9" | "_"}`
+//       String     string      `"\"" {"\\" . | .} "\""`
+//       Whitespace lexer.Skip  `" " | "\t" | "\n" | "\r"`
+//     }
+//
+// Then the grammar itself:
+//
+//     type EBNF struct {
+//       Productions []*Production
+//     }
+//
+//     type Production struct {
+//       Name       string      `@Identifier "="`
+//       Expression *Expression `[ @@ ] "."`
+//     }
+//
+//     type Expression struct {
+//       Alternatives []*Term `@@ { "|" @@ }`
+//     }
+//
+//     type Term struct {
+//       Name       *string       `@Identifier |`
+//       TokenRange *TokenRange   `@@ |`
+//       Group      *Group        `@@ |`
+//       Option     *Option       `@@ |`
+//       Repetition *Repetition   `@@`
+//     }
+//
+//     type Group struct {
+//       Expression *Expression `"(" @@ ")"`
+//     }
+//
+//     type Option struct {
+//       Expression *Expression `"[" @@ "]"`
+//     }
+//
+//     type Repetition struct {
+//       Expression *Expression `"{" @@ "}"`
+//     }
+//
+//     type TokenRange struct {
+//       Start string  `@String` // Lexer token "String"
+//       End   *string ` [ "…" @String ]`
+//     }
 package parser
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
+	"io"
 	"reflect"
+	"unicode"
 )
 
-const (
-	EOF rune = -1 - iota
-)
-
-type Lexer interface {
-	Scan() rune
-	TokenText() string
+// A node in the grammar.
+type node interface {
+	// Parse from scanner into value.
+	Parse(scan Scanner) reflect.Value
 }
 
-type parseNode interface {
-	Parse(scan Scanner) []reflect.Value
+type Parser struct {
+	root node
 }
 
-func parseType(t reflect.Type) strct {
+// Generate a parser for the given grammar.
+func Parse(grammar interface{}, aliases interface{}) (parser *Parser, err error) {
+	defer func() {
+		if msg := recover(); msg != nil {
+			err = errors.New(msg.(string))
+		}
+	}()
+	productions := map[string]node{}
+	root := parseType(productions, reflect.TypeOf(grammar))
+	return &Parser{root: root}, nil
+}
+
+// Parse from Scanner s into grammar v.
+func (p *Parser) Parse(s Scanner, v interface{}) (err error) {
+	// defer func() {
+	// 	if msg := recover(); msg != nil {
+	// 		err = errors.New(msg.(string))
+	// 	}
+	// }()
+	rv := reflect.ValueOf(v)
+	if rv.Kind() != reflect.Ptr || rv.Elem().Kind() != reflect.Struct {
+		return errors.New("target must be a pointer to a struct")
+	}
+	pv := p.root.Parse(s)
+	if !pv.IsValid() {
+		return errors.New("invalid syntax")
+	}
+	rv.Elem().Set(reflect.Indirect(pv))
+	return
+}
+
+func (p *Parser) ParseReader(r io.Reader, v interface{}) error {
+	return p.Parse(ReaderScanner(r), v)
+}
+
+func (p *Parser) ParseString(s string, v interface{}) error {
+	return p.Parse(StringScanner(s), v)
+}
+
+func (p *Parser) ParseBytes(b []byte, v interface{}) error {
+	return p.Parse(ByteScanner(b), v)
+}
+
+func decorate(name string) {
+	if msg := recover(); msg != nil {
+		panic(name + ": " + msg.(string))
+	}
+}
+
+// Takes a type and builds a tree of nodes out of it.
+func parseType(productions map[string]node, t reflect.Type) *strct {
+	defer decorate(t.Name())
 	switch t.Kind() {
 	case reflect.Struct:
 		scan := newStructScanner(t)
-		e := parseExpression(scan)
+		e := parseExpression(productions, scan)
 		if peekNextNonSpace(scan) != EOF {
 			panic("unexpected input: " + string(scan.Peek()))
 		}
-		return strct{typ: t, expr: e}
+		return &strct{typ: t, expr: e}
+
 	case reflect.Ptr:
-		return parseType(t.Elem())
+		return parseType(productions, t.Elem())
 	}
-	panic("unsupported struct type " + t.String())
+	panic("expected struct type but got " + t.String())
 }
 
 type strct struct {
@@ -38,33 +142,26 @@ type strct struct {
 	expr expression
 }
 
-func (s *strct) Parse(scan Scanner) []reflect.Value {
-	fields := s.expr.Parse(scan)
-	if len(fields) != s.typ.NumField() {
-		panic("number of parsed fields does not match number of fields in struct " + s.typ.String())
-	}
-	out := reflect.New(s.typ).Elem()
-	for i := 0; i < s.typ.NumField(); i++ {
-		out.Field(i).Set(fields[i])
-	}
-	return []reflect.Value{out}
+func (s *strct) Parse(scan Scanner) reflect.Value {
+	return s.expr.Parse(scan)
 }
 
+// <expr> {"|" <expr>}
 type expression []alternative
 
-func (e expression) Parse(scan Scanner) []reflect.Value {
+func (e expression) Parse(scan Scanner) reflect.Value {
 	for _, a := range e {
-		if out := a.Parse(scan); out != nil {
-			return out
+		if value := a.Parse(scan); value.IsValid() {
+			return value
 		}
 	}
-	return nil
+	return reflect.Value{}
 }
 
-func parseExpression(scan *structScanner) expression {
+func parseExpression(productions map[string]node, scan *structScanner) expression {
 	out := expression{}
 	for {
-		out = append(out, parseAlternative(scan))
+		out = append(out, parseAlternative(productions, scan))
 		if peekNextNonSpace(scan) != '|' {
 			break
 		}
@@ -73,24 +170,26 @@ func parseExpression(scan *structScanner) expression {
 	return out
 }
 
-type alternative []parseNode
+// <node> {<node>}
+type alternative []node
 
-func (a alternative) Parse(scan Scanner) (out []reflect.Value) {
+func (a alternative) Parse(scan Scanner) reflect.Value {
+	var value reflect.Value
 	for i, n := range a {
-		fragment := n.Parse(scan)
-		if fragment == nil {
+		// If first value doesn't match, we early exit, otherwise all values must match.
+		value = n.Parse(scan)
+		if !value.IsValid() {
 			if i == 0 {
-				return nil
+				return reflect.Value{}
 			}
-			panic("unexpected")
+			panic("expression did not match")
 		}
-		out = append(out, fragment...)
 	}
-	return out
+	return value
 }
 
-func parseAlternative(scan *structScanner) alternative {
-	elements := []parseNode{}
+func parseAlternative(productions map[string]node, scan *structScanner) alternative {
+	elements := []node{}
 loop:
 	for {
 		switch scan.Peek() {
@@ -100,7 +199,7 @@ loop:
 			scan.Next()
 			continue loop
 		default:
-			term := parseTerm(scan)
+			term := parseTerm(productions, scan)
 			if term == nil {
 				break loop
 			}
@@ -112,38 +211,39 @@ loop:
 
 type dot struct{}
 
-func (d dot) Parse(scan Scanner) []reflect.Value {
-	return oneValue(scan.Next())
+func (d dot) Parse(scan Scanner) reflect.Value {
+	r := scan.Next()
+	if r == EOF {
+		return reflect.Value{}
+	}
+	return reflect.ValueOf(r)
 }
 
-// Expand a struct field.
+// @@
 type self struct {
 	field reflect.StructField
-	strct strct
+	strct node
 }
 
-func (s self) Parse(scan Scanner) []reflect.Value {
+func (s *self) Parse(scan Scanner) reflect.Value {
 	return s.strct.Parse(scan)
 }
 
+// @<expr>
 type reference struct {
 	field reflect.StructField
-	expr  parseNode
+	expr  node
 }
 
-func (r reference) Parse(scan Scanner) []reflect.Value {
-	out := ""
-	for _, v := range r.expr.Parse(scan) {
-		out += v.String()
-	}
-	return oneValue(out)
+func (r *reference) Parse(scan Scanner) reflect.Value {
+	return r.expr.Parse(scan)
 }
 
 func isIdentifierStart(r rune) bool {
-	return r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r == '_'
+	return unicode.IsLetter(r) || r == '_'
 }
 
-func parseTerm(scan *structScanner) parseNode {
+func parseTerm(productions map[string]node, scan *structScanner) node {
 	r := scan.Peek()
 	switch r {
 	case '.':
@@ -155,56 +255,62 @@ func parseTerm(scan *structScanner) parseNode {
 		f := scan.Field()
 		if r == '@' {
 			scan.Next()
-			return self{f, parseType(scan.Field().Type)}
+			defer decorate(f.Name)
+			return &self{f, parseType(productions, f.Type)}
 		}
-		return reference{f, parseTerm(scan)}
+		return &reference{f, parseTerm(productions, scan)}
 	case '"':
 		return parseQuotedStringOrRange(scan)
 	case '[':
-		return parseOptional(scan)
+		return parseOptional(productions, scan)
 	case '{':
-		return parseRepitition(scan)
+		return parseRepitition(productions, scan)
 	case '(':
-		return parseGroup(scan)
+		return parseGroup(productions, scan)
 	case EOF:
 		return nil
 	default:
 		if isIdentifierStart(r) {
-			return parseIdentifier(scan)
+			return parseProductionReference(productions, scan)
 		}
 		return nil
 	}
 }
 
-type identifier string
-
-func (i identifier) Parse(scan Scanner) []reflect.Value {
-	panic("not implemented")
-}
-
-func parseIdentifier(scan *structScanner) identifier {
+// A reference in the form @<identifier> refers to an existing production,
+// typically from the lexer struct provided to Parse().
+func parseProductionReference(productions map[string]node, scan *structScanner) node {
 	out := bytes.Buffer{}
 	out.WriteRune(scan.Next())
 	for {
 		r := scan.Peek()
-		if r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r == '_' || r >= '0' && r <= '9' {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_' {
 			out.WriteRune(scan.Next())
 		} else {
 			break
 		}
 	}
-	return identifier(out.String())
+	alias, ok := productions[out.String()]
+	if !ok {
+		panic(fmt.Sprintf("unknown production %q", out.String()))
+	}
+	return alias
+}
+
+type fieldReceiver struct {
+	field reflect.StructField
+	node  node
 }
 
 type optional expression
 
-func (o optional) Parse(scan Scanner) []reflect.Value {
+func (o optional) Parse(scan Scanner) reflect.Value {
 	panic("not implemented")
 }
 
-func parseOptional(scan *structScanner) optional {
+func parseOptional(productions map[string]node, scan *structScanner) optional {
 	scan.Next() // [
-	optional := optional(parseExpression(scan))
+	optional := optional(parseExpression(productions, scan))
 	next := scan.Next()
 	if next != ']' {
 		panic("expected ] but got " + string(next))
@@ -212,15 +318,33 @@ func parseOptional(scan *structScanner) optional {
 	return optional
 }
 
-type repitition expression
-
-func (r repitition) Parse(scan Scanner) []reflect.Value {
-	panic("not implemented")
+// { <expr> }
+type repitition struct {
+	fieldReceiver
+	elementType reflect.Type
 }
 
-func parseRepitition(scan *structScanner) repitition {
+func (r *repitition) Parse(scan Scanner) reflect.Value {
+	slice := reflect.New(reflect.SliceOf(r.elementType))
+	for {
+		if element := r.node.Parse(scan); element.IsValid() {
+			slice = reflect.AppendSlice(slice, element)
+		} else {
+			break
+		}
+	}
+	return slice
+}
+
+func parseRepitition(productions map[string]node, scan *structScanner) *repitition {
 	scan.Next() // {
-	n := repitition(parseExpression(scan))
+	n := &repitition{
+		fieldReceiver: fieldReceiver{
+			field: scan.Field(),
+			node:  parseExpression(productions, scan),
+		},
+		elementType: scan.Field().Type.Elem(),
+	}
 	next := scan.Next()
 	if next != '}' {
 		panic("expected } but got " + string(next))
@@ -230,13 +354,13 @@ func parseRepitition(scan *structScanner) repitition {
 
 type group expression
 
-func (g group) Parse(scan Scanner) []reflect.Value {
+func (g group) Parse(scan Scanner) reflect.Value {
 	return ((expression)(g)).Parse(scan)
 }
 
-func parseGroup(scan *structScanner) group {
+func parseGroup(productions map[string]node, scan *structScanner) group {
 	scan.Next() // (
-	n := group(parseExpression(scan))
+	n := group(parseExpression(productions, scan))
 	next := scan.Next()
 	if next != ')' {
 		panic("expected ) but got " + string(next))
@@ -244,7 +368,7 @@ func parseGroup(scan *structScanner) group {
 	return n
 }
 
-func parseQuotedStringOrRange(scan *structScanner) parseNode {
+func parseQuotedStringOrRange(scan *structScanner) node {
 	n := parseQuotedString(scan)
 	if peekNextNonSpace(scan) != '…' {
 		return n
@@ -262,24 +386,25 @@ type srange struct {
 	end   str
 }
 
-func (s srange) Parse(scan Scanner) []reflect.Value {
+func (s srange) Parse(scan Scanner) reflect.Value {
 	panic("not implemented")
 }
 
+// Match a string exactly "..."
 type str string
 
-func (s str) Parse(scan Scanner) []reflect.Value {
+func (s str) Parse(scan Scanner) reflect.Value {
 	out := ""
 	for i, r := range s {
 		if scan.Peek() != r {
 			if i == 0 {
-				return nil
+				return reflect.Value{}
 			}
 			panic("expected '" + s + "'")
 		}
 		out += string(scan.Next())
 	}
-	return oneValue(out)
+	return reflect.ValueOf(out)
 }
 
 func parseQuotedString(scan Scanner) str {
@@ -289,6 +414,7 @@ loop:
 	for {
 		switch scan.Peek() {
 		case '\\':
+			// TODO: Support octal escape codes
 			scan.Next()
 			out.WriteRune(scan.Next())
 		case '"':
@@ -304,13 +430,8 @@ loop:
 }
 
 func peekNextNonSpace(scan Scanner) rune {
-	for {
-		switch scan.Peek() {
-		case ' ', '\t':
-			scan.Next()
-			continue
-		default:
-			return scan.Peek()
-		}
+	for unicode.IsSpace(scan.Peek()) {
+		scan.Next()
 	}
+	return scan.Peek()
 }
