@@ -100,6 +100,10 @@ func TestNested(t *testing.T) {
 		A *nestedInner `@@`
 	}
 
+	type testAccumulateNested struct {
+		A []*nestedInner `@@ { @@ }`
+	}
+
 	parser, err := Parse(&testNested{}, nil)
 	assert.NoError(t, err)
 
@@ -110,8 +114,69 @@ func TestNested(t *testing.T) {
 	assert.Equal(t, expected, actual)
 }
 
+func TestAccumulateNested(t *testing.T) {
+	type nestedInner struct {
+		B string `@"one"`
+		C string `@"two"`
+	}
+	type testAccumulateNested struct {
+		A []*nestedInner `@@ { @@ }`
+	}
+
+	parser, err := Parse(&testAccumulateNested{}, nil)
+	assert.NoError(t, err)
+
+	actual := &testAccumulateNested{}
+	expected := &testAccumulateNested{A: []*nestedInner{{B: "one", C: "two"}, {B: "one", C: "two"}}}
+	err = parser.ParseString("onetwoonetwo", actual)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, actual)
+}
+
 func TestRepitition(t *testing.T) {
 	type testRepitition struct {
-		A []string `{ "." }`
+		A []string `{ @"." }`
+		B *string  `(@"b" |`
+		C *string  ` @"c")`
 	}
+
+	parser, err := Parse(&testRepitition{}, nil)
+	assert.NoError(t, err)
+
+	actual := &testRepitition{}
+	b := "b"
+	c := "c"
+	expected := &testRepitition{
+		A: []string{".", ".", "."},
+		B: &b,
+	}
+	err = parser.ParseString("...b", actual)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, actual)
+
+	actual = &testRepitition{}
+	expected = &testRepitition{
+		A: []string{".", ".", "."},
+		C: &c,
+	}
+	err = parser.ParseString("...c", actual)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, actual)
+}
+
+func TestAccumulateString(t *testing.T) {
+	type testAccumulateString struct {
+		A string `@"." { @"." }`
+	}
+
+	parser, err := Parse(&testAccumulateString{}, nil)
+	assert.NoError(t, err)
+
+	actual := &testAccumulateString{}
+	expected := &testAccumulateString{
+		A: "...",
+	}
+	err = parser.ParseString("...", actual)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, actual)
 }
