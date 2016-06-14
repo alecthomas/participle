@@ -64,6 +64,7 @@ import (
 	"strconv"
 	"text/scanner"
 	"unicode"
+	"unicode/utf8"
 )
 
 // A node in the grammar.
@@ -336,25 +337,24 @@ func parseOptional(productions map[string]node, lexer *structLexer) node {
 }
 
 // { <expr> }
-type repitition struct {
-	fieldReceiver
-	elementType reflect.Type
-}
+type repitition fieldReceiver
 
 func (r *repitition) Parse(lexer Lexer, parent reflect.Value) reflect.Value {
-	for r.node.Parse(lexer, parent).IsValid() {
+	for {
+		v := r.node.Parse(lexer, parent)
+		if !v.IsValid() {
+			break
+		}
+		setField(parent, r.field, v)
 	}
-	return parent
+	return parent.FieldByIndex(r.field.Index)
 }
 
 func parseRepitition(productions map[string]node, lexer *structLexer) node {
 	lexer.Next() // {
 	n := &repitition{
-		fieldReceiver: fieldReceiver{
-			field: lexer.Field(),
-			node:  parseExpression(productions, lexer),
-		},
-		elementType: indirectType(lexer.Field().Type),
+		field: lexer.Field(),
+		node:  parseExpression(productions, lexer),
 	}
 	next := lexer.Next()
 	if next.Type != '}' {
@@ -377,7 +377,7 @@ func parseGroup(productions map[string]node, lexer *structLexer) node {
 func parseQuotedStringOrRange(lexer *structLexer) node {
 	start := parseQuotedString(lexer)
 	if lexer.Peek().Type != '…' {
-		return start
+		return str(start)
 	}
 	if len(start) != 1 {
 		panic("start of range must be 1 character long")
@@ -387,10 +387,12 @@ func parseQuotedStringOrRange(lexer *structLexer) node {
 	if len(end) != 1 {
 		panic("end of range must be 1 character long")
 	}
-	return srange{start, end}
+	startch, _ := utf8.DecodeRuneInString(start)
+	endch, _ := utf8.DecodeRuneInString(end)
+	return srange{startch, endch}
 }
 
-func parseQuotedString(lexer *structLexer) str {
+func parseQuotedString(lexer *structLexer) string {
 	token := lexer.Next()
 	if token.Type != scanner.String && token.Type != scanner.RawString {
 		panic("expected quoted string but got " + token.String())
@@ -399,17 +401,22 @@ func parseQuotedString(lexer *structLexer) str {
 	if err != nil {
 		panic("invalid quoted string " + token.String())
 	}
-	return str(s)
+	return s
 }
 
 // "a" … "b"
 type srange struct {
-	start str
-	end   str
+	start rune
+	end   rune
 }
 
 func (s srange) Parse(lexer Lexer, parent reflect.Value) reflect.Value {
-	panic("not implemented")
+	token := lexer.Peek()
+	if token.Type < s.start || token.Type > s.end {
+		return reflect.Value{}
+	}
+	lexer.Next()
+	return reflect.ValueOf(token.Value)
 }
 
 // Match a string exactly "..."

@@ -15,6 +15,22 @@ func TestProductionReference(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestTermReference(t *testing.T) {
+	type testTermReference struct {
+		A string `@{"."}`
+	}
+
+	parser, err := Parse(&testTermReference{}, nil)
+	assert.NoError(t, err)
+
+	actual := &testTermReference{}
+	expected := &testTermReference{"..."}
+
+	err = parser.ParseString("...", actual)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, actual)
+}
+
 func TestParseScalar(t *testing.T) {
 	type testScalar struct {
 		A string `@"one"`
@@ -186,4 +202,22 @@ func TestAccumulateString(t *testing.T) {
 	err = parser.ParseString("...", actual)
 	assert.NoError(t, err)
 	assert.Equal(t, expected, actual)
+}
+
+func TestRange(t *testing.T) {
+	type testRange struct {
+		A string `@"!" … "/"`
+	}
+
+	parser, err := Parse(&testRange{}, nil)
+	assert.NoError(t, err)
+
+	actual := &testRange{}
+	expected := &testRange{"+"}
+	err = parser.ParseString("+", actual)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, actual)
+
+	err = parser.ParseString("1", actual)
+	assert.Error(t, err)
 }
