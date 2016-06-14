@@ -97,18 +97,18 @@ func Parse(grammar interface{}, aliases interface{}) (parser *Parser, err error)
 
 // Parse from Scanner s into grammar v.
 func (p *Parser) Parse(s Scanner, v interface{}) (err error) {
-	// defer func() {
-	// 	if msg := recover(); msg != nil {
-	// 		err = errors.New(msg.(string))
-	// 	}
-	// }()
+	defer func() {
+		if msg := recover(); msg != nil {
+			err = errors.New(msg.(string))
+		}
+	}()
 	rv := reflect.ValueOf(v)
 	if rv.Kind() != reflect.Ptr || rv.Elem().Kind() != reflect.Struct {
 		return errors.New("target must be a pointer to a struct")
 	}
 	pv := p.root.Parse(s, rv.Elem())
 	if !pv.IsValid() {
-		return errors.New("invalid syntax")
+		return errors.New("did not match")
 	}
 	rv.Elem().Set(reflect.Indirect(pv))
 	return

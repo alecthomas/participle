@@ -162,6 +162,13 @@ func TestRepitition(t *testing.T) {
 	err = parser.ParseString("...c", actual)
 	assert.NoError(t, err)
 	assert.Equal(t, expected, actual)
+	actual = &testRepitition{}
+	expected = &testRepitition{
+		C: &c,
+	}
+	err = parser.ParseString("c", actual)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, actual)
 }
 
 func TestAccumulateString(t *testing.T) {
