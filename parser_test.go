@@ -80,7 +80,7 @@ func TestParseSequence(t *testing.T) {
 
 	actual := &testSequence{}
 	expected := &testSequence{"one", "two", "three"}
-	err = parser.ParseString("onetwothree", actual)
+	err = parser.ParseString("one two three", actual)
 	assert.NoError(t, err)
 	assert.Equal(t, expected, actual)
 
@@ -109,7 +109,7 @@ func TestNested(t *testing.T) {
 
 	actual := &testNested{}
 	expected := &testNested{A: &nestedInner{B: "one", C: "two"}}
-	err = parser.ParseString("onetwo", actual)
+	err = parser.ParseString("one two", actual)
 	assert.NoError(t, err)
 	assert.Equal(t, expected, actual)
 }
@@ -128,7 +128,7 @@ func TestAccumulateNested(t *testing.T) {
 
 	actual := &testAccumulateNested{}
 	expected := &testAccumulateNested{A: []*nestedInner{{B: "one", C: "two"}, {B: "one", C: "two"}}}
-	err = parser.ParseString("onetwoonetwo", actual)
+	err = parser.ParseString("one two one two", actual)
 	assert.NoError(t, err)
 	assert.Equal(t, expected, actual)
 }
