@@ -62,7 +62,3 @@ func (s *structLexer) Position() Position {
 	pos.Line = s.field + 1
 	return pos
 }
-
-func (s *structLexer) Symbols() map[rune]string {
-	return s.lexer.Symbols()
-}

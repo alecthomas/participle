@@ -3,6 +3,7 @@ package parser
 import (
 	"bytes"
 	"io"
+	"strconv"
 	"strings"
 	"text/scanner"
 )
@@ -11,12 +12,19 @@ const (
 	EOF rune = -(iota + 1)
 )
 
-// EOFToken is a Token representing EOF.
-var EOFToken = Token{EOF, ""}
+var (
+	// EOFToken is a Token representing EOF.
+	EOFToken = Token{EOF, "<<EOF>>"}
+
+	// DefaultLexerDefinition defines properties for the default lexer.
+	DefaultLexerDefinition LexerDefinition = &defaultLexerDefinition{}
+)
 
 type Position scanner.Position
 
+// A Token returned by a Lexer.
 type Token struct {
+	// Type of token.
 	Type  rune
 	Value string
 }
@@ -34,6 +42,30 @@ func (t Token) String() string {
 	return t.Value
 }
 
+type LexerDefinition interface {
+	Lex(io.Reader) Lexer
+	Symbols() map[string]rune
+}
+
+type defaultLexerDefinition struct{}
+
+func (d *defaultLexerDefinition) Lex(r io.Reader) Lexer {
+	return Lex(r)
+}
+
+func (d *defaultLexerDefinition) Symbols() map[string]rune {
+	return map[string]rune{
+		"EOF":       scanner.EOF,
+		"Ident":     scanner.Ident,
+		"Int":       scanner.Int,
+		"Float":     scanner.Float,
+		"Char":      scanner.Char,
+		"String":    scanner.String,
+		"RawString": scanner.RawString,
+		"Comment":   scanner.Comment,
+	}
+}
+
 // A Lexer returns tokens from a source.
 type Lexer interface {
 	// Peek at the next token.
@@ -42,10 +74,6 @@ type Lexer interface {
 	Next() Token
 	// Position returns the current cursor position in the input.
 	Position() Position
-
-	// Symbols is the table of token types (runes) supported by this Lexer, mapped to their symbol
-	// names. It is used by the parser generator to support recognition of tokens, eg. @Ident
-	Symbols() map[rune]string
 }
 
 // textScannerLexer is a Lexer based on text/scanner.Scanner
@@ -55,6 +83,8 @@ type textScannerLexer struct {
 }
 
 // Lex an io.Reader with text/scanner.Scanner.
+//
+// Note that this differs from text/scanner.Scanner in that string tokens will be unquoted.
 func Lex(r io.Reader) Lexer {
 	lexer := &textScannerLexer{}
 	lexer.scanner.Error = func(s *scanner.Scanner, msg string) {
@@ -87,23 +117,18 @@ func (t *textScannerLexer) Peek() Token {
 			Type:  t.scanner.Scan(),
 			Value: t.scanner.TokenText(),
 		}
+		// Unquote strings.
+		if t.peek.Type == scanner.String || t.peek.Type == scanner.RawString {
+			s, err := strconv.Unquote(t.peek.Value)
+			if err != nil {
+				panic(err.Error())
+			}
+			t.peek.Value = s
+		}
 	}
 	return *t.peek
 }
 
 func (t *textScannerLexer) Position() Position {
 	return Position(t.scanner.Pos())
-}
-
-func (t *textScannerLexer) Symbols() map[rune]string {
-	return map[rune]string{
-		scanner.EOF:       "EOF",
-		scanner.Ident:     "Ident",
-		scanner.Int:       "Int",
-		scanner.Float:     "Float",
-		scanner.Char:      "Char",
-		scanner.String:    "String",
-		scanner.RawString: "RawString",
-		scanner.Comment:   "Comment",
-	}
 }

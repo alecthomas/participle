@@ -14,8 +14,8 @@ This allows the grammar syntax to remain clear and simple to maintain.
 ## Annotation syntax
 
 - `@<term>` Capture term into the field.
-  - `@@` Recursively capture using the fields own type.
-  - `@Identifier` Map token of the given name onto the field.
+- `@@` Recursively capture using the fields own type.
+- `<identifier>` Match named lexer token.
 - `{ ... }` Match 0 or more times.
 - `( ... )` Group.
 - `[ ... ]` Optional.

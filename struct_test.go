@@ -48,7 +48,7 @@ func TestStructScanner(t *testing.T) {
 		f = append(f, r.Field())
 		s += string(rn.String())
 	}
-	assert.Equal(t, `"a"|"b"`, s)
+	assert.Equal(t, `a|b`, s)
 	f0 := gt.Field(0)
 	f1 := gt.Field(1)
 	assert.Equal(t, []reflect.StructField{f0, f0, f1}, f)

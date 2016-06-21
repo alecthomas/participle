@@ -221,3 +221,138 @@ func TestRange(t *testing.T) {
 	err = parser.ParseString("1", actual)
 	assert.Error(t, err)
 }
+
+type Group struct {
+	Expression *Expression `"(" @@ ")"`
+}
+
+type Option struct {
+	Expression *Expression `"[" @@ "]"`
+}
+
+type Repetition struct {
+	Expression *Expression `"{" @@ "}"`
+}
+
+type TokenRange struct {
+	Start string  `@String` // Lexer token "String"
+	End   *string `[ "…" @String ]`
+}
+
+type Term struct {
+	Name       *string     `@Ident |`
+	TokenRange *TokenRange `@@ |`
+	Group      *Group      `@@ |`
+	Option     *Option     `@@ |`
+	Repetition *Repetition `@@`
+}
+
+type Expression struct {
+	Alternatives []*Term `@@ { "|" @@ }`
+}
+
+type Production struct {
+	Name       string        `@Ident "="`
+	Expression []*Expression `@@ { @@ } "."`
+}
+
+type EBNF struct {
+	Productions []*Production `{ @@ }`
+}
+
+func TestEBNF(t *testing.T) {
+	parser, err := Parse(&EBNF{}, nil)
+	assert.NoError(t, err)
+
+	expected := &EBNF{
+		Productions: []*Production{
+			&Production{
+				Name: "A",
+				Expression: []*Expression{
+					&Expression{
+						Alternatives: []*Term{
+							{TokenRange: &TokenRange{Start: "a"}},
+						},
+					},
+					&Expression{
+						Alternatives: []*Term{
+							{TokenRange: &TokenRange{Start: "b"}},
+						},
+					},
+					&Expression{
+						Alternatives: []*Term{
+							&Term{
+								Option: &Option{
+									Expression: &Expression{
+										Alternatives: []*Term{
+											&Term{
+												TokenRange: &TokenRange{
+													Start: "c",
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	actual := &EBNF{}
+
+	err = parser.ParseString(`A = "a" "b" [ "c" ].`, actual)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, actual)
+}
+
+func TestParseType(t *testing.T) {
+}
+
+func TestParseExpression(t *testing.T) {
+}
+
+func TestParseTokenReference(t *testing.T) {
+}
+
+func TestParseOptional(t *testing.T) {
+	type testOptional struct {
+		A string `@[ "a" "b" ]`
+		B string `@"c"`
+	}
+
+	parser, err := Parse(&testOptional{}, nil)
+	assert.NoError(t, err)
+
+	expected := &testOptional{B: "c"}
+	actual := &testOptional{}
+	err = parser.ParseString(`c`, actual)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, actual)
+}
+
+func TestParseRepitition(t *testing.T) {
+}
+
+func TestParseQuotedStringOrRange(t *testing.T) {
+}
+
+func TestParseQuotedString(t *testing.T) {
+}
+
+func TestHello(t *testing.T) {
+	type testHello struct {
+		Hello string `@"hello"`
+		To    string `@String`
+	}
+
+	parser, err := Parse(&testHello{}, nil)
+	assert.NoError(t, err)
+
+	expected := &testHello{"hello", "Bobby Brown"}
+	actual := &testHello{}
+	err = parser.ParseString(`hello "Bobby Brown"`, actual)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, actual)
+}

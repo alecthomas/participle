@@ -4,16 +4,16 @@
 //
 // The annotation syntax supported is:
 //
-// - `@<term>` Capture term into the field.
-//   - `@@` Recursively capture using the fields own type.
-//   - `@Identifier` Map token of the given name onto the field.
+// - `@<expr>` Capture subexpression into the field.
+// - `@@` Recursively capture using the fields own type.
+// - `@Identifier` Match token of the given name and capture it.
 // - `{ ... }` Match 0 or more times.
 // - `( ... )` Group.
 // - `[ ... ]` Optional.
 // - `"..."` Match the literal.
 // - `"."…"."` Match rune in range.
 // - `.` Period matches any single character.
-// - `... | ...` Match one of the alternatives.
+// - `<expr> | <expr>` Match one of the alternatives.
 //
 // Here's an example of an EBNF grammar.
 //
@@ -57,13 +57,13 @@
 package parser
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
 	"reflect"
-	"strconv"
+	"strings"
 	"text/scanner"
-	"unicode"
 	"unicode/utf8"
 )
 
@@ -71,53 +71,85 @@ import (
 type node interface {
 	// Parse from scanner into value.
 	Parse(lexer Lexer, parent reflect.Value) reflect.Value
+	String() string
 }
 
 type Parser struct {
-	root node
+	root  node
+	lexer LexerDefinition
+}
+
+type generatorContext struct {
+	LexerDefinition
+	typeNodes map[reflect.Type]node
+}
+
+func (g *generatorContext) memoize(t reflect.Type, n node) node {
+	g.typeNodes[t] = n
+	return n
 }
 
 // Generate a parser for the given grammar.
-func Parse(grammar interface{}, aliases interface{}) (parser *Parser, err error) {
+func Parse(grammar interface{}, lexer LexerDefinition) (parser *Parser, err error) {
 	defer func() {
 		if msg := recover(); msg != nil {
 			err = errors.New(msg.(string))
 		}
 	}()
-	productions := map[string]node{}
-	root := parseType(productions, reflect.TypeOf(grammar))
-	return &Parser{root: root}, nil
+	if lexer == nil {
+		lexer = DefaultLexerDefinition
+	}
+	context := &generatorContext{
+		LexerDefinition: lexer,
+		typeNodes:       map[reflect.Type]node{},
+	}
+	root := parseType(context, reflect.TypeOf(grammar))
+	return &Parser{root: root, lexer: lexer}, nil
+}
+
+func (p *Parser) String() string {
+	return p.root.String()
+}
+
+type namedReader interface {
+	Name() string
 }
 
 // Parse from Lexer l into grammar v.
-func (p *Parser) Parse(l Lexer, v interface{}) (err error) {
+func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
+	lexer := p.lexer.Lex(r)
 	defer func() {
 		if msg := recover(); msg != nil {
-			err = errors.New(msg.(string))
+			pos := lexer.Position()
+			if pos.Filename == "" {
+				if named, ok := r.(namedReader); ok {
+					pos.Filename = named.Name()
+				} else {
+					pos.Filename = "<source>"
+				}
+			}
+			err = fmt.Errorf("%s:%d:%d: %s (near %q)",
+				pos.Filename, pos.Line, pos.Column, msg, lexer.Peek())
 		}
 	}()
 	rv := reflect.ValueOf(v)
 	if rv.Kind() != reflect.Ptr || rv.Elem().Kind() != reflect.Struct {
 		return errors.New("target must be a pointer to a struct")
 	}
-	pv := p.root.Parse(l, rv.Elem())
+	pv := p.root.Parse(lexer, rv.Elem())
 	if !pv.IsValid() {
-		return errors.New("did not match")
+		panicf("did not match")
 	}
 	rv.Elem().Set(reflect.Indirect(pv))
 	return
 }
 
-func (p *Parser) ParseReader(r io.Reader, v interface{}) error {
-	return p.Parse(Lex(r), v)
-}
-
 func (p *Parser) ParseString(s string, v interface{}) error {
-	return p.Parse(LexString(s), v)
+	return p.Parse(strings.NewReader(s), v)
 }
 
 func (p *Parser) ParseBytes(b []byte, v interface{}) error {
-	return p.Parse(LexBytes(b), v)
+	return p.Parse(bytes.NewReader(b), v)
 }
 
 func decorate(name string) {
@@ -127,27 +159,26 @@ func decorate(name string) {
 }
 
 // Takes a type and builds a tree of nodes out of it.
-func parseType(productions map[string]node, t reflect.Type) node {
+func parseType(context *generatorContext, t reflect.Type) node {
 	defer decorate(t.Name())
+	if n, ok := context.typeNodes[t]; ok {
+		return n
+	}
 	switch t.Kind() {
-	case reflect.Slice:
-		elem := indirectType(t.Elem())
-		lexer := newStructLexer(elem)
-		e := parseExpression(productions, lexer)
-		if !lexer.Peek().EOF() {
-			panic("unexpected input " + string(lexer.Peek().Value))
-		}
-		return &strct{typ: t, expr: e}
-	case reflect.Struct:
-		lexer := newStructLexer(t)
-		e := parseExpression(productions, lexer)
-		if !lexer.Peek().EOF() {
-			panic("unexpected input " + string(lexer.Peek().Value))
-		}
-		return &strct{typ: t, expr: e}
+	case reflect.Slice, reflect.Ptr:
+		t = indirectType(t.Elem())
+		fallthrough
 
-	case reflect.Ptr:
-		return parseType(productions, t.Elem())
+	case reflect.Struct:
+		out := &strct{typ: t}
+		context.typeNodes[t] = out
+		slexer := newStructLexer(t)
+		e := parseExpression(context, slexer)
+		if !slexer.Peek().EOF() {
+			panic("unexpected input " + string(slexer.Peek().Value))
+		}
+		out.expr = e
+		return out
 	}
 	panic("expected struct type but got " + t.String())
 }
@@ -157,13 +188,29 @@ type strct struct {
 	expr node
 }
 
+func (s *strct) String() string {
+	return fmt.Sprintf("strct(type=%s, expr=%s)", s.typ, s.expr)
+}
+
 func (s *strct) Parse(lexer Lexer, parent reflect.Value) reflect.Value {
 	sv := reflect.New(s.typ).Elem()
-	return s.expr.Parse(lexer, sv)
+	v := s.expr.Parse(lexer, sv)
+	if !v.IsValid() {
+		return v
+	}
+	return sv
 }
 
 // <expr> {"|" <expr>}
 type expression []node
+
+func (e expression) String() string {
+	out := []string{}
+	for _, n := range e {
+		out = append(out, n.String())
+	}
+	return strings.Join(out, "|")
+}
 
 func (e expression) Parse(lexer Lexer, parent reflect.Value) reflect.Value {
 	for _, a := range e {
@@ -174,20 +221,28 @@ func (e expression) Parse(lexer Lexer, parent reflect.Value) reflect.Value {
 	return reflect.Value{}
 }
 
-func parseExpression(productions map[string]node, lexer *structLexer) node {
+func parseExpression(context *generatorContext, slexer *structLexer) node {
 	out := expression{}
 	for {
-		out = append(out, parseAlternative(productions, lexer))
-		if lexer.Peek().Type != '|' {
+		out = append(out, parseAlternative(context, slexer))
+		if slexer.Peek().Type != '|' {
 			break
 		}
-		lexer.Next() // |
+		slexer.Next() // |
 	}
 	return out
 }
 
-// <node> {<node>}
+// <node> ...
 type alternative []node
+
+func (a alternative) String() string {
+	out := []string{}
+	for _, n := range a {
+		out = append(out, n.String())
+	}
+	return fmt.Sprintf("(%s)", strings.Join(out, " "))
+}
 
 func (a alternative) Parse(lexer Lexer, parent reflect.Value) reflect.Value {
 	var value reflect.Value
@@ -198,21 +253,21 @@ func (a alternative) Parse(lexer Lexer, parent reflect.Value) reflect.Value {
 			if i == 0 {
 				return reflect.Value{}
 			}
-			panic("expression did not match")
+			panicf("%s did not match", n)
 		}
 	}
 	return value
 }
 
-func parseAlternative(productions map[string]node, lexer *structLexer) node {
+func parseAlternative(context *generatorContext, slexer *structLexer) node {
 	elements := alternative{}
 loop:
 	for {
-		switch lexer.Peek().Type {
+		switch slexer.Peek().Type {
 		case EOF:
 			break loop
 		default:
-			term := parseTerm(productions, lexer)
+			term := parseTerm(context, slexer)
 			if term == nil {
 				break loop
 			}
@@ -225,6 +280,10 @@ loop:
 // .
 type dot struct{}
 
+func (d dot) String() string {
+	return "."
+}
+
 func (d dot) Parse(lexer Lexer, parent reflect.Value) reflect.Value {
 	r := lexer.Next()
 	if r.EOF() {
@@ -233,82 +292,89 @@ func (d dot) Parse(lexer Lexer, parent reflect.Value) reflect.Value {
 	return reflect.ValueOf(r)
 }
 
-// @@
-type self fieldReceiver
-
-func (s *self) Parse(lexer Lexer, parent reflect.Value) reflect.Value {
-	v := s.node.Parse(lexer, parent)
-	if v.IsValid() {
-		setField(parent, s.field, v)
-		return parent
-	}
-	return reflect.Value{}
-}
-
 // @<expr>
 type reference fieldReceiver
 
+func (r *reference) String() string {
+	return fmt.Sprintf("@(field=%s, node=%s)", r.field.Name, r.node)
+}
+
 func (r *reference) Parse(lexer Lexer, parent reflect.Value) reflect.Value {
 	v := r.node.Parse(lexer, parent)
-	if v.IsValid() {
-		setField(parent, r.field, v)
-		return parent
+	if !v.IsValid() {
+		return v
 	}
-	return reflect.Value{}
+	setField(parent, r.field, v)
+	return v
 }
 
-func isIdentifierStart(r rune) bool {
-	return unicode.IsLetter(r) || r == '_'
-}
-
-func parseTerm(productions map[string]node, lexer *structLexer) node {
-	r := lexer.Peek()
+func parseTerm(context *generatorContext, slexer *structLexer) node {
+	r := slexer.Peek()
 	switch r.Type {
 	case '.':
-		lexer.Next()
+		slexer.Next()
 		return dot{}
 	case '@':
-		lexer.Next()
-		r := lexer.Peek()
-		f := lexer.Field()
-		if r.Type == '@' {
-			lexer.Next()
-			defer decorate(f.Name)
-			return &self{f, parseType(productions, indirectType(f.Type))}
+		slexer.Next()
+		token := slexer.Peek()
+		field := slexer.Field()
+		if token.Type == '@' {
+			slexer.Next()
+			defer decorate(field.Name)
+			return &reference{field, parseType(context, indirectType(field.Type))}
 		}
-		if indirectType(f.Type).Kind() == reflect.Struct {
+		if indirectType(field.Type).Kind() == reflect.Struct {
 			panic("structs can only be parsed with @@")
 		}
-		return &reference{f, parseTerm(productions, lexer)}
+		return &reference{field, parseTerm(context, slexer)}
 	case scanner.String, scanner.RawString:
-		return parseQuotedStringOrRange(lexer)
+		return parseQuotedStringOrRange(slexer)
 	case '[':
-		return parseOptional(productions, lexer)
+		return parseOptional(context, slexer)
 	case '{':
-		return parseRepitition(productions, lexer)
+		return parseRepitition(context, slexer)
 	case '(':
-		return parseGroup(productions, lexer)
-	case EOF:
-		return nil
+		return parseGroup(context, slexer)
 	case scanner.Ident:
-		return parseProductionReference(productions, lexer)
+		return parseTokenReference(context, slexer)
+	case EOF:
+		slexer.Next()
+		return nil
 	default:
 		return nil
 	}
 }
 
-// A reference in the form @<identifier> refers to an existing production,
+type tokenReference struct {
+	typ        rune
+	identifier string
+}
+
+func (t *tokenReference) String() string {
+	return fmt.Sprintf("token(%q)", t.identifier)
+}
+
+func (t *tokenReference) Parse(lexer Lexer, parent reflect.Value) reflect.Value {
+	token := lexer.Peek()
+	if token.Type != t.typ {
+		return reflect.Value{}
+	}
+	lexer.Next()
+	return reflect.ValueOf(token.Value)
+}
+
+// A reference in the form <identifier> refers to an existing production,
 // typically from the lexer struct provided to Parse().
-func parseProductionReference(productions map[string]node, lexer *structLexer) node {
-	token := lexer.Next()
+func parseTokenReference(context *generatorContext, slexer *structLexer) node {
+	token := slexer.Next()
 	if token.Type != scanner.Ident {
 		panic("expected identifier")
 	}
-	alias, ok := productions[token.Value]
+	typ, ok := context.Symbols()[token.Value]
 	if !ok {
-		panic(fmt.Sprintf("unknown production %q", token.String()))
+		panicf("unknown token type %q", token.String())
 	}
-	return alias
+	return &tokenReference{typ, token.Value}
 }
 
 type fieldReceiver struct {
@@ -321,56 +387,91 @@ type optional struct {
 	node node
 }
 
-func (o optional) Parse(lexer Lexer, parent reflect.Value) reflect.Value {
-	panic("not implemented")
+func (o *optional) String() string {
+	return fmt.Sprintf("[%s]", o.node)
 }
 
-func parseOptional(productions map[string]node, lexer *structLexer) node {
-	lexer.Next() // [
-	optional := optional{parseExpression(productions, lexer)}
-	next := lexer.Peek()
+func (o *optional) Parse(lexer Lexer, parent reflect.Value) reflect.Value {
+	v := o.node.Parse(lexer, parent)
+	if !v.IsValid() {
+		// FIXME(alec): This is a bit of a hack. Without this, the optional itself is treated as
+		// invalid and parsing backtracks, even though it should "match" nothing.
+		// A fix is to return some kind of sentinel value that @ recognises and discards.
+		return reflect.ValueOf("")
+	}
+	return v
+}
+
+func parseOptional(context *generatorContext, slexer *structLexer) node {
+	slexer.Next() // [
+	optional := &optional{parseExpression(context, slexer)}
+	next := slexer.Peek()
 	if next.Type != ']' {
 		panic("expected ] but got " + next.String())
 	}
-	lexer.Next()
+	slexer.Next()
 	return optional
 }
 
 // { <expr> }
 type repitition fieldReceiver
 
-func (r *repitition) Parse(lexer Lexer, parent reflect.Value) reflect.Value {
+func (r *repitition) String() string {
+	return fmt.Sprintf("{ %s }", r.node)
+}
+
+func (r *repitition) Parse(lexer Lexer, parent reflect.Value) (out reflect.Value) {
+	switch r.field.Type.Kind() {
+	case reflect.Slice:
+		out = reflect.MakeSlice(r.field.Type, 0, 0)
+	default:
+		typ := indirectType(r.field.Type)
+		if typ.Kind() == reflect.String {
+			out = reflect.New(typ).Elem()
+		} else {
+			panicf("can't accumulate into %s", r.field.Type)
+		}
+	}
 	for {
 		v := r.node.Parse(lexer, parent)
 		if !v.IsValid() {
 			break
 		}
-		setField(parent, r.field, v)
+		if out.Type().Kind() == reflect.Slice && out.Type().Elem().Kind() == reflect.Ptr {
+			v = v.Addr()
+		}
+		switch r.field.Type.Kind() {
+		case reflect.Slice:
+			out = reflect.Append(out, v)
+		case reflect.String:
+			out = reflect.ValueOf(out.String() + v.String())
+		}
 	}
-	return parent.FieldByIndex(r.field.Index)
+	return out
 }
 
-func parseRepitition(productions map[string]node, lexer *structLexer) node {
-	lexer.Next() // {
+func parseRepitition(context *generatorContext, slexer *structLexer) node {
+	field := slexer.Field()
+	slexer.Next() // {
 	n := &repitition{
-		field: lexer.Field(),
-		node:  parseExpression(productions, lexer),
+		field: field,
+		node:  parseExpression(context, slexer),
 	}
-	next := lexer.Next()
+	next := slexer.Next()
 	if next.Type != '}' {
 		panic("expected } but got " + next.String())
 	}
 	return n
 }
 
-func parseGroup(productions map[string]node, lexer *structLexer) node {
-	lexer.Next() // (
-	n := parseExpression(productions, lexer)
-	next := lexer.Peek() // )
+func parseGroup(context *generatorContext, slexer *structLexer) node {
+	slexer.Next() // (
+	n := parseExpression(context, slexer)
+	next := slexer.Peek() // )
 	if next.Type != ')' {
 		panic("expected ) but got " + next.Value)
 	}
-	lexer.Next() // )
+	slexer.Next() // )
 	return n
 }
 
@@ -397,17 +498,17 @@ func parseQuotedString(lexer *structLexer) string {
 	if token.Type != scanner.String && token.Type != scanner.RawString {
 		panic("expected quoted string but got " + token.String())
 	}
-	s, err := strconv.Unquote(token.Value)
-	if err != nil {
-		panic("invalid quoted string " + token.String())
-	}
-	return s
+	return token.Value
 }
 
 // "a" … "b"
 type srange struct {
 	start rune
 	end   rune
+}
+
+func (s srange) String() string {
+	return fmt.Sprintf("%q … %q", s.start, s.end)
 }
 
 func (s srange) Parse(lexer Lexer, parent reflect.Value) reflect.Value {
@@ -422,6 +523,10 @@ func (s srange) Parse(lexer Lexer, parent reflect.Value) reflect.Value {
 // Match a string exactly "..."
 type str string
 
+func (s str) String() string {
+	return fmt.Sprintf("%q", string(s))
+}
+
 func (s str) Parse(lexer Lexer, parent reflect.Value) reflect.Value {
 	token := lexer.Peek()
 	if token.Value != string(s) {
@@ -433,16 +538,17 @@ func (s str) Parse(lexer Lexer, parent reflect.Value) reflect.Value {
 // Set field.
 //
 // If field is a pointer the pointer will be set to the value. If field is a string, value will be
-// appended.
-func setField(s reflect.Value, field reflect.StructField, fieldValue reflect.Value) {
+// appended. If field is a slice, value will be appended to slice.
+func setField(strct reflect.Value, field reflect.StructField, fieldValue reflect.Value) {
 	fieldValue = reflect.Indirect(fieldValue)
-	f := s.FieldByIndex(field.Index)
+	f := strct.FieldByIndex(field.Index)
 	switch f.Kind() {
 	case reflect.Slice:
 		if fieldValue.Kind() == reflect.Struct {
 			fieldValue = fieldValue.Addr()
 		}
 		f.Set(reflect.Append(f, fieldValue))
+
 	case reflect.Ptr:
 		ptr := reflect.New(fieldValue.Type())
 		ptr.Elem().Set(fieldValue)
@@ -462,4 +568,8 @@ func indirectType(t reflect.Type) reflect.Type {
 		return indirectType(t.Elem())
 	}
 	return t
+}
+
+func panicf(f string, args ...interface{}) {
+	panic(fmt.Sprintf(f, args...))
 }
