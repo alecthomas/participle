@@ -13,10 +13,10 @@ type structLexer struct {
 	r     *strings.Reader
 }
 
-func newStructLexer(s reflect.Type) *structLexer {
+func lexStruct(s reflect.Type) *structLexer {
 	return &structLexer{
 		s:     s,
-		lexer: LexString(string(s.Field(0).Tag)),
+		lexer: LexString(fieldLexerTag(s.Field(0))),
 	}
 }
 
@@ -42,7 +42,8 @@ func (s *structLexer) Peek() Token {
 		if field >= s.s.NumField() {
 			return EOFToken
 		}
-		lexer = LexString(string(s.s.Field(field).Tag))
+		tag := fieldLexerTag(s.s.Field(field))
+		lexer = LexString(tag)
 	}
 }
 
@@ -55,7 +56,8 @@ func (s *structLexer) Next() Token {
 		return EOFToken
 	}
 	s.field++
-	s.lexer = LexString(string(s.s.Field(s.field).Tag))
+	tag := fieldLexerTag(s.s.Field(s.field))
+	s.lexer = LexString(tag)
 	return s.Next()
 }
 
@@ -63,4 +65,11 @@ func (s *structLexer) Position() Position {
 	pos := s.lexer.Position()
 	pos.Line = s.field + 1
 	return pos
+}
+
+func fieldLexerTag(field reflect.StructField) string {
+	if tag := field.Tag.Get("parser"); tag != "" {
+		return tag
+	}
+	return string(field.Tag)
 }

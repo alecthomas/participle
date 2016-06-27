@@ -167,7 +167,7 @@ func parseType(context *generatorContext, t reflect.Type) node {
 	case reflect.Struct:
 		out := &strct{typ: t}
 		context.typeNodes[t] = out
-		slexer := newStructLexer(t)
+		slexer := lexStruct(t)
 		e := parseExpression(context, slexer)
 		if !slexer.Peek().EOF() {
 			panic("unexpected input " + string(slexer.Peek().Value))

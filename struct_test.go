@@ -14,7 +14,7 @@ func TestStructLexerTokens(t *testing.T) {
 		B string `34`
 	}
 
-	scan := newStructLexer(reflect.TypeOf(testScanner{}))
+	scan := lexStruct(reflect.TypeOf(testScanner{}))
 	t12 := Token{scanner.Int, "12"}
 	t34 := Token{scanner.Int, "34"}
 	assert.Equal(t, t12, scan.Peek())
@@ -36,7 +36,7 @@ func TestStructLexer(t *testing.T) {
 	}{}
 
 	gt := reflect.TypeOf(g)
-	r := newStructLexer(gt)
+	r := lexStruct(gt)
 	f := []reflect.StructField{}
 	s := ""
 	for {
