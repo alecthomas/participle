@@ -20,6 +20,7 @@ var (
 	DefaultLexerDefinition LexerDefinition = &defaultLexerDefinition{}
 )
 
+// Position of a token.
 type Position scanner.Position
 
 // A Token returned by a Lexer.
@@ -80,13 +81,16 @@ type Lexer interface {
 type textScannerLexer struct {
 	scanner scanner.Scanner
 	peek    *Token
+	pos     scanner.Position
 }
 
 // Lex an io.Reader with text/scanner.Scanner.
 //
 // Note that this differs from text/scanner.Scanner in that string tokens will be unquoted.
 func Lex(r io.Reader) Lexer {
-	lexer := &textScannerLexer{}
+	lexer := &textScannerLexer{
+		pos: scanner.Position{Column: 1, Line: 1},
+	}
 	lexer.scanner.Error = func(s *scanner.Scanner, msg string) {
 		panic(msg)
 	}
@@ -94,10 +98,12 @@ func Lex(r io.Reader) Lexer {
 	return lexer
 }
 
+// LexString returns a new default lexer over bytes.
 func LexBytes(b []byte) Lexer {
 	return Lex(bytes.NewReader(b))
 }
 
+// LexString returns a new default lexer over a string.
 func LexString(s string) Lexer {
 	return Lex(strings.NewReader(s))
 }
@@ -113,6 +119,7 @@ func (t *textScannerLexer) Next() Token {
 
 func (t *textScannerLexer) Peek() Token {
 	if t.peek == nil {
+		t.pos = t.scanner.Pos()
 		t.peek = &Token{
 			Type:  t.scanner.Scan(),
 			Value: t.scanner.TokenText(),
@@ -130,5 +137,5 @@ func (t *textScannerLexer) Peek() Token {
 }
 
 func (t *textScannerLexer) Position() Position {
-	return Position(t.scanner.Pos())
+	return Position(t.pos)
 }

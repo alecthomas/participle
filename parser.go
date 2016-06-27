@@ -84,11 +84,6 @@ type generatorContext struct {
 	typeNodes map[reflect.Type]node
 }
 
-func (g *generatorContext) memoize(t reflect.Type, n node) node {
-	g.typeNodes[t] = n
-	return n
-}
-
 // Generate a parser for the given grammar.
 func Parse(grammar interface{}, lexer LexerDefinition) (parser *Parser, err error) {
 	defer func() {
@@ -138,7 +133,7 @@ func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
 	}
 	pv := p.root.Parse(lexer, rv.Elem())
 	if !pv.IsValid() {
-		panicf("did not match")
+		panic("invalid syntax")
 	}
 	rv.Elem().Set(reflect.Indirect(pv))
 	return
@@ -253,7 +248,7 @@ func (a alternative) Parse(lexer Lexer, parent reflect.Value) reflect.Value {
 			if i == 0 {
 				return reflect.Value{}
 			}
-			panicf("%s did not match", n)
+			panicf("expected %s", n)
 		}
 	}
 	return value

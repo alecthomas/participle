@@ -20,10 +20,12 @@ func newStructLexer(s reflect.Type) *structLexer {
 	}
 }
 
+// NumField returns the number of fields in the struct associated with this structLexer.
 func (s *structLexer) NumField() int {
 	return s.s.NumField()
 }
 
+// Field returns the field associated with the current token.
 func (s *structLexer) Field() reflect.StructField {
 	return s.s.Field(s.field)
 }

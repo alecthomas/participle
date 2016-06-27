@@ -8,7 +8,7 @@ import (
 	"github.com/alecthomas/assert"
 )
 
-func TestScanner(t *testing.T) {
+func TestStructLexerTokens(t *testing.T) {
 	type testScanner struct {
 		A string `12`
 		B string `34`
@@ -29,7 +29,7 @@ func TestScanner(t *testing.T) {
 	assert.Equal(t, EOFToken, scan.Next())
 }
 
-func TestStructScanner(t *testing.T) {
+func TestStructLexer(t *testing.T) {
 	g := struct {
 		A string `"a"|`
 		B string `"b"`
