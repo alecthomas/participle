@@ -118,20 +118,21 @@ func (t *textScannerLexer) Next() Token {
 }
 
 func (t *textScannerLexer) Peek() Token {
-	if t.peek == nil {
-		t.pos = t.scanner.Pos()
-		t.peek = &Token{
-			Type:  t.scanner.Scan(),
-			Value: t.scanner.TokenText(),
+	if t.peek != nil {
+		return *t.peek
+	}
+	t.pos = t.scanner.Pos()
+	t.peek = &Token{
+		Type:  t.scanner.Scan(),
+		Value: t.scanner.TokenText(),
+	}
+	// Unquote strings.
+	if t.peek.Type == scanner.String || t.peek.Type == scanner.RawString {
+		s, err := strconv.Unquote(t.peek.Value)
+		if err != nil {
+			panic(err.Error())
 		}
-		// Unquote strings.
-		if t.peek.Type == scanner.String || t.peek.Type == scanner.RawString {
-			s, err := strconv.Unquote(t.peek.Value)
-			if err != nil {
-				panic(err.Error())
-			}
-			t.peek.Value = s
-		}
+		t.peek.Value = s
 	}
 	return *t.peek
 }

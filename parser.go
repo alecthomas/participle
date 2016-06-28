@@ -17,43 +17,50 @@
 //
 // Here's an example of an EBNF grammar.
 //
-//     type EBNF struct {
-//       Productions []*Production
-//     }
+// 		type Group struct {
+// 			Expression *Expression `"(" @@ ")""`
+// 		}
 //
-//     type Production struct {
-//       Name       string      `@Ident "="`
-//       Expression *Expression `[ @@ ] "."`
-//     }
+// 		type Option struct {
+// 			Expression *Expression `"[" @@ "]""`
+// 		}
 //
-//     type Expression struct {
-//       Alternatives []*Term `@@ { "|" @@ }`
-//     }
+// 		type Repetition struct {
+// 			Expression *Expression `"{" @@ "}""`
+// 		}
 //
-//     type Term struct {
-//       Name       *string       `@Ident |`
-//       TokenRange *TokenRange   `@@ |`
-//       Group      *Group        `@@ |`
-//       Option     *Option       `@@ |`
-//       Repetition *Repetition   `@@`
-//     }
+// 		type Literal struct {
+// 			Start string `@String"` // Lexer token "String""
+// 			End   string `[ "…" @String ]"`
+// 		}
 //
-//     type Group struct {
-//       Expression *Expression `"(" @@ ")"`
-//     }
+// 		type Term struct {
+// 			Name       string      `@Ident |"`
+// 			Literal    *Literal    `@@ |"`
+// 			Group      *Group      `@@ |"`
+// 			Option     *Option     `@@ |"`
+// 			Repetition *Repetition `@@"`
+// 		}
 //
-//     type Option struct {
-//       Expression *Expression `"[" @@ "]"`
-//     }
+// 		type Sequence struct {
+// 			Terms []*Term `@@ { @@ }"`
+// 		}
 //
-//     type Repetition struct {
-//       Expression *Expression `"{" @@ "}"`
-//     }
+// 		type Expression struct {
+// 			Alternatives []*Sequence `@@ { "|" @@ }"`
+// 		}
 //
-//     type TokenRange struct {
-//       Start string  `@String` // Lexer token "String"
-//       End   *string ` [ "…" @String ]`
-//     }
+// 		type Expressions []*Expression
+//
+// 		type Production struct {
+// 			Name        string      `@Ident "=""`
+// 			Expressions Expressions `@@ { @@ } ".""`
+// 		}
+//
+// 		type EBNF struct {
+// 			Productions []*Production `{ @@ }"`
+// 		}
+
 package parser
 
 import (
