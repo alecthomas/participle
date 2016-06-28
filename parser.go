@@ -151,7 +151,7 @@ func decorate(name string) {
 
 // Takes a type and builds a tree of nodes out of it.
 func parseType(context *generatorContext, t reflect.Type) node {
-	defer decorate(t.Name())
+	defer decorate(indirectType(t).Name())
 	if n, ok := context.typeNodes[t]; ok {
 		return n
 	}
@@ -164,6 +164,11 @@ func parseType(context *generatorContext, t reflect.Type) node {
 		out := &strct{typ: t}
 		context.typeNodes[t] = out
 		slexer := lexStruct(t)
+		defer func() {
+			if msg := recover(); msg != nil {
+				panic(slexer.Field().Name + ": " + msg.(string))
+			}
+		}()
 		e := parseExpression(context, slexer)
 		if !slexer.Peek().EOF() {
 			panic("unexpected input " + string(slexer.Peek().Value))
