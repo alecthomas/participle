@@ -2,10 +2,12 @@ package parser
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"strconv"
 	"strings"
 	"text/scanner"
+	"unicode/utf8"
 )
 
 const (
@@ -57,10 +59,10 @@ func (d *defaultLexerDefinition) Lex(r io.Reader) Lexer {
 func (d *defaultLexerDefinition) Symbols() map[string]rune {
 	return map[string]rune{
 		"EOF":       scanner.EOF,
+		"Char":      scanner.Char,
 		"Ident":     scanner.Ident,
 		"Int":       scanner.Int,
 		"Float":     scanner.Float,
-		"Char":      scanner.Char,
 		"String":    scanner.String,
 		"RawString": scanner.RawString,
 		"Comment":   scanner.Comment,
@@ -79,7 +81,7 @@ type Lexer interface {
 
 // textScannerLexer is a Lexer based on text/scanner.Scanner
 type textScannerLexer struct {
-	scanner scanner.Scanner
+	scanner *scanner.Scanner
 	peek    *Token
 	pos     scanner.Position
 }
@@ -89,12 +91,16 @@ type textScannerLexer struct {
 // Note that this differs from text/scanner.Scanner in that string tokens will be unquoted.
 func Lex(r io.Reader) Lexer {
 	lexer := &textScannerLexer{
-		pos: scanner.Position{Column: 1, Line: 1},
-	}
-	lexer.scanner.Error = func(s *scanner.Scanner, msg string) {
-		panic(msg)
+		scanner: &scanner.Scanner{},
+		pos:     scanner.Position{Column: 1, Line: 1},
 	}
 	lexer.scanner.Init(r)
+	lexer.scanner.Error = func(s *scanner.Scanner, msg string) {
+		// This is to support single quoted strings. Hacky.
+		if msg != "illegal char literal" {
+			panic(msg)
+		}
+	}
 	return lexer
 }
 
@@ -127,12 +133,23 @@ func (t *textScannerLexer) Peek() Token {
 		Value: t.scanner.TokenText(),
 	}
 	// Unquote strings.
-	if t.peek.Type == scanner.String || t.peek.Type == scanner.RawString {
+	switch t.peek.Type {
+	case scanner.Char:
+		// FIXME(alec): This is pretty hacky...we convert a single quoted char into a double
+		// quoted string in order to support single quoted strings.
+		t.peek.Value = fmt.Sprintf("\"%s\"", t.peek.Value[1:len(t.peek.Value)-1])
+		fallthrough
+	case scanner.String:
 		s, err := strconv.Unquote(t.peek.Value)
 		if err != nil {
 			panic(err.Error())
 		}
 		t.peek.Value = s
+		if t.peek.Type == scanner.Char && utf8.RuneCountInString(s) > 1 {
+			t.peek.Type = scanner.String
+		}
+	case scanner.RawString:
+		t.peek.Value = t.peek.Value[1 : len(t.peek.Value)-1]
 	}
 	return *t.peek
 }

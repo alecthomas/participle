@@ -113,23 +113,12 @@ func (p *Parser) String() string {
 	return p.root.String()
 }
 
-type namedReader interface {
-	Name() string
-}
-
 // Parse from Lexer l into grammar v.
 func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
 	lexer := p.lexer.Lex(r)
 	defer func() {
 		if msg := recover(); msg != nil {
 			pos := lexer.Position()
-			if pos.Filename == "" {
-				if named, ok := r.(namedReader); ok {
-					pos.Filename = named.Name()
-				} else {
-					pos.Filename = "<source>"
-				}
-			}
 			err = fmt.Errorf("%s:%d:%d: %s (near %q)",
 				pos.Filename, pos.Line, pos.Column, msg, lexer.Peek())
 		}
@@ -155,9 +144,9 @@ func (p *Parser) ParseBytes(b []byte, v interface{}) error {
 }
 
 func decorate(name string) {
-	// if msg := recover(); msg != nil {
-	// 	panic(name + ": " + msg.(string))
-	// }
+	if msg := recover(); msg != nil {
+		panic(name + ": " + msg.(string))
+	}
 }
 
 // Takes a type and builds a tree of nodes out of it.
@@ -329,7 +318,7 @@ func parseTerm(context *generatorContext, slexer *structLexer) node {
 			panic("structs can only be parsed with @@")
 		}
 		return &reference{field, parseTerm(context, slexer)}
-	case scanner.String, scanner.RawString:
+	case scanner.String, scanner.RawString, scanner.Char:
 		return parseQuotedStringOrRange(slexer)
 	case '[':
 		return parseOptional(context, slexer)
@@ -497,7 +486,7 @@ func parseQuotedStringOrRange(lexer *structLexer) node {
 
 func parseQuotedString(lexer *structLexer) string {
 	token := lexer.Next()
-	if token.Type != scanner.String && token.Type != scanner.RawString {
+	if token.Type != scanner.String && token.Type != scanner.RawString && token.Type != scanner.Char {
 		panic("expected quoted string but got " + token.String())
 	}
 	return token.Value

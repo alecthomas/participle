@@ -17,3 +17,20 @@ func TestLexer(t *testing.T) {
 	assert.Equal(t, lexer.Peek(), Token{scanner.EOF, ""})
 	assert.Equal(t, lexer.Next(), Token{scanner.EOF, ""})
 }
+
+func TestLexString(t *testing.T) {
+	lexer := LexString(`"hello\nworld"`)
+	assert.Equal(t, lexer.Next(), Token{scanner.String, "hello\nworld"})
+}
+
+func TestLexSingleString(t *testing.T) {
+	lexer := LexString(`'hello\nworld'`)
+	assert.Equal(t, lexer.Next(), Token{scanner.String, "hello\nworld"})
+	lexer = LexString(`'\U00008a9e'`)
+	assert.Equal(t, lexer.Next(), Token{scanner.Char, "\U00008a9e"})
+}
+
+func TestLexBacktickString(t *testing.T) {
+	lexer := LexString("`hello\\nworld`")
+	assert.Equal(t, lexer.Next(), Token{scanner.String, "hello\\nworld"})
+}

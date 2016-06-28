@@ -38,46 +38,46 @@ Here is an example of defining a lexer and parser for a form of EBNF:
 
 ```go
 type Group struct {
-  Expression *Expression `"(" @@ ")""`
+  Expression *Expression `'(' @@ ')'`
 }
 
 type Option struct {
-  Expression *Expression `"[" @@ "]""`
+  Expression *Expression `'[' @@ ']'`
 }
 
 type Repetition struct {
-  Expression *Expression `"{" @@ "}""`
+  Expression *Expression `'{' @@ '}'`
 }
 
 type Literal struct {
-  Start string `@String"`
-  End   string `[ "…" @String ]"`
+  Start string `@String`
+  End   string `[ '…' @String ]`
 }
 
 type Term struct {
-  Name       string      `@Ident |"`
-  Literal    *Literal    `@@ |"`
-  Group      *Group      `@@ |"`
-  Option     *Option     `@@ |"`
-  Repetition *Repetition `@@"`
+  Name       string      `@Ident |`
+  Literal    *Literal    `@@ |`
+  Group      *Group      `@@ |`
+  Option     *Option     `@@ |`
+  Repetition *Repetition `@@`
 }
 
 type Sequence struct {
-  Terms []*Term `@@ { @@ }"`
+  Terms []*Term `@@ { @@ }`
 }
 
 type Expression struct {
-  Alternatives []*Sequence `@@ { "|" @@ }"`
+  Alternatives []*Sequence `@@ { '|' @@ }`
 }
 
 type Expressions []*Expression
 
 type Production struct {
-  Name        string      `@Ident "=""`
-  Expressions Expressions `@@ { @@ } ".""`
+  Name        string      `@Ident '='`
+  Expressions Expressions `@@ { @@ } '.'`
 }
 
 type EBNF struct {
-  Productions []*Production `{ @@ }"`
+  Productions []*Production `{ @@ }`
 }
 ```

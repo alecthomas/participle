@@ -16,7 +16,7 @@ var (
 )
 
 type Group struct {
-	Expression *Expression `parser:"\"(\" @@ \")\"" json:",omitempty"`
+	Expression *Expression `parser:"'(' @@ ')'" json:",omitempty"`
 }
 
 func (g *Group) String() string {
@@ -24,7 +24,7 @@ func (g *Group) String() string {
 }
 
 type Option struct {
-	Expression *Expression `parser:"\"[\" @@ \"]\"" json:",omitempty"`
+	Expression *Expression `parser:"'[' @@ ']'" json:",omitempty"`
 }
 
 func (o *Option) String() string {
@@ -32,7 +32,7 @@ func (o *Option) String() string {
 }
 
 type Repetition struct {
-	Expression *Expression `parser:"\"{\" @@ \"}\"" json:",omitempty"`
+	Expression *Expression `parser:"'{' @@ '}'" json:",omitempty"`
 }
 
 func (r *Repetition) String() string {
@@ -40,8 +40,8 @@ func (r *Repetition) String() string {
 }
 
 type Literal struct {
-	Start string `parser:"@String"` // Lexer token \"String\" json:",omitempty""
-	End   string `parser:"[ \"…\" @String ]" json:",omitempty"`
+	Start string `parser:"@String" json:",omitempty"` // Lexer token "String"
+	End   string `parser:"[ '…' @String ]" json:",omitempty"`
 }
 
 func (l *Literal) String() string {
@@ -89,7 +89,7 @@ func (s *Sequence) String() string {
 }
 
 type Expression struct {
-	Alternatives []*Sequence `parser:"@@ { \"|\" @@ }" json:",omitempty"`
+	Alternatives []*Sequence `parser:"@@ { '|' @@ }" json:",omitempty"`
 }
 
 func (e *Expression) String() string {
@@ -111,8 +111,8 @@ func (e Expressions) String() string {
 }
 
 type Production struct {
-	Name        string      `parser:"@Ident \"=\"" json:",omitempty"`
-	Expressions Expressions `parser:"@@ { @@ } \".\"" json:",omitempty"`
+	Name        string      `parser:"@Ident '='" json:",omitempty"`
+	Expressions Expressions `parser:"@@ { @@ } '.'" json:",omitempty"`
 }
 
 func (p *Production) String() string {
