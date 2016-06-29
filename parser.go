@@ -60,7 +60,6 @@
 // 		type EBNF struct {
 // 			Productions []*Production `{ @@ }"`
 // 		}
-
 package parser
 
 import (
@@ -81,12 +80,10 @@ type node interface {
 	String() string
 }
 
-// Parseable implementation.
+// Parseable will be called if a receiver in the grammar implements it.
 type Parseable interface {
 	Parse(s string) error
 }
-
-var parseableReflectType = reflect.TypeOf((Parseable)(nil))
 
 type Parser struct {
 	root  node

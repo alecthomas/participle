@@ -45,9 +45,24 @@ func (t Token) String() string {
 	return t.Value
 }
 
+// LexerDefinition provides the parser with metadata for a lexer.
 type LexerDefinition interface {
+	// Lex an io.Reader.
 	Lex(io.Reader) Lexer
+	// Symbols returns a map of symbolic names to the corresponding pseudo-runes for those symbols.
+	// This is the same approach as used by text/scanner. For example, "EOF" might have the rune
+	// value of -1, "Ident" might be -2, and so on.
 	Symbols() map[string]rune
+}
+
+// A Lexer returns tokens from a source.
+type Lexer interface {
+	// Peek at the next token.
+	Peek() Token
+	// Next consumes and returns the next token.
+	Next() Token
+	// Position returns the position of the last token consumed.
+	Position() Position
 }
 
 type defaultLexerDefinition struct{}
@@ -69,21 +84,16 @@ func (d *defaultLexerDefinition) Symbols() map[string]rune {
 	}
 }
 
-// A Lexer returns tokens from a source.
-type Lexer interface {
-	// Peek at the next token.
-	Peek() Token
-	// Next consumes and returns the next token.
-	Next() Token
-	// Position returns the current cursor position in the input.
-	Position() Position
-}
-
 // textScannerLexer is a Lexer based on text/scanner.Scanner
 type textScannerLexer struct {
-	scanner *scanner.Scanner
-	peek    *Token
-	pos     scanner.Position
+	scanner  scanner.Scanner
+	peek     *Token
+	pos      scanner.Position
+	filename string
+}
+
+type namedReader interface {
+	Name() string
 }
 
 // Lex an io.Reader with text/scanner.Scanner.
@@ -91,8 +101,11 @@ type textScannerLexer struct {
 // Note that this differs from text/scanner.Scanner in that string tokens will be unquoted.
 func Lex(r io.Reader) Lexer {
 	lexer := &textScannerLexer{
-		scanner: &scanner.Scanner{},
-		pos:     scanner.Position{Column: 1, Line: 1},
+		pos:      scanner.Position{Column: 1, Line: 1},
+		filename: "<source>",
+	}
+	if n, ok := r.(namedReader); ok {
+		lexer.filename = n.Name()
 	}
 	lexer.scanner.Init(r)
 	lexer.scanner.Error = func(s *scanner.Scanner, msg string) {
@@ -155,5 +168,6 @@ func (t *textScannerLexer) Peek() Token {
 }
 
 func (t *textScannerLexer) Position() Position {
+	t.pos.Filename = t.filename
 	return Position(t.pos)
 }
