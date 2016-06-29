@@ -138,6 +138,9 @@ func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
 	if !pv.IsValid() {
 		panic("invalid syntax")
 	}
+	if !lexer.Peek().EOF() {
+		panic("invalid syntax (trailing tokens)")
+	}
 	rv.Elem().Set(reflect.Indirect(pv))
 	return
 }
