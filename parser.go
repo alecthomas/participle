@@ -81,6 +81,13 @@ type node interface {
 	String() string
 }
 
+// Parseable implementation.
+type Parseable interface {
+	Parse(s string) error
+}
+
+var parseableReflectType = reflect.TypeOf((Parseable)(nil))
+
 type Parser struct {
 	root  node
 	lexer LexerDefinition
@@ -447,8 +454,8 @@ func (r *repitition) Parse(lexer Lexer, parent reflect.Value) (out reflect.Value
 }
 
 func parseRepitition(context *generatorContext, slexer *structLexer) node {
-	field := slexer.Field()
 	slexer.Next() // {
+	field := slexer.Field()
 	n := &repitition{
 		field: field,
 		node:  parseExpression(context, slexer),
@@ -546,16 +553,23 @@ func setField(strct reflect.Value, field reflect.StructField, fieldValue reflect
 		f.Set(reflect.Append(f, fieldValue))
 
 	case reflect.Ptr:
-		ptr := reflect.New(fieldValue.Type())
-		ptr.Elem().Set(fieldValue)
-		fieldValue = ptr
+		fv := reflect.New(f.Type().Elem()).Elem()
+		f.Set(fv.Addr())
+		f = fv
 		fallthrough
 	default:
 		if f.Kind() == reflect.String {
 			// For strings, we append.
 			fieldValue = reflect.ValueOf(f.String() + fieldValue.String())
 		}
-		f.Set(fieldValue)
+		if p, ok := f.Addr().Interface().(Parseable); ok {
+			err := p.Parse(reflect.Indirect(fieldValue).Interface().(string))
+			if err != nil {
+				panic(err.Error())
+			}
+		} else {
+			f.Set(fieldValue)
+		}
 	}
 }
 
