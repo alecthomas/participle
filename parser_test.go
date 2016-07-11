@@ -17,14 +17,14 @@ func TestProductionReference(t *testing.T) {
 }
 
 func TestTermReference(t *testing.T) {
-	type testTermReference struct {
+	type grammar struct {
 		A string `@{"."}`
 	}
 
-	parser := mustTestParser(t, &testTermReference{})
+	parser := mustTestParser(t, &grammar{})
 
-	actual := &testTermReference{}
-	expected := &testTermReference{"..."}
+	actual := &grammar{}
+	expected := &grammar{"..."}
 
 	err := parser.ParseString("...", actual)
 	assert.NoError(t, err)
@@ -32,72 +32,72 @@ func TestTermReference(t *testing.T) {
 }
 
 func TestParseScalar(t *testing.T) {
-	type testScalar struct {
+	type grammar struct {
 		A string `@"one"`
 	}
 
-	parser := mustTestParser(t, &testScalar{})
+	parser := mustTestParser(t, &grammar{})
 
-	actual := &testScalar{}
+	actual := &grammar{}
 	err := parser.ParseString("one", actual)
 	assert.NoError(t, err)
-	assert.Equal(t, &testScalar{"one"}, actual)
+	assert.Equal(t, &grammar{"one"}, actual)
 }
 
 func TestParseGroup(t *testing.T) {
-	type testGroup struct {
+	type grammar struct {
 		A string `@("one" | "two")`
 	}
 
-	parser := mustTestParser(t, &testGroup{})
+	parser := mustTestParser(t, &grammar{})
 
-	actual := &testGroup{}
+	actual := &grammar{}
 	err := parser.ParseString("one", actual)
 	assert.NoError(t, err)
-	assert.Equal(t, &testGroup{"one"}, actual)
+	assert.Equal(t, &grammar{"one"}, actual)
 
-	actual = &testGroup{}
+	actual = &grammar{}
 	err = parser.ParseString("two", actual)
 	assert.NoError(t, err)
-	assert.Equal(t, &testGroup{"two"}, actual)
+	assert.Equal(t, &grammar{"two"}, actual)
 }
 
 func TestParseAlternative(t *testing.T) {
-	type testAlternative struct {
+	type grammar struct {
 		A string `@"one" |`
 		B string `@"two"`
 	}
 
-	parser := mustTestParser(t, &testAlternative{})
+	parser := mustTestParser(t, &grammar{})
 
-	actual := &testAlternative{}
+	actual := &grammar{}
 	err := parser.ParseString("one", actual)
 	assert.NoError(t, err)
-	assert.Equal(t, &testAlternative{A: "one"}, actual)
+	assert.Equal(t, &grammar{A: "one"}, actual)
 
-	actual = &testAlternative{}
+	actual = &grammar{}
 	err = parser.ParseString("two", actual)
 	assert.NoError(t, err)
-	assert.Equal(t, &testAlternative{B: "two"}, actual)
+	assert.Equal(t, &grammar{B: "two"}, actual)
 }
 
 func TestParseSequence(t *testing.T) {
-	type testSequence struct {
+	type grammar struct {
 		A string `@"one"`
 		B string `@"two"`
 		C string `@"three"`
 	}
 
-	parser := mustTestParser(t, &testSequence{})
+	parser := mustTestParser(t, &grammar{})
 
-	actual := &testSequence{}
-	expected := &testSequence{"one", "two", "three"}
+	actual := &grammar{}
+	expected := &grammar{"one", "two", "three"}
 	err := parser.ParseString("one two three", actual)
 	assert.NoError(t, err)
 	assert.Equal(t, expected, actual)
 
-	actual = &testSequence{}
-	expected = &testSequence{}
+	actual = &grammar{}
+	expected = &grammar{}
 	err = parser.ParseString("moo", actual)
 	assert.Error(t, err)
 	assert.Equal(t, expected, actual)
@@ -108,12 +108,9 @@ func TestNested(t *testing.T) {
 		B string `@"one"`
 		C string `@"two"`
 	}
+
 	type testNested struct {
 		A *nestedInner `@@`
-	}
-
-	type testAccumulateNested struct {
-		A []*nestedInner `@@ { @@ }`
 	}
 
 	parser := mustTestParser(t, &testNested{})
@@ -143,7 +140,33 @@ func TestAccumulateNested(t *testing.T) {
 	assert.Equal(t, expected, actual)
 }
 
+func TestRepititionNoMatch(t *testing.T) {
+	type grammar struct {
+		A []string `{ @"." }`
+	}
+	parser := mustTestParser(t, &grammar{})
+
+	expected := &grammar{}
+	actual := &grammar{}
+	err := parser.ParseString(``, actual)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, actual)
+}
+
 func TestRepitition(t *testing.T) {
+	type grammar struct {
+		A []string `{ @"." }`
+	}
+	parser := mustTestParser(t, &grammar{})
+
+	expected := &grammar{A: []string{".", ".", "."}}
+	actual := &grammar{}
+	err := parser.ParseString(`...`, actual)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, actual)
+}
+
+func TestRepititionAcrossFields(t *testing.T) {
 	type testRepitition struct {
 		A []string `{ @"." }`
 		B *string  `(@"b" |`
@@ -152,9 +175,10 @@ func TestRepitition(t *testing.T) {
 
 	parser := mustTestParser(t, &testRepitition{})
 
-	actual := &testRepitition{}
 	b := "b"
 	c := "c"
+
+	actual := &testRepitition{}
 	expected := &testRepitition{
 		A: []string{".", ".", "."},
 		B: &b,
@@ -171,11 +195,12 @@ func TestRepitition(t *testing.T) {
 	err = parser.ParseString("...c", actual)
 	assert.NoError(t, err)
 	assert.Equal(t, expected, actual)
+
 	actual = &testRepitition{}
 	expected = &testRepitition{
-		C: &c,
+		B: &b,
 	}
-	err = parser.ParseString("c", actual)
+	err = parser.ParseString("b", actual)
 	assert.NoError(t, err)
 	assert.Equal(t, expected, actual)
 }
@@ -260,51 +285,51 @@ func TestEBNF(t *testing.T) {
 
 	expected := &EBNF{
 		Productions: []*Production{
-			&Production{
+			{
 				Name: "Production",
 				Expression: []*Expression{
-					&Expression{
+					{
 						Alternatives: []*Sequence{
-							&Sequence{
+							{
 								Terms: []*Term{
-									&Term{Name: "name"},
-									&Term{Literal: &Literal{Start: "="}},
-									&Term{
+									{Name: "name"},
+									{Literal: &Literal{Start: "="}},
+									{
 										Option: &Option{
 											Expression: &Expression{
 												Alternatives: []*Sequence{
-													&Sequence{
+													{
 														Terms: []*Term{
-															&Term{Name: "Expression"},
+															{Name: "Expression"},
 														},
 													},
 												},
 											},
 										},
 									},
-									&Term{Literal: &Literal{Start: "."}},
+									{Literal: &Literal{Start: "."}},
 								},
 							},
 						},
 					},
 				},
 			},
-			&Production{
+			{
 				Name: "Expression",
 				Expression: []*Expression{
-					&Expression{
+					{
 						Alternatives: []*Sequence{
-							&Sequence{
+							{
 								Terms: []*Term{
-									&Term{Name: "Alternative"},
-									&Term{
+									{Name: "Alternative"},
+									{
 										Repetition: &Repetition{
 											Expression: &Expression{
 												Alternatives: []*Sequence{
-													&Sequence{
+													{
 														Terms: []*Term{
-															&Term{Literal: &Literal{Start: "|"}},
-															&Term{Name: "Alternative"},
+															{Literal: &Literal{Start: "|"}},
+															{Name: "Alternative"},
 														},
 													},
 												},
@@ -317,21 +342,21 @@ func TestEBNF(t *testing.T) {
 					},
 				},
 			},
-			&Production{
+			{
 				Name: "Alternative",
 				Expression: []*Expression{
-					&Expression{
+					{
 						Alternatives: []*Sequence{
-							&Sequence{
+							{
 								Terms: []*Term{
-									&Term{Name: "Term"},
-									&Term{
+									{Name: "Term"},
+									{
 										Repetition: &Repetition{
 											Expression: &Expression{
 												Alternatives: []*Sequence{
-													&Sequence{
+													{
 														Terms: []*Term{
-															&Term{Name: "Term"},
+															{Name: "Term"},
 														},
 													},
 												},
@@ -344,23 +369,23 @@ func TestEBNF(t *testing.T) {
 					},
 				},
 			},
-			&Production{
+			{
 				Name: "Term",
 				Expression: []*Expression{
-					&Expression{
+					{
 						Alternatives: []*Sequence{
-							&Sequence{Terms: []*Term{&Term{Name: "name"}}},
-							&Sequence{
+							{Terms: []*Term{{Name: "name"}}},
+							{
 								Terms: []*Term{
-									&Term{Name: "token"},
-									&Term{
+									{Name: "token"},
+									{
 										Option: &Option{
 											Expression: &Expression{
 												Alternatives: []*Sequence{
-													&Sequence{
+													{
 														Terms: []*Term{
-															&Term{Literal: &Literal{Start: "…"}},
-															&Term{Name: "token"},
+															{Literal: &Literal{Start: "…"}},
+															{Name: "token"},
 														},
 													},
 												},
@@ -369,56 +394,56 @@ func TestEBNF(t *testing.T) {
 									},
 								},
 							},
-							&Sequence{Terms: []*Term{&Term{Literal: &Literal{Start: "@@"}}}},
-							&Sequence{Terms: []*Term{&Term{Name: "Group"}}},
-							&Sequence{Terms: []*Term{&Term{Name: "Option"}}},
-							&Sequence{Terms: []*Term{&Term{Name: "Repetition"}}},
+							{Terms: []*Term{{Literal: &Literal{Start: "@@"}}}},
+							{Terms: []*Term{{Name: "Group"}}},
+							{Terms: []*Term{{Name: "Option"}}},
+							{Terms: []*Term{{Name: "Repetition"}}},
 						},
 					},
 				},
 			},
-			&Production{
+			{
 				Name: "Group",
 				Expression: []*Expression{
-					&Expression{
+					{
 						Alternatives: []*Sequence{
-							&Sequence{
+							{
 								Terms: []*Term{
-									&Term{Literal: &Literal{Start: "("}},
-									&Term{Name: "Expression"},
-									&Term{Literal: &Literal{Start: ")"}},
+									{Literal: &Literal{Start: "("}},
+									{Name: "Expression"},
+									{Literal: &Literal{Start: ")"}},
 								},
 							},
 						},
 					},
 				},
 			},
-			&Production{
+			{
 				Name: "Option",
 				Expression: []*Expression{
-					&Expression{
+					{
 						Alternatives: []*Sequence{
-							&Sequence{
+							{
 								Terms: []*Term{
-									&Term{Literal: &Literal{Start: "["}},
-									&Term{Name: "Expression"},
-									&Term{Literal: &Literal{Start: "]"}},
+									{Literal: &Literal{Start: "["}},
+									{Name: "Expression"},
+									{Literal: &Literal{Start: "]"}},
 								},
 							},
 						},
 					},
 				},
 			},
-			&Production{
+			{
 				Name: "Repetition",
 				Expression: []*Expression{
-					&Expression{
+					{
 						Alternatives: []*Sequence{
-							&Sequence{
+							{
 								Terms: []*Term{
-									&Term{Literal: &Literal{Start: "{"}},
-									&Term{Name: "Expression"},
-									&Term{Literal: &Literal{Start: "}"}},
+									{Literal: &Literal{Start: "{"}},
+									{Name: "Expression"},
+									{Literal: &Literal{Start: "}"}},
 								},
 							},
 						},
@@ -516,4 +541,39 @@ func mustTestParser(t *testing.T, grammar interface{}) *Parser {
 	parser, err := Parse(grammar, nil)
 	assert.NoError(t, err)
 	return parser
+}
+
+func BenchmarkEBNFParser(b *testing.B) {
+	parser, err := Parse(&EBNF{}, nil)
+	assert.NoError(b, err)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		actual := &EBNF{}
+		parser.ParseString(strings.TrimSpace(`
+Production  = name "=" [ Expression ] "." .
+Expression  = Alternative { "|" Alternative } .
+Alternative = Term { Term } .
+Term        = name | token [ "…" token ] | "@@" | Group | Option | Repetition .
+Group       = "(" Expression ")" .
+Option      = "[" Expression "]" .
+Repetition  = "{" Expression "}" .
+
+`), actual)
+	}
+}
+
+func TestRepeatAcrossFields(t *testing.T) {
+	type grammar struct {
+		A string `{ @("." ">") |`
+		B string `  @("," "<") }`
+	}
+
+	parser := mustTestParser(t, &grammar{})
+
+	actual := &grammar{}
+	expected := &grammar{A: ".>.>.>.>", B: ",<,<,<"}
+
+	err := parser.ParseString(".>,<.>.>,<.>,<", actual)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, actual)
 }
