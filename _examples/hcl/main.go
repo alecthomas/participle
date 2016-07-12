@@ -24,7 +24,14 @@ func (i *Number) Parse(s string) error {
 
 type Bool bool
 
-func (b *Bool) Parse(s string) error {
+func (b *Bool) Parse(v []interface{}) error {
+	if len(v) != 1 {
+		return fmt.Errorf("bool can only accept one value")
+	}
+	s, ok := v[0].(string)
+	if !ok {
+		return fmt.Errorf("bool must be either 'true' or 'false' but got %q", v[0])
+	}
 	switch s {
 	case "true":
 		*b = true
@@ -37,10 +44,10 @@ func (b *Bool) Parse(s string) error {
 }
 
 type Literal struct {
-	Identifier *string `parser:"@Ident |" json:"identifier,omitempty"`
-	String     *string `parser:"@(String|Char|RawString) |" json:"string,omitempty"`
-	Number     *Number `parser:"@(Float|Int) |" json:"number,omitempty"`
 	Boolean    *Bool   `parser:"@('true'|'false')" json:"boolean,omitempty"`
+	Identifier *string `parser:"| @Ident" json:"identifier,omitempty"`
+	String     *string `parser:"| @(String|Char|RawString)" json:"string,omitempty"`
+	Number     *Number `parser:"| @(Float|Int)" json:"number,omitempty"`
 }
 
 type BlockHeader struct {

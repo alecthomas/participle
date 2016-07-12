@@ -2,8 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
-	"strconv"
 
 	"github.com/alecthomas/parser"
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -14,45 +14,53 @@ import (
 // F --> P ["^" F]
 // P --> v | "(" E ")" | "-" T
 
-type Number float64
-
-func (i *Number) Parse(s string) error {
-	n, err := strconv.ParseFloat(s, 64)
-	if err != nil {
-		return err
-	}
-	*i = Number(n)
-	return nil
+type Value struct {
+	Number        *float64    `@(Float|Int)`
+	Subexpression *Expression `| "(" @@ ")"`
 }
 
-type Value struct {
-	Number        *Number     `parser:"@Int |" json:"number,omitempty"`
-	Subexpression *Expression `parser:"'(' @@ ')' |" json:"subexpression,omitempty"`
+func (v *Value) Eval() float64 {
+	if v.Number != nil {
+		return *v.Number
+	}
+	return v.Subexpression.Eval()
 }
 
 type Factor struct {
-	Base     *Value `parser:"@@" json:"base,omitempty"`
-	Exponent *Value `parser:"[ '^' @@ ]" json:"exponent,omitempty"`
+	Base     *Value `@@`
+	Exponent *Value `[ "^" @@ ]`
+}
+
+func (f *Factor) Eval() float64 {
+	return f.Base.Eval()
 }
 
 type OpFactor struct {
-	Operator string  `parser:"@('*' | '/')" json:"operator,omitempty"`
-	Factor   *Factor `parser:"@@" json:"factor,omitempty"`
+	Operator string  `@("*" | "/")`
+	Factor   *Factor `@@`
 }
 
 type Term struct {
-	Left  *Factor     `parser:"@@" json:"left,omitempty"`
-	Right []*OpFactor `parser:"{ @@ }" json:"right,omitempty"`
+	Left  *Factor     `@@`
+	Right []*OpFactor `{ @@ }`
+}
+
+func (t *Term) Eval() float64 {
+	return t.Left.Eval()
 }
 
 type OpTerm struct {
-	Operator string `parser:"@('+' | '-')" json:"operator,omitempty"`
-	Term     *Term  `parser:"@@" json:"term,omitempty"`
+	Operator string `@("+" | "-")`
+	Term     *Term  `@@`
 }
 
 type Expression struct {
-	Left  *Term     `parser:"@@" json:"left,omitempty"`
-	Right []*OpTerm `parser:"{ @@ }" json:"right,omitempty"`
+	Left  *Term     `@@`
+	Right []*OpTerm `{ @@ }`
+}
+
+func (e *Expression) Eval() float64 {
+	return e.Left.Eval()
 }
 
 func main() {
@@ -66,4 +74,5 @@ func main() {
 	kingpin.FatalIfError(err, "")
 
 	json.NewEncoder(os.Stdout).Encode(expr)
+	fmt.Println(expr.Eval())
 }
