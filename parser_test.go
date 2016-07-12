@@ -577,3 +577,40 @@ func TestRepeatAcrossFields(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, expected, actual)
 }
+
+func TestPosInjection(t *testing.T) {
+	type subgrammar struct {
+		Pos Position
+		B   string `@{ "," }`
+	}
+	type grammar struct {
+		Pos Position
+		A   string      `@{ "." }`
+		B   *subgrammar `@@`
+	}
+
+	parser := mustTestParser(t, &grammar{})
+
+	actual := &grammar{}
+	expected := &grammar{
+		Pos: Position{
+			Filename: "<source>",
+			Line:     1,
+			Column:   1,
+		},
+		A: "...",
+		B: &subgrammar{
+			B: ",,,",
+			Pos: Position{
+				Filename: "<source>",
+				Offset:   3,
+				Line:     1,
+				Column:   4,
+			},
+		},
+	}
+
+	err := parser.ParseString("...,,,", actual)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, actual)
+}

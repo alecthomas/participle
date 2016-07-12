@@ -74,6 +74,10 @@ import (
 	"unicode/utf8"
 )
 
+var (
+	positionType = reflect.TypeOf(Position{})
+)
+
 // A node in the grammar.
 type node interface {
 	// Parse from scanner into value.
@@ -249,8 +253,26 @@ func (s *strct) String() string {
 	return s.expr.String()
 }
 
+func (s *strct) maybeInjectPos(lexer Lexer, v reflect.Value) {
+	// Fast path
+	if f := v.FieldByName("Pos"); f.IsValid() {
+		f.Set(reflect.ValueOf(lexer.Position()))
+		return
+	}
+
+	// Iterate over fields.
+	for i := 0; i < v.NumField(); i++ {
+		f := v.Field(i)
+		if f.Type() == positionType {
+			f.Set(reflect.ValueOf(lexer.Position()))
+			break
+		}
+	}
+}
+
 func (s *strct) Parse(lexer Lexer, parent reflect.Value) (out []reflect.Value) {
 	sv := reflect.New(s.typ).Elem()
+	s.maybeInjectPos(lexer, sv)
 	if s.expr.Parse(lexer, sv) == nil {
 		return nil
 	}
