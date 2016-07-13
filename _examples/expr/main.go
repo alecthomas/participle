@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/alecthomas/parser"
+	"github.com/alecthomas/participle"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 

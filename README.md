@@ -43,7 +43,7 @@ import (
   "fmt"
   "os"
 
-  "github.com/alecthomas/parser"
+  "github.com/alecthomas/participle"
 )
 
 type Group struct {
