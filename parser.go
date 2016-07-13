@@ -153,6 +153,14 @@ func nodePrinter(seen map[reflect.Value]bool, v node) string {
 	return "?"
 }
 
+func MustParse(grammar interface{}, lexer LexerDefinition) *Parser {
+	parser, err := Parse(grammar, lexer)
+	if err != nil {
+		panic(err)
+	}
+	return parser
+}
+
 // Generate a parser for the given grammar.
 func Parse(grammar interface{}, lexer LexerDefinition) (parser *Parser, err error) {
 	defer func() {

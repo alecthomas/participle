@@ -23,7 +23,16 @@ var (
 )
 
 // Position of a token.
-type Position scanner.Position
+type Position struct {
+	Filename string
+	Offset   int
+	Line     int
+	Column   int
+}
+
+func (p *Position) String() string {
+	return fmt.Sprintf("%s:%d:%d", p.Filename, p.Line, p.Column)
+}
 
 // A Token returned by a Lexer.
 type Token struct {
@@ -88,7 +97,7 @@ func (d *defaultLexerDefinition) Symbols() map[string]rune {
 type textScannerLexer struct {
 	scanner  scanner.Scanner
 	peek     *Token
-	pos      scanner.Position
+	pos      Position
 	filename string
 }
 
@@ -101,7 +110,7 @@ type namedReader interface {
 // Note that this differs from text/scanner.Scanner in that string tokens will be unquoted.
 func Lex(r io.Reader) Lexer {
 	lexer := &textScannerLexer{
-		pos:      scanner.Position{Column: 1, Line: 1},
+		pos:      Position{Column: 1, Line: 1},
 		filename: "<source>",
 	}
 	if n, ok := r.(namedReader); ok {
@@ -140,7 +149,7 @@ func (t *textScannerLexer) Peek() Token {
 	if t.peek != nil {
 		return *t.peek
 	}
-	t.pos = t.scanner.Pos()
+	t.pos = Position(t.scanner.Pos())
 	t.peek = &Token{
 		Type:  t.scanner.Scan(),
 		Value: t.scanner.TokenText(),

@@ -1,6 +1,7 @@
 // Package main implements a parser for Thrift files (https://thrift.apache.org/)
 //
-// It parses namespaces, exceptions, services, structs, and enums, but is easily extensible to more.
+// It parses namespaces, exceptions, services, structs, consts, typedefs and enums, but is easily
+// extensible to more.
 //
 // It also supports annotations and method throws.
 package main
@@ -32,9 +33,10 @@ type Annotation struct {
 
 type Field struct {
 	ID          string        `@Int ":"`
-	Requirement string        `@( "optional" | "required" )`
+	Requirement string        `@[ "optional" | "required" ]`
 	Type        *Type         `@@`
 	Name        string        `@Ident`
+	Default     *Literal      `[ "=" @@ ]`
 	Annotations []*Annotation `[ "(" @@ { "," @@ } ")" ]`
 }
 
@@ -78,10 +80,11 @@ type Service struct {
 
 // Literal is a "union" type, where only one matching value will be present.
 type Literal struct {
-	Str   *string  `  @String`
-	Float *float64 `| @Float`
-	Int   *int64   `| @Int`
-	Bool  *string  `| @( "true" | "false" )`
+	Str       *string  `  @String`
+	Float     *float64 `| @Float`
+	Int       *int64   `| @Int`
+	Bool      *string  `| @( "true" | "false" )`
+	Reference *string  `| @Ident { @"." @Ident }`
 }
 
 type Case struct {
@@ -96,6 +99,17 @@ type Enum struct {
 	Annotations []*Annotation `[ "(" @@ { "," @@ } ")" ]`
 }
 
+type Typedef struct {
+	Type *Type  `"typedef" @@`
+	Name string `@Ident`
+}
+
+type Const struct {
+	Type  *Type    `"const" @@`
+	Name  string   `@Ident`
+	Value *Literal `"=" @@`
+}
+
 // Thrift files consist of a set of top-level directives and definitions.
 //
 // The grammar
@@ -105,7 +119,9 @@ type Thrift struct {
 	Structs    []*Struct    `  | @@`
 	Exceptions []*Exception `  | @@`
 	Services   []*Service   `  | @@`
-	Enums      []*Enum      `  | @@ }`
+	Enums      []*Enum      `  | @@`
+	Typedefs   []*Typedef   `  | @@`
+	Consts     []*Const     `  | @@ }`
 }
 
 func main() {
