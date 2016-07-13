@@ -111,11 +111,11 @@ type Thrift struct {
 func main() {
 	kingpin.Parse()
 
-	p, err := parser.Parse(&Thrift{}, nil)
+	parser, err := participle.Parse(&Thrift{}, nil)
 	kingpin.FatalIfError(err, "")
 
 	thrift := &Thrift{}
-	err = p.ParseString(strings.TrimSpace(`
+	err = parser.ParseString(strings.TrimSpace(`
 
 namespace go user
 namespace py gen.user

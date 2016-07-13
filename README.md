@@ -91,7 +91,7 @@ type EBNF struct {
 }
 
 func main() {
-  parser, err := parser.Parse(&EBNF{}, nil)
+  parser, err := participle.Parse(&EBNF{}, nil)
   if err != nil { panic(err) }
 
   ebnf := &EBNF{}

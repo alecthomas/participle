@@ -60,7 +60,7 @@
 // 		type EBNF struct {
 // 			Productions []*Production `{ @@ }"`
 // 		}
-package parser
+package participle
 
 import (
 	"bytes"

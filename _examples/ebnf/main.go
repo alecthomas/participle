@@ -149,7 +149,7 @@ in the form:
 `
 	kingpin.Parse()
 
-	parser, err := parser.Parse(&EBNF{}, nil)
+	parser, err := participle.Parse(&EBNF{}, nil)
 	kingpin.FatalIfError(err, "")
 
 	ebnf := &EBNF{}

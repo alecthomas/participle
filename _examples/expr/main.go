@@ -97,11 +97,11 @@ func main() {
 	kingpin.CommandLine.Help = "A basic expression parser and evaluator."
 	kingpin.Parse()
 
-	p, err := parser.Parse(&Expression{}, nil)
+	parser, err := participle.Parse(&Expression{}, nil)
 	kingpin.FatalIfError(err, "")
 
 	expr := &Expression{}
-	err = p.ParseString(strings.Join(*exprArgs, " "), expr)
+	err = parser.ParseString(strings.Join(*exprArgs, " "), expr)
 	kingpin.FatalIfError(err, "")
 
 	if *astFlag {

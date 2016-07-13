@@ -77,11 +77,11 @@ type Block struct {
 func main() {
 	kingpin.Parse()
 
-	p, err := parser.Parse(&Block{}, nil)
+	parser, err := participle.Parse(&Block{}, nil)
 	kingpin.FatalIfError(err, "")
 
 	expr := &Block{}
-	err = p.Parse(os.Stdin, expr)
+	err = parser.Parse(os.Stdin, expr)
 	kingpin.FatalIfError(err, "")
 
 	json.NewEncoder(os.Stdout).Encode(expr)
