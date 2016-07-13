@@ -16,7 +16,7 @@ var (
 )
 
 type Group struct {
-	Expression *Expression `parser:"'(' @@ ')'" json:",omitempty"`
+	Expression *Expression `"(" @@ ")"`
 }
 
 func (g *Group) String() string {
@@ -24,7 +24,7 @@ func (g *Group) String() string {
 }
 
 type Option struct {
-	Expression *Expression `parser:"'[' @@ ']'" json:",omitempty"`
+	Expression *Expression `"[" @@ "]"`
 }
 
 func (o *Option) String() string {
@@ -32,7 +32,7 @@ func (o *Option) String() string {
 }
 
 type Repetition struct {
-	Expression *Expression `parser:"'{' @@ '}'" json:",omitempty"`
+	Expression *Expression `"{" @@ "}"`
 }
 
 func (r *Repetition) String() string {
@@ -40,8 +40,8 @@ func (r *Repetition) String() string {
 }
 
 type Literal struct {
-	Start string `parser:"@String" json:",omitempty"` // Lexer token "String"
-	End   string `parser:"[ '…' @String ]" json:",omitempty"`
+	Start string `@String` // Lexer token "String"
+	End   string `[ "…" @String ]`
 }
 
 func (l *Literal) String() string {
@@ -52,11 +52,11 @@ func (l *Literal) String() string {
 }
 
 type Term struct {
-	Name       string      `parser:"@Ident |" json:",omitempty"`
-	Literal    *Literal    `parser:"@@ |" json:",omitempty"`
-	Group      *Group      `parser:"@@ |" json:",omitempty"`
-	Option     *Option     `parser:"@@ |" json:",omitempty"`
-	Repetition *Repetition `parser:"@@" json:",omitempty"`
+	Name       string      `@Ident |`
+	Literal    *Literal    `@@ |`
+	Group      *Group      `@@ |`
+	Option     *Option     `@@ |`
+	Repetition *Repetition `@@`
 }
 
 func (t *Term) String() string {
@@ -77,7 +77,7 @@ func (t *Term) String() string {
 }
 
 type Sequence struct {
-	Terms []*Term `parser:"@@ { @@ }" json:",omitempty"`
+	Terms []*Term `@@ { @@ }`
 }
 
 func (s *Sequence) String() string {
@@ -89,7 +89,7 @@ func (s *Sequence) String() string {
 }
 
 type Expression struct {
-	Alternatives []*Sequence `parser:"@@ { '|' @@ }" json:",omitempty"`
+	Alternatives []*Sequence `@@ { "|" @@ }`
 }
 
 func (e *Expression) String() string {
@@ -111,8 +111,8 @@ func (e Expressions) String() string {
 }
 
 type Production struct {
-	Name        string      `parser:"@Ident '='" json:",omitempty"`
-	Expressions Expressions `parser:"@@ { @@ } '.'" json:",omitempty"`
+	Name        string      `@Ident "="`
+	Expressions Expressions `@@ { @@ } "."`
 }
 
 func (p *Production) String() string {
@@ -124,7 +124,7 @@ func (p *Production) String() string {
 }
 
 type EBNF struct {
-	Productions []*Production `parser:"{ @@ }" json:",omitempty"`
+	Productions []*Production `{ @@ }`
 }
 
 func (e *EBNF) String() string {
@@ -136,7 +136,7 @@ func (e *EBNF) String() string {
 }
 
 func main() {
-	kingpin.CommandLine.Help = `An EBNF parser compatible with Go's exp/ebnf. The grammar is
+	kingpin.CommandLine.Help = `An EBNF parser compatible with Go"s exp/ebnf. The grammar is
 in the form:
 
   Production  = name "=" [ Expression ] "." .
