@@ -1,12 +1,20 @@
+// Package main implements
 package main
 
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
+	"strings"
 
 	"github.com/alecthomas/participle"
 	"gopkg.in/alecthomas/kingpin.v2"
+)
+
+var (
+	astFlag  = kingpin.Flag("ast", "Print AST for expression.").Bool()
+	exprArgs = kingpin.Arg("expression", "Expression to evaluate.").Required().Strings()
 )
 
 // E --> T {( "+" | "-" ) T}
@@ -32,7 +40,11 @@ type Factor struct {
 }
 
 func (f *Factor) Eval() float64 {
-	return f.Base.Eval()
+	b := f.Base.Eval()
+	if f.Exponent != nil {
+		return math.Pow(b, f.Exponent.Eval())
+	}
+	return b
 }
 
 type OpFactor struct {
@@ -46,7 +58,16 @@ type Term struct {
 }
 
 func (t *Term) Eval() float64 {
-	return t.Left.Eval()
+	n := t.Left.Eval()
+	for _, r := range t.Right {
+		switch r.Operator {
+		case "*":
+			n *= r.Factor.Eval()
+		case "/":
+			n /= r.Factor.Eval()
+		}
+	}
+	return n
 }
 
 type OpTerm struct {
@@ -60,19 +81,32 @@ type Expression struct {
 }
 
 func (e *Expression) Eval() float64 {
-	return e.Left.Eval()
+	l := e.Left.Eval()
+	for _, r := range e.Right {
+		switch r.Operator {
+		case "+":
+			l += r.Term.Eval()
+		case "-":
+			l -= r.Term.Eval()
+		}
+	}
+	return l
 }
 
 func main() {
+	kingpin.CommandLine.Help = "A basic expression parser and evaluator."
 	kingpin.Parse()
 
 	p, err := parser.Parse(&Expression{}, nil)
 	kingpin.FatalIfError(err, "")
 
 	expr := &Expression{}
-	err = p.Parse(os.Stdin, expr)
+	err = p.ParseString(strings.Join(*exprArgs, " "), expr)
 	kingpin.FatalIfError(err, "")
 
-	json.NewEncoder(os.Stdout).Encode(expr)
-	fmt.Println(expr.Eval())
+	if *astFlag {
+		json.NewEncoder(os.Stdout).Encode(expr)
+	} else {
+		fmt.Println(expr.Eval())
+	}
 }
