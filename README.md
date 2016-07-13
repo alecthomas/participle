@@ -1,4 +1,4 @@
-# A parser package for Go
+# A parser package for Go [![](https://godoc.org/github.com/alecthomas/participle?status.svg)](http://godoc.org/github.com/alecthomas/participle) [![Build Status](https://travis-ci.org/alecthomas/participle.png)](https://travis-ci.org/alecthomas/participle)
 
 The goals of this package are:
 
