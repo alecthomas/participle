@@ -1,8 +1,8 @@
-# A parser package for Go [![](https://godoc.org/github.com/alecthomas/participle?status.svg)](http://godoc.org/github.com/alecthomas/participle) [![Build Status](https://travis-ci.org/alecthomas/participle.png)](https://travis-ci.org/alecthomas/participle)
+# A dead simple parser package for Go [![](https://godoc.org/github.com/alecthomas/participle?status.svg)](http://godoc.org/github.com/alecthomas/participle) [![Build Status](https://travis-ci.org/alecthomas/participle.svg?branch=master)](https://travis-ci.org/alecthomas/participle)
 
 The goals of this package are:
 
-1. Provide an idiomatic and elegant way to define parsers.
+1. Provide a simple, idiomatic and elegant way to define parsers.
 2. Allow generation of very fast parsers from this definition.
 
 A grammar is a Go structure that source is parsed into. Conceptually it operates similarly to how

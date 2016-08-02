@@ -673,6 +673,9 @@ func setField(strct reflect.Value, field reflect.StructField, fieldValue []refle
 			}
 			f.Set(fieldValue[0])
 
+		case reflect.Bool:
+			f.Set(reflect.ValueOf(true))
+
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 			if len(fieldValue) != 1 {
 				panicf("a single value must be assigned to an integer field but have %#v", fieldValue)
