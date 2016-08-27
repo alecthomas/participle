@@ -87,7 +87,7 @@ type node interface {
 
 // Parseable will be called if a receiver in the grammar implements it.
 type Parseable interface {
-	Parse(values []interface{}) error
+	Parse(values []string) error
 }
 
 type Parser struct {
@@ -645,9 +645,9 @@ func setField(strct reflect.Value, field reflect.StructField, fieldValue []refle
 	default:
 		if f.CanAddr() {
 			if p, ok := f.Addr().Interface().(Parseable); ok {
-				ifv := []interface{}{}
+				ifv := []string{}
 				for _, v := range fieldValue {
-					ifv = append(ifv, v.Interface())
+					ifv = append(ifv, v.Interface().(string))
 				}
 				err := p.Parse(ifv)
 				if err != nil {

@@ -614,3 +614,23 @@ func TestPosInjection(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, expected, actual)
 }
+
+type parseableCount int
+
+func (c *parseableCount) Parse(values []string) error {
+	*c += parseableCount(len(values))
+	return nil
+}
+
+func TestParseableInterface(t *testing.T) {
+	type grammar struct {
+		Count parseableCount `{ @"a" }`
+	}
+
+	parser := mustTestParser(t, &grammar{})
+	actual := &grammar{}
+	expected := &grammar{Count: 3}
+	err := parser.ParseString("a a a", actual)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, actual)
+}
