@@ -11,8 +11,6 @@
 //     - `( ... )` Group.
 //     - `[ ... ]` Optional.
 //     - `"..."` Match the literal.
-//     - `"."…"."` Match rune in range.
-//     - `.` Period matches any single character.
 //     - `<expr> | <expr>` Match one of the alternatives.
 //
 // Here's an example of an EBNF grammar.
@@ -81,8 +79,30 @@ var (
 // A node in the grammar.
 type node interface {
 	// Parse from scanner into value.
+	// Nodes should panic if parsing fails.
 	Parse(lexer Lexer, parent reflect.Value) []reflect.Value
 	String() string
+}
+
+// Error represents an error while parsing.
+type Error struct {
+	Message string
+	Pos     Position
+}
+
+func Panicf(pos Position, format string, args ...interface{}) *Error {
+	panic(Errorf(pos, format, args...))
+}
+
+func Errorf(pos Position, format string, args ...interface{}) *Error {
+	return &Error{
+		Message: fmt.Sprintf(format, args...),
+		Pos:     pos,
+	}
+}
+
+func (e *Error) Error() string {
+	return fmt.Sprintf("%s:%d:%d: %s", e.Pos.Filename, e.Pos.Line, e.Pos.Column, e.Message)
 }
 
 // Parseable will be called if a receiver in the grammar implements it.
@@ -90,6 +110,7 @@ type Parseable interface {
 	Parse(values []string) error
 }
 
+// A Parser for a particular grammar and lexer.
 type Parser struct {
 	root  node
 	lexer LexerDefinition
@@ -153,6 +174,7 @@ func nodePrinter(seen map[reflect.Value]bool, v node) string {
 	return "?"
 }
 
+// MustParse calls Parse(grammar, lexer) and panics if an error occurs.
 func MustParse(grammar interface{}, lexer LexerDefinition) *Parser {
 	parser, err := Parse(grammar, lexer)
 	if err != nil {
@@ -179,7 +201,8 @@ func Parse(grammar interface{}, lexer LexerDefinition) (parser *Parser, err erro
 	return &Parser{root: root, lexer: lexer}, nil
 }
 
-// Parse from Lexer l into grammar v.
+// Parse from r into grammar v which must be of the same type as the grammar passed to
+// participle.Parse().
 func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
 	lexer := p.lexer.Lex(r)
 	defer func() {
@@ -204,14 +227,17 @@ func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
 	return
 }
 
+// ParseString is a convenience around Parse().
 func (p *Parser) ParseString(s string, v interface{}) error {
 	return p.Parse(strings.NewReader(s), v)
 }
 
+// ParseBytes is a convenience around Parse().
 func (p *Parser) ParseBytes(b []byte, v interface{}) error {
 	return p.Parse(bytes.NewReader(b), v)
 }
 
+// String representation of the grammar.
 func (p *Parser) String() string {
 	return dumpNode(p.root)
 }

@@ -45,8 +45,8 @@ type Grammar struct {
 // The source text to parse.
 source := "world"
 
-// The resulting AST.
-result := &String{
+// After parsing, the resulting AST.
+result == &Grammar{
   Hello: "world",
 }
 ```
@@ -62,7 +62,7 @@ For integer and floating point types, a successful capture will be parsed
 with `strconv.ParseInt()` and `strconv.ParseBool()` respectively.
 
 Custom control of how values are captured into fields can be achieved by a field type
-implementing the the `Parseable` interface (`Parse(values []string) error`).
+implementing the `Parseable` interface (`Parse(values []string) error`).
 
 ## Lexing
 
@@ -145,3 +145,17 @@ func main() {
 ```
 
 There are also more [examples](_examples) included in the source.
+
+## Performance
+
+One of the included examples is a (mostly complete) Thrift parser. This gives
+a convenient baseline for comparing to the PEG based
+[pigeon](https://github.com/PuerkitoBio/pigeon), which is the parser used by
+[go-thrift](https://github.com/samuel/go-thrift).
+
+You can run the benchmarks yourself, but here's the output on my machine:
+
+```
+BenchmarkParticipleThrift-8        10000            125431 ns/op           43504 B/op       1233 allocs/op
+BenchmarkGoThriftParser-8           3000            438988 ns/op          125468 B/op       2426 allocs/op
+```

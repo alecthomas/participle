@@ -58,6 +58,7 @@ service Twitter {
 )
 
 func BenchmarkParticipleThrift(b *testing.B) {
+	b.ReportAllocs()
 	parser, err := participle.Parse(&Thrift{}, nil)
 	assert.NoError(b, err)
 
@@ -74,6 +75,7 @@ func BenchmarkParticipleThrift(b *testing.B) {
 }
 
 func BenchmarkGoThriftParser(b *testing.B) {
+	b.ReportAllocs()
 	_, err := parser.ParseReader("user.thrift", strings.NewReader(source))
 	assert.NoError(b, err)
 
