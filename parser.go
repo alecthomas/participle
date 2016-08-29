@@ -69,11 +69,15 @@ import (
 	"strconv"
 	"strings"
 	"text/scanner"
-	"unicode/utf8"
 )
 
 var (
-	positionType = reflect.TypeOf(Position{})
+	positionType  = reflect.TypeOf(Position{})
+	parseableType = reflect.TypeOf((*Parseable)(nil))
+
+	// NextMatch should be returned by Parseable.Parse() method implementations to indicate
+	// that the node did not match and that other matches should be attempted, if appropriate.
+	NextMatch = errors.New("no match")
 )
 
 // A node in the grammar.
@@ -112,9 +116,17 @@ func (e *Error) Error() string {
 	return fmt.Sprintf("%s:%d:%d: %s", e.Pos.Filename, e.Pos.Line, e.Pos.Column, e.Message)
 }
 
-// Parseable will be called if a receiver in the grammar implements it.
+// Capture can be implemented by fields in order to transform captured tokens into field values.
+type Capture interface {
+	Capture(values []string) error
+}
+
+// The Parseable interface can be implemented by grammar roots to implement custom parsing.
 type Parseable interface {
-	Parse(values []string) error
+	// Parse into the receiver.
+	// Should return NextMatch if no tokens matched and parsing should continue.
+	// Nil should be returned if parsing was successful.
+	Parse(lexer Lexer) error
 }
 
 // A Parser for a particular grammar and lexer.
@@ -156,9 +168,6 @@ func nodePrinter(seen map[reflect.Value]bool, v node) string {
 		}
 		return fmt.Sprintf("(%s)", strings.Join(out, " "))
 
-	case dot:
-		return "."
-
 	case *reference:
 		return fmt.Sprintf("@(field=%s, node=%s)", n.field.Name, nodePrinter(seen, n.node))
 
@@ -170,9 +179,6 @@ func nodePrinter(seen map[reflect.Value]bool, v node) string {
 
 	case *repetition:
 		return fmt.Sprintf("{ %s }", nodePrinter(seen, n.node))
-
-	case srange:
-		return fmt.Sprintf("%q … %q", n.start, n.end)
 
 	case str:
 		return fmt.Sprintf("%q", string(n))
@@ -212,6 +218,19 @@ func Parse(grammar interface{}, lexer LexerDefinition) (parser *Parser, err erro
 // participle.Parse().
 func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
 	lexer := p.lexer.Lex(r)
+	// If the grammar implements Parseable, use it.
+	if parseable, ok := v.(Parseable); ok {
+		err = parseable.Parse(lexer)
+		peek := lexer.Peek()
+		if err == NextMatch {
+			return Errorf(peek.Pos, "invalid syntax")
+		}
+		if err == nil && !peek.EOF() {
+			return Errorf(peek.Pos, "unexpected token")
+		}
+		return err
+	}
+
 	defer func() {
 		if msg := recover(); msg != nil {
 			if perr, ok := msg.(*Error); ok {
@@ -404,21 +423,6 @@ loop:
 	return elements
 }
 
-// .
-type dot struct{}
-
-func (d dot) String() string {
-	return "."
-}
-
-func (d dot) Parse(lexer Lexer, parent reflect.Value) (out []reflect.Value) {
-	r := lexer.Next()
-	if r.EOF() {
-		return nil
-	}
-	return []reflect.Value{reflect.ValueOf(r)}
-}
-
 // @<expr>
 type reference struct {
 	field reflect.StructField
@@ -442,9 +446,6 @@ func (r *reference) Parse(lexer Lexer, parent reflect.Value) (out []reflect.Valu
 func parseTerm(context *generatorContext, slexer *structLexer) node {
 	r := slexer.Peek()
 	switch r.Type {
-	case '.':
-		slexer.Next()
-		return dot{}
 	case '@':
 		slexer.Next()
 		token := slexer.Peek()
@@ -458,7 +459,7 @@ func parseTerm(context *generatorContext, slexer *structLexer) node {
 		}
 		return &reference{field, parseTerm(context, slexer)}
 	case scanner.String, scanner.RawString, scanner.Char:
-		return parseQuotedStringOrRange(slexer)
+		return parseQuotedString(slexer)
 	case '[':
 		return parseOptional(context, slexer)
 	case '{':
@@ -581,49 +582,12 @@ func parseGroup(context *generatorContext, slexer *structLexer) node {
 	return n
 }
 
-func parseQuotedStringOrRange(lexer *structLexer) node {
-	start := parseQuotedString(lexer)
-	if lexer.Peek().Type != '…' {
-		return str(start)
-	}
-	if len(start) != 1 {
-		panic("start of range must be 1 character long")
-	}
-	lexer.Next() // …
-	end := parseQuotedString(lexer)
-	if len(end) != 1 {
-		panic("end of range must be 1 character long")
-	}
-	startch, _ := utf8.DecodeRuneInString(start)
-	endch, _ := utf8.DecodeRuneInString(end)
-	return srange{startch, endch}
-}
-
-func parseQuotedString(lexer *structLexer) string {
+func parseQuotedString(lexer *structLexer) node {
 	token := lexer.Next()
 	if token.Type != scanner.String && token.Type != scanner.RawString && token.Type != scanner.Char {
 		panic("expected quoted string but got " + token.String())
 	}
-	return token.Value
-}
-
-// "a" … "b"
-type srange struct {
-	start rune
-	end   rune
-}
-
-func (s srange) String() string {
-	return fmt.Sprintf("%q … %q", s.start, s.end)
-}
-
-func (s srange) Parse(lexer Lexer, parent reflect.Value) (out []reflect.Value) {
-	token := lexer.Peek()
-	if token.Type < s.start || token.Type > s.end {
-		return nil
-	}
-	lexer.Next()
-	return []reflect.Value{reflect.ValueOf(token.Value)}
+	return str(token.Value)
 }
 
 // Match a string exactly "..."
@@ -679,12 +643,12 @@ func setField(pos Position, strct reflect.Value, field reflect.StructField, fiel
 
 	default:
 		if f.CanAddr() {
-			if p, ok := f.Addr().Interface().(Parseable); ok {
+			if d, ok := f.Addr().Interface().(Capture); ok {
 				ifv := []string{}
 				for _, v := range fieldValue {
 					ifv = append(ifv, v.Interface().(string))
 				}
-				err := p.Parse(ifv)
+				err := d.Capture(ifv)
 				if err != nil {
 					Panic(pos, err.Error())
 				}

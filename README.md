@@ -62,7 +62,7 @@ For integer and floating point types, a successful capture will be parsed
 with `strconv.ParseInt()` and `strconv.ParseBool()` respectively.
 
 Custom control of how values are captured into fields can be achieved by a field type
-implementing the `Parseable` interface (`Parse(values []string) error`).
+implementing the `Capture` interface (`Capture(values []string) error`).
 
 ## Lexing
 
@@ -151,7 +151,9 @@ There are also more [examples](_examples) included in the source.
 One of the included examples is a (mostly complete) Thrift parser. This gives
 a convenient baseline for comparing to the PEG based
 [pigeon](https://github.com/PuerkitoBio/pigeon), which is the parser used by
-[go-thrift](https://github.com/samuel/go-thrift).
+[go-thrift](https://github.com/samuel/go-thrift). Additionally, the pigeon
+parser is utilising a generated parser, while the participle parser is built at
+run time.
 
 You can run the benchmarks yourself, but here's the output on my machine:
 

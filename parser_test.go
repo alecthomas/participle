@@ -221,23 +221,6 @@ func TestAccumulateString(t *testing.T) {
 	assert.Equal(t, expected, actual)
 }
 
-func TestRange(t *testing.T) {
-	type testRange struct {
-		A string `@"!" … "/"`
-	}
-
-	parser := mustTestParser(t, &testRange{})
-
-	actual := &testRange{}
-	expected := &testRange{"+"}
-	err := parser.ParseString("+", actual)
-	assert.NoError(t, err)
-	assert.Equal(t, expected, actual)
-
-	err = parser.ParseString("1", actual)
-	assert.Error(t, err)
-}
-
 type Group struct {
 	Expression *Expression `"(" @@ ")"`
 }
@@ -615,12 +598,12 @@ func TestPosInjection(t *testing.T) {
 
 type parseableCount int
 
-func (c *parseableCount) Parse(values []string) error {
+func (c *parseableCount) Capture(values []string) error {
 	*c += parseableCount(len(values))
 	return nil
 }
 
-func TestParseableInterface(t *testing.T) {
+func TestCaptureInterface(t *testing.T) {
 	type grammar struct {
 		Count parseableCount `{ @"a" }`
 	}
