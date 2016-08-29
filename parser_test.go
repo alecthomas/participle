@@ -594,18 +594,16 @@ func TestPosInjection(t *testing.T) {
 	actual := &grammar{}
 	expected := &grammar{
 		Pos: Position{
-			Filename: "<source>",
-			Line:     1,
-			Column:   1,
+			Line:   1,
+			Column: 1,
 		},
 		A: "...",
 		B: &subgrammar{
 			B: ",,,",
 			Pos: Position{
-				Filename: "<source>",
-				Offset:   3,
-				Line:     1,
-				Column:   4,
+				Offset: 3,
+				Line:   1,
+				Column: 4,
 			},
 		},
 	}

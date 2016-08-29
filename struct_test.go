@@ -15,8 +15,8 @@ func TestStructLexerTokens(t *testing.T) {
 	}
 
 	scan := lexStruct(reflect.TypeOf(testScanner{}))
-	t12 := Token{scanner.Int, "12"}
-	t34 := Token{scanner.Int, "34"}
+	t12 := Token{Type: scanner.Int, Value: "12", Pos: Position{Line: 1, Column: 1}}
+	t34 := Token{Type: scanner.Int, Value: "34", Pos: Position{Line: 2, Column: 1}}
 	assert.Equal(t, t12, scan.Peek())
 	assert.Equal(t, 0, scan.field)
 	assert.Equal(t, t12, scan.Next())

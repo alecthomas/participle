@@ -90,10 +90,17 @@ type Error struct {
 	Pos     Position
 }
 
-func Panicf(pos Position, format string, args ...interface{}) *Error {
+// Panic throws a parse error.
+func Panic(pos Position, message string) {
+	panic(&Error{Message: message, Pos: pos})
+}
+
+// Panicf throws an *Error while parsing.
+func Panicf(pos Position, format string, args ...interface{}) {
 	panic(Errorf(pos, format, args...))
 }
 
+// Errorf creats a new Error at the given position.
 func Errorf(pos Position, format string, args ...interface{}) *Error {
 	return &Error{
 		Message: fmt.Sprintf(format, args...),
@@ -207,9 +214,11 @@ func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
 	lexer := p.lexer.Lex(r)
 	defer func() {
 		if msg := recover(); msg != nil {
-			pos := lexer.Position()
-			err = fmt.Errorf("%s:%d:%d: %s (near %q)",
-				pos.Filename, pos.Line, pos.Column, msg, lexer.Peek())
+			if perr, ok := msg.(*Error); ok {
+				err = perr
+			} else {
+				panicf("unexpected error %s", msg)
+			}
 		}
 	}()
 	rv := reflect.ValueOf(v)
@@ -218,10 +227,10 @@ func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
 	}
 	pv := p.root.Parse(lexer, rv.Elem())
 	if !lexer.Peek().EOF() {
-		panic("unexpected token")
+		Panic(lexer.Peek().Pos, "unexpected token")
 	}
 	if pv == nil {
-		panic("invalid syntax")
+		Panic(lexer.Peek().Pos, "invalid syntax")
 	}
 	rv.Elem().Set(reflect.Indirect(pv[0]))
 	return
@@ -287,10 +296,10 @@ func (s *strct) String() string {
 	return s.expr.String()
 }
 
-func (s *strct) maybeInjectPos(lexer Lexer, v reflect.Value) {
+func (s *strct) maybeInjectPos(pos Position, v reflect.Value) {
 	// Fast path
 	if f := v.FieldByName("Pos"); f.IsValid() {
-		f.Set(reflect.ValueOf(lexer.Position()))
+		f.Set(reflect.ValueOf(pos))
 		return
 	}
 
@@ -298,7 +307,7 @@ func (s *strct) maybeInjectPos(lexer Lexer, v reflect.Value) {
 	for i := 0; i < v.NumField(); i++ {
 		f := v.Field(i)
 		if f.Type() == positionType {
-			f.Set(reflect.ValueOf(lexer.Position()))
+			f.Set(reflect.ValueOf(pos))
 			break
 		}
 	}
@@ -306,7 +315,7 @@ func (s *strct) maybeInjectPos(lexer Lexer, v reflect.Value) {
 
 func (s *strct) Parse(lexer Lexer, parent reflect.Value) (out []reflect.Value) {
 	sv := reflect.New(s.typ).Elem()
-	s.maybeInjectPos(lexer, sv)
+	s.maybeInjectPos(lexer.Peek().Pos, sv)
 	if s.expr.Parse(lexer, sv) == nil {
 		return nil
 	}
@@ -363,7 +372,7 @@ func (a alternative) Parse(lexer Lexer, parent reflect.Value) (out []reflect.Val
 			if i == 0 {
 				return nil
 			}
-			panicf("expected %s", n)
+			Panicf(lexer.Peek().Pos, "expected %s", n)
 		}
 		if len(child) == 0 && out == nil {
 			out = []reflect.Value{}
@@ -421,11 +430,12 @@ func (r *reference) String() string {
 }
 
 func (r *reference) Parse(lexer Lexer, parent reflect.Value) (out []reflect.Value) {
+	pos := lexer.Peek().Pos
 	v := r.node.Parse(lexer, parent)
 	if v == nil {
 		return nil
 	}
-	setField(parent, r.field, v)
+	setField(pos, parent, r.field, v)
 	return []reflect.Value{parent}
 }
 
@@ -441,7 +451,6 @@ func parseTerm(context *generatorContext, slexer *structLexer) node {
 		field := slexer.Field()
 		if token.Type == '@' {
 			slexer.Next()
-			defer decorate(field.Name)
 			return &reference{field, parseType(context, indirectType(field.Type))}
 		}
 		if indirectType(field.Type).Kind() == reflect.Struct {
@@ -655,7 +664,7 @@ func conform(t reflect.Type, values []reflect.Value) (out []reflect.Value) {
 //
 // For all other types, an attempt will be made to convert the string to the corresponding
 // type (int, float32, etc.).
-func setField(strct reflect.Value, field reflect.StructField, fieldValue []reflect.Value) {
+func setField(pos Position, strct reflect.Value, field reflect.StructField, fieldValue []reflect.Value) {
 	f := strct.FieldByIndex(field.Index)
 	switch f.Kind() {
 	case reflect.Slice:
@@ -677,7 +686,7 @@ func setField(strct reflect.Value, field reflect.StructField, fieldValue []refle
 				}
 				err := p.Parse(ifv)
 				if err != nil {
-					panic(err.Error())
+					Panic(pos, err.Error())
 				}
 				return
 			}
@@ -728,7 +737,7 @@ func setField(strct reflect.Value, field reflect.StructField, fieldValue []refle
 			}
 			n, err := strconv.ParseFloat(fieldValue[0].String(), 10)
 			if err != nil {
-				panicf("expected integer but got %q", fieldValue[0].String())
+				panicf("expected float but got %q", fieldValue[0].String())
 			}
 			f.SetFloat(n)
 

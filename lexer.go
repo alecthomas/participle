@@ -11,12 +11,13 @@ import (
 )
 
 const (
+	// EOF represents an end of file.
 	EOF rune = -(iota + 1)
 )
 
 var (
 	// EOFToken is a Token representing EOF.
-	EOFToken = Token{EOF, "<<EOF>>"}
+	EOFToken = Token{Type: EOF, Value: "<<EOF>>"}
 
 	// DefaultLexerDefinition defines properties for the default lexer.
 	DefaultLexerDefinition LexerDefinition = &defaultLexerDefinition{}
@@ -30,8 +31,12 @@ type Position struct {
 	Column   int
 }
 
-func (p *Position) String() string {
-	return fmt.Sprintf("%s:%d:%d", p.Filename, p.Line, p.Column)
+func (p Position) String() string {
+	filename := p.Filename
+	if filename == "" {
+		filename = "<source>"
+	}
+	return fmt.Sprintf("%s:%d:%d", filename, p.Line, p.Column)
 }
 
 // A Token returned by a Lexer.
@@ -39,11 +44,12 @@ type Token struct {
 	// Type of token.
 	Type  rune
 	Value string
+	Pos   Position
 }
 
 // RuneToken represents a rune as a Token.
 func RuneToken(r rune) Token {
-	return Token{r, string(r)}
+	return Token{Type: r, Value: string(r)}
 }
 
 func (t Token) EOF() bool {
@@ -70,8 +76,6 @@ type Lexer interface {
 	Peek() Token
 	// Next consumes and returns the next token.
 	Next() Token
-	// Position returns the position of the last token consumed.
-	Position() Position
 }
 
 type defaultLexerDefinition struct{}
@@ -97,7 +101,6 @@ func (d *defaultLexerDefinition) Symbols() map[string]rune {
 type textScannerLexer struct {
 	scanner  scanner.Scanner
 	peek     *Token
-	pos      Position
 	filename string
 }
 
@@ -109,10 +112,7 @@ type namedReader interface {
 //
 // Note that this differs from text/scanner.Scanner in that string tokens will be unquoted.
 func Lex(r io.Reader) Lexer {
-	lexer := &textScannerLexer{
-		pos:      Position{Column: 1, Line: 1},
-		filename: "<source>",
-	}
+	lexer := &textScannerLexer{}
 	if n, ok := r.(namedReader); ok {
 		lexer.filename = n.Name()
 	}
@@ -120,7 +120,7 @@ func Lex(r io.Reader) Lexer {
 	lexer.scanner.Error = func(s *scanner.Scanner, msg string) {
 		// This is to support single quoted strings. Hacky.
 		if msg != "illegal char literal" {
-			panic(msg)
+			Panic(Position(lexer.scanner.Pos()), msg)
 		}
 	}
 	return lexer
@@ -149,11 +149,14 @@ func (t *textScannerLexer) Peek() Token {
 	if t.peek != nil {
 		return *t.peek
 	}
-	t.pos = Position(t.scanner.Pos())
+	pos := Position(t.scanner.Pos())
+	pos.Filename = t.filename
 	t.peek = &Token{
 		Type:  t.scanner.Scan(),
 		Value: t.scanner.TokenText(),
+		Pos:   pos,
 	}
+	t.peek.Pos.Filename = t.filename
 	// Unquote strings.
 	switch t.peek.Type {
 	case scanner.Char:
@@ -164,7 +167,7 @@ func (t *textScannerLexer) Peek() Token {
 	case scanner.String:
 		s, err := strconv.Unquote(t.peek.Value)
 		if err != nil {
-			panic(err.Error())
+			Panic(t.peek.Pos, err.Error())
 		}
 		t.peek.Value = s
 		if t.peek.Type == scanner.Char && utf8.RuneCountInString(s) > 1 {
@@ -174,9 +177,4 @@ func (t *textScannerLexer) Peek() Token {
 		t.peek.Value = t.peek.Value[1 : len(t.peek.Value)-1]
 	}
 	return *t.peek
-}
-
-func (t *textScannerLexer) Position() Position {
-	t.pos.Filename = t.filename
-	return Position(t.pos)
 }
