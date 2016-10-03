@@ -7,12 +7,14 @@
 package main
 
 import (
-	"encoding/json"
 	"os"
-	"strings"
 
 	"github.com/alecthomas/participle"
 	"gopkg.in/alecthomas/kingpin.v2"
+)
+
+var (
+	files = kingpin.Arg("thrift", "Thrift files.").Required().Strings()
 )
 
 type Namespace struct {
@@ -37,7 +39,7 @@ type Field struct {
 	Type        *Type         `@@`
 	Name        string        `@Ident`
 	Default     *Literal      `[ "=" @@ ]`
-	Annotations []*Annotation `[ "(" @@ { "," @@ } ")" ]`
+	Annotations []*Annotation `[ "(" @@ { "," @@ } ")" ] [ ";" ]`
 }
 
 type Exception struct {
@@ -47,8 +49,9 @@ type Exception struct {
 }
 
 type Struct struct {
-	Name        string        `"struct" @Ident "{"`
-	Fields      []*Field      `@@ { @@ } "}"`
+	Union       bool          `( "struct" | @"union" )`
+	Name        string        `@Ident "{"`
+	Fields      []*Field      `{ @@ } "}"`
 	Annotations []*Annotation `[ "(" @@ { "," @@ } ")" ]`
 }
 
@@ -73,24 +76,33 @@ type Method struct {
 }
 
 type Service struct {
-	Name        string        `"service" @Ident "{"`
-	Methods     []*Method     `{ @@ } "}"`
+	Name        string        `"service" @Ident`
+	Extends     string        `[ "extends" @Ident { @"." @Ident } ]`
+	Methods     []*Method     `"{" { @@ [ ";" ] } "}"`
 	Annotations []*Annotation `[ "(" @@ { "," @@ } ")" ]`
 }
 
 // Literal is a "union" type, where only one matching value will be present.
 type Literal struct {
-	Str       *string  `  @String`
-	Float     *float64 `| @Float`
-	Int       *int64   `| @Int`
-	Bool      *string  `| @( "true" | "false" )`
-	Reference *string  `| @Ident { @"." @Ident }`
+	Str       *string    `  @String`
+	Float     *float64   `| @Float`
+	Int       *int64     `| @Int`
+	Bool      *string    `| @( "true" | "false" )`
+	Reference *string    `| @Ident { @"." @Ident }`
+	Minus     *Literal   `| "-" @@`
+	List      []*Literal `| "[" { @@ [ "," ] } "]"`
+	Map       []*MapItem `| "{" { @@ [ "," ] } "}"`
+}
+
+type MapItem struct {
+	Key   *Literal `@@ ":"`
+	Value *Literal `@@`
 }
 
 type Case struct {
 	Name        string        `@Ident`
 	Annotations []*Annotation `[ "(" @@ { "," @@ } ")" ]`
-	Value       *Literal      `[ "=" @@ ]`
+	Value       *Literal      `[ "=" @@ ] [ "," | ";" ]`
 }
 
 type Enum struct {
@@ -107,7 +119,7 @@ type Typedef struct {
 type Const struct {
 	Type  *Type    `"const" @@`
 	Name  string   `@Ident`
-	Value *Literal `"=" @@`
+	Value *Literal `"=" @@ [ ";" ]`
 }
 
 // Thrift files consist of a set of top-level directives and definitions.
@@ -130,45 +142,11 @@ func main() {
 	parser, err := participle.Parse(&Thrift{}, nil)
 	kingpin.FatalIfError(err, "")
 
-	thrift := &Thrift{}
-	err = parser.ParseString(strings.TrimSpace(`
-
-namespace go user
-namespace py gen.user
-namespace java org.swapoff.user
-
-include "../common/base.thrift"
-include "profile.thrift"
-
-enum Enum {
-	AUTO (auto)
-	VALUE = 1.3
-	ANOTHER = 2
-}
-
-struct User {
-	1: optional list<profile.Profile> name (inject="profile")
-}
-
-exception Exception {
-	1: optional string message
-}
-
-exception Bad {
-	1: optional string message
-}
-
-service Service {
- 	User someMethod(1: User strct)
- 	    throws (1: Exception exc, 2: Bad exc)
- 	    (url="/method")
- 	User anotherMethod(1: string str)
- 	    throws (1: Exception exc, 2: Bad exc)
- 	    (url="/method")
-} (url="/service")
-
-`), thrift)
-	kingpin.FatalIfError(err, "")
-
-	json.NewEncoder(os.Stdout).Encode(thrift)
+	for _, file := range *files {
+		thrift := &Thrift{}
+		r, err := os.Open(file)
+		kingpin.FatalIfError(err, "")
+		err = parser.Parse(r, thrift)
+		kingpin.FatalIfError(err, "")
+	}
 }

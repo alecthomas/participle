@@ -226,7 +226,7 @@ func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
 			return Errorf(peek.Pos, "invalid syntax")
 		}
 		if err == nil && !peek.EOF() {
-			return Errorf(peek.Pos, "unexpected token")
+			return Errorf(peek.Pos, "unexpected token %q", peek)
 		}
 		return err
 	}
@@ -246,7 +246,7 @@ func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
 	}
 	pv := p.root.Parse(lexer, rv.Elem())
 	if !lexer.Peek().EOF() {
-		Panic(lexer.Peek().Pos, "unexpected token")
+		Panicf(lexer.Peek().Pos, "unexpected token %q", lexer.Peek())
 	}
 	if pv == nil {
 		Panic(lexer.Peek().Pos, "invalid syntax")
@@ -391,7 +391,7 @@ func (a alternative) Parse(lexer Lexer, parent reflect.Value) (out []reflect.Val
 			if i == 0 {
 				return nil
 			}
-			Panicf(lexer.Peek().Pos, "expected %s", n)
+			Panicf(lexer.Peek().Pos, "expected %s not %q", n, lexer.Peek())
 		}
 		if len(child) == 0 && out == nil {
 			out = []reflect.Value{}

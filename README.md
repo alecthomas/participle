@@ -148,7 +148,8 @@ There are also more [examples](_examples) included in the source.
 
 ## Performance
 
-One of the included examples is a (mostly complete) Thrift parser. This gives
+One of the included examples is a complete Thrift parser
+(shell-style comments are not supported). This gives
 a convenient baseline for comparing to the PEG based
 [pigeon](https://github.com/PuerkitoBio/pigeon), which is the parser used by
 [go-thrift](https://github.com/samuel/go-thrift). Additionally, the pigeon
@@ -161,3 +162,6 @@ You can run the benchmarks yourself, but here's the output on my machine:
 BenchmarkParticipleThrift-8        10000            125431 ns/op           43504 B/op       1233 allocs/op
 BenchmarkGoThriftParser-8           3000            438988 ns/op          125468 B/op       2426 allocs/op
 ```
+
+On a real life codebase of 47K lines of Thrift, Participle takes 200ms and go-
+thrift takes 630ms, which aligns quite closely with the benchmarks.
