@@ -6,6 +6,7 @@ import (
 	"text/scanner"
 
 	"github.com/alecthomas/assert"
+	"github.com/alecthomas/participle/lexer"
 )
 
 func TestStructLexerTokens(t *testing.T) {
@@ -15,8 +16,8 @@ func TestStructLexerTokens(t *testing.T) {
 	}
 
 	scan := lexStruct(reflect.TypeOf(testScanner{}))
-	t12 := Token{Type: scanner.Int, Value: "12", Pos: Position{Line: 1, Column: 1}}
-	t34 := Token{Type: scanner.Int, Value: "34", Pos: Position{Line: 2, Column: 1}}
+	t12 := lexer.Token{Type: scanner.Int, Value: "12", Pos: lexer.Position{Line: 1, Column: 1}}
+	t34 := lexer.Token{Type: scanner.Int, Value: "34", Pos: lexer.Position{Line: 2, Column: 1}}
 	assert.Equal(t, t12, scan.Peek())
 	assert.Equal(t, 0, scan.field)
 	assert.Equal(t, t12, scan.Next())
@@ -26,7 +27,7 @@ func TestStructLexerTokens(t *testing.T) {
 	assert.Equal(t, t34, scan.Next())
 	assert.Equal(t, 1, scan.field)
 
-	assert.Equal(t, EOFToken, scan.Next())
+	assert.Equal(t, lexer.EOFToken, scan.Next())
 }
 
 func TestStructLexer(t *testing.T) {

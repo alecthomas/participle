@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/alecthomas/assert"
+	"github.com/alecthomas/participle/lexer"
 )
 
 func TestProductionReference(t *testing.T) {
@@ -563,11 +564,11 @@ func TestRepeatAcrossFields(t *testing.T) {
 
 func TestPosInjection(t *testing.T) {
 	type subgrammar struct {
-		Pos Position
+		Pos lexer.Position
 		B   string `@{ "," }`
 	}
 	type grammar struct {
-		Pos Position
+		Pos lexer.Position
 		A   string      `@{ "." }`
 		B   *subgrammar `@@`
 	}
@@ -576,14 +577,14 @@ func TestPosInjection(t *testing.T) {
 
 	actual := &grammar{}
 	expected := &grammar{
-		Pos: Position{
+		Pos: lexer.Position{
 			Line:   1,
 			Column: 1,
 		},
 		A: "...",
 		B: &subgrammar{
 			B: ",,,",
-			Pos: Position{
+			Pos: lexer.Position{
 				Offset: 3,
 				Line:   1,
 				Column: 4,

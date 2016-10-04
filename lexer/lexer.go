@@ -1,4 +1,4 @@
-package participle
+package lexer
 
 import (
 	"bytes"
@@ -19,8 +19,8 @@ var (
 	// EOFToken is a Token representing EOF.
 	EOFToken = Token{Type: EOF, Value: "<<EOF>>"}
 
-	// DefaultLexerDefinition defines properties for the default lexer.
-	DefaultLexerDefinition LexerDefinition = &defaultLexerDefinition{}
+	// DefaultDefinition defines properties for the default lexer.
+	DefaultDefinition Definition = &defaultDefinition{}
 )
 
 // Position of a token.
@@ -60,8 +60,8 @@ func (t Token) String() string {
 	return t.Value
 }
 
-// LexerDefinition provides the parser with metadata for a lexer.
-type LexerDefinition interface {
+// Definition provides the parser with metadata for a lexer.
+type Definition interface {
 	// Lex an io.Reader.
 	Lex(io.Reader) Lexer
 	// Symbols returns a map of symbolic names to the corresponding pseudo-runes for those symbols.
@@ -78,13 +78,13 @@ type Lexer interface {
 	Next() Token
 }
 
-type defaultLexerDefinition struct{}
+type defaultDefinition struct{}
 
-func (d *defaultLexerDefinition) Lex(r io.Reader) Lexer {
+func (d *defaultDefinition) Lex(r io.Reader) Lexer {
 	return Lex(r)
 }
 
-func (d *defaultLexerDefinition) Symbols() map[string]rune {
+func (d *defaultDefinition) Symbols() map[string]rune {
 	return map[string]rune{
 		"EOF":       scanner.EOF,
 		"Char":      scanner.Char,

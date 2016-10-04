@@ -71,7 +71,7 @@ streams to tokens. A default lexer based on the
 [text/scanner](https://golang.org/pkg/text/scanner/) package is included.
 
 To use your own Lexer you will need to implement two interfaces:
-[LexerDefinition](https://godoc.org/github.com/alecthomas/participle#LexerDefinition)
+[Definition](https://godoc.org/github.com/alecthomas/participle#Definition)
 and [Lexer](https://godoc.org/github.com/alecthomas/participle#Lexer).
 
 ## Example

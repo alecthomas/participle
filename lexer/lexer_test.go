@@ -1,4 +1,4 @@
-package participle
+package lexer
 
 import (
 	"testing"

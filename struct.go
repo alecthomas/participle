@@ -3,20 +3,22 @@ package participle
 import (
 	"reflect"
 	"strings"
+
+	"github.com/alecthomas/participle/lexer"
 )
 
 // A structLexer lexes over the tags of struct fields while tracking the current field.
 type structLexer struct {
 	s     reflect.Type
 	field int
-	lexer Lexer
+	lexer lexer.Lexer
 	r     *strings.Reader
 }
 
 func lexStruct(s reflect.Type) *structLexer {
 	return &structLexer{
 		s:     s,
-		lexer: LexString(fieldLexerTag(s.Field(0))),
+		lexer: lexer.LexString(fieldLexerTag(s.Field(0))),
 	}
 }
 
@@ -30,36 +32,36 @@ func (s *structLexer) Field() reflect.StructField {
 	return s.s.Field(s.field)
 }
 
-func (s *structLexer) Peek() Token {
+func (s *structLexer) Peek() lexer.Token {
 	field := s.field
-	lexer := s.lexer
+	lex := s.lexer
 	for {
-		token := lexer.Peek()
+		token := lex.Peek()
 		if !token.EOF() {
 			token.Pos.Line = field + 1
 			return token
 		}
 		field++
 		if field >= s.s.NumField() {
-			return EOFToken
+			return lexer.EOFToken
 		}
 		tag := fieldLexerTag(s.s.Field(field))
-		lexer = LexString(tag)
+		lex = lexer.LexString(tag)
 	}
 }
 
-func (s *structLexer) Next() Token {
+func (s *structLexer) Next() lexer.Token {
 	token := s.lexer.Next()
 	if !token.EOF() {
 		token.Pos.Line = s.field + 1
 		return token
 	}
 	if s.field+1 >= s.s.NumField() {
-		return EOFToken
+		return lexer.EOFToken
 	}
 	s.field++
 	tag := fieldLexerTag(s.s.Field(s.field))
-	s.lexer = LexString(tag)
+	s.lexer = lexer.LexString(tag)
 	return s.Next()
 }
 
