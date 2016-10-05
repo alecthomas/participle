@@ -74,8 +74,7 @@ import (
 )
 
 var (
-	positionType  = reflect.TypeOf(lexer.Position{})
-	parseableType = reflect.TypeOf((*Parseable)(nil))
+	positionType = reflect.TypeOf(lexer.Position{})
 
 	// NextMatch should be returned by Parseable.Parse() method implementations to indicate
 	// that the node did not match and that other matches should be attempted, if appropriate.
