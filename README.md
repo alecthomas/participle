@@ -102,8 +102,8 @@ but only allows tokens provided by that package. Next fastest is the regexp
 lexer (`lexer.Regexp()`). The slowest is currently the EBNF based lexer, but it has a large potential for optimisation through code generation.
 
 To use your own Lexer you will need to implement two interfaces:
-[Definition](https://godoc.org/github.com/alecthomas/participle#Definition)
-and [Lexer](https://godoc.org/github.com/alecthomas/participle#Lexer).
+[Definition](https://godoc.org/github.com/alecthomas/participle/lexer#Definition)
+and [Lexer](https://godoc.org/github.com/alecthomas/participle/lexer#Lexer).
 
 ## Example
 

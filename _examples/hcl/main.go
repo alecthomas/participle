@@ -2,10 +2,11 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
+
+	"github.com/alecthomas/repr"
 
 	"github.com/alecthomas/participle"
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -57,17 +58,16 @@ type BlockHeader struct {
 
 type Value struct {
 	Literal *Literal   `parser:"@@ |" json:"literal,omitempty"`
-	Array   []*Literal `parser:"'[' @@ {',' @@} ']'" json:"array,omitempty"`
+	Array   []*Literal `parser:"'[' { @@ [ ',' ] } ']'" json:"array,omitempty"`
 }
 
 type Assignment struct {
-	Attribute *Value       `parser:"'=' @@ |" json:"attribute,omitempty"`
-	Block     *BlockHeader `parser:"@@" json:"block,omitempty"`
 }
 
 type Entry struct {
-	Key   string      `parser:"@Ident" json:"key,omitempty"`
-	Value *Assignment `parser:"@@" json:"value,omitempty"`
+	Key   string       `parser:"@Ident" json:"key,omitempty"`
+	Value *Value       `parser:"( '=' @@ |" json:"value,omitempty"`
+	Block *BlockHeader `parser:"@@ )" json:"block,omitempty"`
 }
 
 type Block struct {
@@ -84,5 +84,5 @@ func main() {
 	err = parser.Parse(os.Stdin, expr)
 	kingpin.FatalIfError(err, "")
 
-	json.NewEncoder(os.Stdout).Encode(expr)
+	repr.Println(expr, repr.Indent("  "), repr.OmitEmpty())
 }
