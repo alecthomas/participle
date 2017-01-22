@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/samuel/go-thrift/parser"
+	"github.com/alecthomas/go-thrift/parser"
+	"github.com/stretchr/testify/require"
 
-	"github.com/alecthomas/assert"
 	"github.com/alecthomas/participle"
 )
 
@@ -59,12 +59,12 @@ service Twitter {
 
 func BenchmarkParticipleThrift(b *testing.B) {
 	b.ReportAllocs()
-	parser, err := participle.Parse(&Thrift{}, nil)
-	assert.NoError(b, err)
+	parser, err := participle.Build(&Thrift{}, nil)
+	require.NoError(b, err)
 
 	thrift := &Thrift{}
 	err = parser.ParseString(source, thrift)
-	assert.NoError(b, err)
+	require.NoError(b, err)
 
 	b.ResetTimer()
 
@@ -77,7 +77,7 @@ func BenchmarkParticipleThrift(b *testing.B) {
 func BenchmarkGoThriftParser(b *testing.B) {
 	b.ReportAllocs()
 	_, err := parser.ParseReader("user.thrift", strings.NewReader(source))
-	assert.NoError(b, err)
+	require.NoError(b, err)
 
 	b.ResetTimer()
 

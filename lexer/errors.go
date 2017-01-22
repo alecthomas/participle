@@ -8,7 +8,7 @@ type Error struct {
 	Pos     Position
 }
 
-// Panic throws a parse error.
+// Panic throws a lexer error. Lexers should use this to report errors.
 func Panic(pos Position, message string) {
 	panic(&Error{Message: message, Pos: pos})
 }
@@ -26,6 +26,11 @@ func Errorf(pos Position, format string, args ...interface{}) *Error {
 	}
 }
 
+// Error complies with the error interface and reports the position of an error.
 func (e *Error) Error() string {
-	return fmt.Sprintf("%s:%d:%d: %s", e.Pos.Filename, e.Pos.Line, e.Pos.Column, e.Message)
+	filename := e.Pos.Filename
+	if filename == "" {
+		filename = "<source>"
+	}
+	return fmt.Sprintf("%s:%d:%d: %s", filename, e.Pos.Line, e.Pos.Column, e.Message)
 }

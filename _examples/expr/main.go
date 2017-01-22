@@ -97,7 +97,7 @@ func main() {
 	kingpin.CommandLine.Help = "A basic expression parser and evaluator."
 	kingpin.Parse()
 
-	parser, err := participle.Parse(&Expression{}, nil)
+	parser, err := participle.Build(&Expression{}, nil)
 	kingpin.FatalIfError(err, "")
 
 	expr := &Expression{}

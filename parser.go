@@ -160,24 +160,35 @@ func nodePrinter(seen map[reflect.Value]bool, v node) string {
 	return "?"
 }
 
-// MustParse calls Parse(grammar, lex) and panics if an error occurs.
-func MustParse(grammar interface{}, lex lexer.Definition) *Parser {
-	parser, err := Parse(grammar, lex)
+// MustBuild calls Build(grammar, lex) and panics if an error occurs.
+func MustBuild(grammar interface{}, lex lexer.Definition) *Parser {
+	parser, err := Build(grammar, lex)
 	if err != nil {
 		panic(err)
 	}
 	return parser
 }
 
-// Generate a parser for the given grammar.
-func Parse(grammar interface{}, lex lexer.Definition) (parser *Parser, err error) {
+// Build constructs a parser for the given grammar.
+//
+// If "lex" is nil, the default lexer based on text/scanner will be used. This scans typical Go-
+// like tokens.
+//
+// See documentation for details
+func Build(grammar interface{}, lex lexer.Definition) (parser *Parser, err error) {
 	defer func() {
 		if msg := recover(); msg != nil {
-			err = errors.New(msg.(string))
+			if s, ok := msg.(string); ok {
+				err = errors.New(s)
+			} else if e, ok := msg.(error); ok {
+				err = e
+			} else {
+				panic("unsupported panic type, can not recover")
+			}
 		}
 	}()
 	if lex == nil {
-		lex = lexer.DefaultDefinition
+		lex = lexer.TextScannerLexer
 	}
 	context := &generatorContext{
 		Definition: lex,
@@ -188,7 +199,7 @@ func Parse(grammar interface{}, lex lexer.Definition) (parser *Parser, err error
 }
 
 // Parse from r into grammar v which must be of the same type as the grammar passed to
-// participle.Parse().
+// participle.Build().
 func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
 	lex := p.lex.Lex(r)
 	// If the grammar implements Parseable, use it.

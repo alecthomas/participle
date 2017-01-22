@@ -17,6 +17,7 @@ func TestBuilder(t *testing.T) {
 		roots     []string
 		failBuild bool
 		fail      bool
+		options   []Option
 	}{
 		{
 			name:      "BadEBNF",
@@ -114,11 +115,24 @@ func TestBuilder(t *testing.T) {
 			source: `some id withCase andNumb3rs`,
 			tokens: []string{"some", " ", "id", " ", "withCase", " ", "andNumb3rs"},
 		},
+		{
+			name: "Elide",
+			grammar: `
+			Identifier = alpha { alpha | number } .
+			Whitespace = "\n" | "\r" | "\t" | " " .
+
+			alpha = "a"…"z" | "A"…"Z" | "_" .
+			number = "0"…"9" .
+			`,
+			source:  `some id withCase andNumb3rs`,
+			tokens:  []string{"some", "id", "withCase", "andNumb3rs"},
+			options: []Option{Elide("Whitespace")},
+		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			defi, err := Build(test.grammar)
+			defi, err := EBNF(test.grammar, test.options...)
 			if test.failBuild {
 				require.Error(t, err, "lexer")
 				return
@@ -174,14 +188,13 @@ func BenchmarkBuilder(b *testing.B) {
 	number = "0"…"9" .
 	`
 	source := `some id withCase andNumb3rs`
-	def, err := Build(grammar)
+	def, err := EBNF(grammar)
 	require.NoError(b, err)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		lexer := def.Lex(strings.NewReader(source))
-		for !lexer.Next().EOF() {
-		}
+		ReadAll(lexer)
 	}
 }
 
@@ -189,8 +202,7 @@ func BenchmarkScanner(b *testing.B) {
 	source := `some id withCase andNumb3rs`
 	for i := 0; i < b.N; i++ {
 		lexer := LexString(source)
-		for !lexer.Next().EOF() {
-		}
+		ReadAll(lexer)
 	}
 }
 

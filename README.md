@@ -5,12 +5,34 @@ The goals of this package are:
 1. Provide a simple, idiomatic and elegant way to define parsers.
 2. Allow generation of very fast parsers from this definition.
 
-A grammar is an annotated Go structure that source is parsed into.
-Conceptually it operates similarly to how the JSON package works; annotations
-on the struct define how this mapping occurs.
+Conceptually, Participle operates similarly to how the JSON package works;
+annotations on the struct define how this mapping occurs.
 
-Note that if a struct field is not keyed with "parser", the entire struct tag will be
-used as the grammar fragment. This allows the grammar syntax to remain clear and simple to maintain.
+## Overview
+
+A grammar is an annotated Go structure used to both define the parser grammar,
+and be the AST output by the parser. eg.
+
+
+```go
+type Grammar struct {
+  Hello string `@Ident`
+}
+```
+
+A parser is constructed from a grammar and a lexer. eg.
+
+```go
+parser, err := participle.Build(&Grammar{}, nil)
+```
+
+Once constructed, the parser is applied to input to produce an AST:
+
+```go
+ast := &Grammar{}
+err := parser.ParseString("world", ast)
+// ast == &Grammar{Hello: "world"}
+```
 
 ## Annotation syntax
 
@@ -28,6 +50,10 @@ Notes:
 
 - Each struct is a single production, with each field applied in sequence.
 - `@<expr>` is the mechanism for capturing matches into the field.
+- if a struct field is not keyed with "parser", the entire struct tag
+  will be used as the grammar fragment. This allows the grammar syntax to remain
+  clear and simple to maintain.
+
 
 ## Capturing
 
@@ -61,14 +87,19 @@ A successful capture match into a boolean field will set the field to true.
 For integer and floating point types, a successful capture will be parsed
 with `strconv.ParseInt()` and `strconv.ParseBool()` respectively.
 
-Custom control of how values are captured into fields can be achieved by a field type
-implementing the `Capture` interface (`Capture(values []string) error`).
+Custom control of how values are captured into fields can be achieved by a
+field type implementing the `Capture` interface (`Capture(values []string)
+error`).
 
 ## Lexing
 
 Participle operates on tokens and thus relies on a lexer to convert character
-streams to tokens. A default lexer based on the
-[text/scanner](https://golang.org/pkg/text/scanner/) package is included.
+streams to tokens.
+
+Three lexers are provided, varying in speed and flexibility. The fastest lexer
+is based on the [text/scanner](https://golang.org/pkg/text/scanner/) package
+but only allows tokens provided by that package. Next fastest is the regexp
+lexer (`lexer.Regexp()`). The slowest is currently the EBNF based lexer, but it has a large potential for optimisation through code generation.
 
 To use your own Lexer you will need to implement two interfaces:
 [Definition](https://godoc.org/github.com/alecthomas/participle#Definition)
@@ -76,7 +107,8 @@ and [Lexer](https://godoc.org/github.com/alecthomas/participle#Lexer).
 
 ## Example
 
-Here is an example of defining a parser for the form of EBNF used by `exp/ebnf`:
+There are several [examples](_examples) included in the source, but here is an
+example of defining a parser for the form of EBNF used by `exp/ebnf`:
 
 ```go
 package main
@@ -133,7 +165,7 @@ type EBNF struct {
 }
 
 func main() {
-  parser, err := participle.Parse(&EBNF{}, nil)
+  parser, err := participle.Build(&EBNF{}, nil)
   if err != nil { panic(err) }
 
   ebnf := &EBNF{}
@@ -143,8 +175,6 @@ func main() {
   json.NewEncoder(os.Stdout).Encode(ebnf)
 }
 ```
-
-There are also more [examples](_examples) included in the source.
 
 ## Performance
 
@@ -159,8 +189,8 @@ run time.
 You can run the benchmarks yourself, but here's the output on my machine:
 
 ```
-BenchmarkParticipleThrift-8        10000            125431 ns/op           43504 B/op       1233 allocs/op
-BenchmarkGoThriftParser-8           3000            438988 ns/op          125468 B/op       2426 allocs/op
+BenchmarkParticipleThrift-4        10000      221818 ns/op     48880 B/op     1240 allocs/op
+BenchmarkGoThriftParser-4           2000      804709 ns/op    170301 B/op     3086 allocs/op
 ```
 
 On a real life codebase of 47K lines of Thrift, Participle takes 200ms and go-

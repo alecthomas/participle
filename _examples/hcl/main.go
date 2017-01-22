@@ -77,7 +77,7 @@ type Block struct {
 func main() {
 	kingpin.Parse()
 
-	parser, err := participle.Parse(&Block{}, nil)
+	parser, err := participle.Build(&Block{}, nil)
 	kingpin.FatalIfError(err, "")
 
 	expr := &Block{}

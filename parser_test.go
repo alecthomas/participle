@@ -13,7 +13,7 @@ func TestProductionReference(t *testing.T) {
 		A string `@Test`
 	}
 
-	_, err := Parse(&testReference{}, nil)
+	_, err := Build(&testReference{}, nil)
 	assert.Error(t, err)
 }
 
@@ -522,13 +522,13 @@ func TestHello(t *testing.T) {
 }
 
 func mustTestParser(t *testing.T, grammar interface{}) *Parser {
-	parser, err := Parse(grammar, nil)
+	parser, err := Build(grammar, nil)
 	assert.NoError(t, err)
 	return parser
 }
 
 func BenchmarkEBNFParser(b *testing.B) {
-	parser, err := Parse(&EBNF{}, nil)
+	parser, err := Build(&EBNF{}, nil)
 	assert.NoError(b, err)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
