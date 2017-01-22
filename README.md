@@ -11,7 +11,7 @@ annotations on the struct define how this mapping occurs.
 ## Overview
 
 A grammar is an annotated Go structure used to both define the parser grammar,
-and be the AST output by the parser. eg.
+and be the AST output by the parser:
 
 
 ```go
@@ -20,7 +20,7 @@ type Grammar struct {
 }
 ```
 
-A parser is constructed from a grammar and a lexer. eg.
+A parser is constructed from a grammar and a lexer:
 
 ```go
 parser, err := participle.Build(&Grammar{}, nil)
