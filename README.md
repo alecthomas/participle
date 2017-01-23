@@ -107,8 +107,10 @@ and [Lexer](https://godoc.org/github.com/alecthomas/participle/lexer#Lexer).
 
 ## Example
 
-There are several [examples](_examples) included in the source, but here is an
-example of defining a parser for the form of EBNF used by `exp/ebnf`:
+There are several [examples](_examples) included in the source. Of particular
+note is the [ini](_examples/ini) parser, which also includes a custom lexer.
+
+Included below is a parser for the form of EBNF used by `exp/ebnf`:
 
 ```go
 package main
