@@ -4,7 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/alecthomas/assert"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/alecthomas/participle/lexer"
 )
 

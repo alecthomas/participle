@@ -163,3 +163,20 @@ func readAllTokens(lex Lexer) (out []string, err error) {
 		out = append(out, token.Value)
 	}
 }
+
+func BenchmarkEBNFLexer(b *testing.B) {
+	def, err := EBNF(`
+Identifier = alpha { alpha | digit } .
+Whitespace = "\n" | "\r" | "\t" | " " .
+Number = digit { digit } .
+
+alpha = "a"…"z" | "A"…"Z" | "_" .
+digit = "0"…"9" .
+`)
+	require.NoError(b, err)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		lex := def.Lex(strings.NewReader("hello world 123 hello world 123"))
+		ConsumeAll(lex)
+	}
+}

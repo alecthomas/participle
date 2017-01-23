@@ -2,10 +2,9 @@ package lexer
 
 import (
 	"strings"
+	"testing"
 
 	"github.com/stretchr/testify/require"
-
-	"testing"
 )
 
 func TestRegexp(t *testing.T) {
@@ -28,4 +27,14 @@ func TestRegexp(t *testing.T) {
 	}, tokens)
 	_, err = ConsumeAll(def.Lex(strings.NewReader("hello ?")))
 	require.Error(t, err)
+}
+
+func BenchmarkRegexpLexer(b *testing.B) {
+	def, err := Regexp(`(?P<Ident>[a-z]+)|(?P<Whitespace>\s+)|(?P<Number>\d+)`)
+	require.NoError(b, err)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		lex := def.Lex(strings.NewReader("hello world 123 hello world 123"))
+		ConsumeAll(lex)
+	}
 }
