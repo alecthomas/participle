@@ -12,7 +12,7 @@ var benchInput = "hello world 123 hello world 123"
 func BenchmarkTextScannerLexer(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		lex := TextScannerLexer.Lex(strings.NewReader(benchInput))
-		ReadAll(lex)
+		ConsumeAll(lex)
 	}
 }
 
@@ -22,7 +22,7 @@ func BenchmarkRegexpLexer(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		lex := def.Lex(strings.NewReader(benchInput))
-		ReadAll(lex)
+		ConsumeAll(lex)
 	}
 }
 
@@ -39,6 +39,6 @@ digit = "0"…"9" .
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		lex := def.Lex(strings.NewReader(benchInput))
-		ReadAll(lex)
+		ConsumeAll(lex)
 	}
 }

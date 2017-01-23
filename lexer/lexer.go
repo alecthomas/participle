@@ -43,14 +43,18 @@ func Must(def Definition, err error) Definition {
 	return def
 }
 
-// ReadAll returns all tokens from a Lexer.
-func ReadAll(lexer Lexer) []Token {
-	out := []Token{}
+// ConsumeAll reads all tokens from a Lexer.
+func ConsumeAll(lexer Lexer) (tokens []Token, err error) {
+	defer func() {
+		if msg := recover(); msg != nil {
+			err = msg.(error)
+		}
+	}()
 	for {
 		token := lexer.Next()
-		out = append(out, token)
+		tokens = append(tokens, token)
 		if token.Type == EOF {
-			return out
+			return
 		}
 	}
 }

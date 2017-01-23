@@ -1,7 +1,6 @@
 package lexer
 
 import (
-	"regexp"
 	"strings"
 	"testing"
 
@@ -176,40 +175,5 @@ func readAllTokens(lex Lexer) (out []string, err error) {
 			return
 		}
 		out = append(out, token.Value)
-	}
-}
-
-func BenchmarkBuilder(b *testing.B) {
-	grammar := `
-	Identifier = alpha { alpha | number } .
-	Whitespace = "\n" | "\r" | "\t" | " " .
-
-	alpha = "a"…"z" | "A"…"Z" | "_" .
-	number = "0"…"9" .
-	`
-	source := `some id withCase andNumb3rs`
-	def, err := EBNF(grammar)
-	require.NoError(b, err)
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		lexer := def.Lex(strings.NewReader(source))
-		ReadAll(lexer)
-	}
-}
-
-func BenchmarkScanner(b *testing.B) {
-	source := `some id withCase andNumb3rs`
-	for i := 0; i < b.N; i++ {
-		lexer := LexString(source)
-		ReadAll(lexer)
-	}
-}
-
-func BenchmarkRegex(b *testing.B) {
-	re := regexp.MustCompile(`(?P<Identifier>[A-Za-z_][A-Za-z0-9_]*)|(?P<Whitespace>[[:space:]])`)
-	source := `some id withCase andNumb3rs`
-	for i := 0; i < b.N; i++ {
-		re.FindAllStringSubmatch(source, -1)
 	}
 }
