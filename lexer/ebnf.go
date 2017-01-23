@@ -34,7 +34,6 @@ func (e *ebnfLexer) Next() Token {
 }
 
 func (e *ebnfLexer) readToken() Token {
-next:
 	for {
 		if e.peek() == EOF {
 			return EOFToken
@@ -42,9 +41,6 @@ next:
 		pos := e.pos
 		for name, production := range e.def.productions {
 			if match := e.match(production.Expr); match != nil {
-				if e.def.elide[name] {
-					continue next
-				}
 				return Token{
 					Type:  e.def.symbols[name],
 					Pos:   pos,
@@ -188,24 +184,10 @@ func (e *ebnfLexer) panicf(msg string, args ...interface{}) {
 	Panicf(e.pos, msg, args...)
 }
 
-// Option to set on an EBNF lexer builder.
-type Option func(*ebnfLexerDefinition) error
-
-// Elide directs the lexer to elide tokens from the given production. Useful for whitespace an
-
-// comments.
-func Elide(name string) Option {
-	return func(def *ebnfLexerDefinition) error {
-		def.elide[name] = true
-		return nil
-	}
-}
-
 type ebnfLexerDefinition struct {
 	grammar     ebnf.Grammar
 	symbols     map[string]rune
 	productions ebnf.Grammar
-	elide       map[string]bool
 }
 
 // EBNF creates a Lexer from an EBNF grammar.
@@ -219,7 +201,7 @@ type ebnfLexerDefinition struct {
 //		Whitespace = "\n" | "\r" | "\t" | " " .
 //		alpha = "a"…"z" | "A"…"Z" | "_" .
 //		number = "0"…"9" .
-func EBNF(grammar string, options ...Option) (Definition, error) {
+func EBNF(grammar string) (Definition, error) {
 	// Parse grammar.
 	r := strings.NewReader(grammar)
 	ast, err := ebnf.Parse("<grammar>", r)
@@ -254,13 +236,6 @@ func EBNF(grammar string, options ...Option) (Definition, error) {
 		grammar:     ast,
 		symbols:     symbols,
 		productions: productions,
-		elide:       map[string]bool{},
-	}
-	// Apply options.
-	for _, option := range options {
-		if err := option(def); err != nil {
-			return nil, err
-		}
 	}
 	return def, nil
 }

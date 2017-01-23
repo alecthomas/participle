@@ -16,7 +16,6 @@ func TestBuilder(t *testing.T) {
 		roots     []string
 		failBuild bool
 		fail      bool
-		options   []Option
 	}{
 		{
 			name:      "BadEBNF",
@@ -114,24 +113,11 @@ func TestBuilder(t *testing.T) {
 			source: `some id withCase andNumb3rs`,
 			tokens: []string{"some", " ", "id", " ", "withCase", " ", "andNumb3rs"},
 		},
-		{
-			name: "Elide",
-			grammar: `
-			Identifier = alpha { alpha | number } .
-			Whitespace = "\n" | "\r" | "\t" | " " .
-
-			alpha = "a"…"z" | "A"…"Z" | "_" .
-			number = "0"…"9" .
-			`,
-			source:  `some id withCase andNumb3rs`,
-			tokens:  []string{"some", "id", "withCase", "andNumb3rs"},
-			options: []Option{Elide("Whitespace")},
-		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			defi, err := EBNF(test.grammar, test.options...)
+			defi, err := EBNF(test.grammar)
 			if test.failBuild {
 				require.Error(t, err, "lexer")
 				return

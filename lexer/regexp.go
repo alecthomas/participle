@@ -17,9 +17,8 @@ type regexpDefinition struct {
 
 // Regexp creates a lexer definition from a regular expression.
 //
-// Each named sub-expression in the regular expression matches a token.
-//
-// Anonymous sub-expressions will cause the matching text to be skipped.
+// Each named sub-expression in the regular expression matches a token. Anonymous sub-expressions
+// will be matched and discarded.
 //
 // eg.
 //
