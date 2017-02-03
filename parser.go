@@ -315,7 +315,7 @@ func (a alternative) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect
 			if i == 0 {
 				return nil
 			}
-			lexer.Panicf(lex.Peek().Pos, "expected %s not %q", n, lex.Peek())
+			lexer.Panicf(lex.Peek().Pos, "expected ( %s ) not %q", n, lex.Peek())
 		}
 		if len(child) == 0 && out == nil {
 			out = []reflect.Value{}

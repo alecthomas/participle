@@ -3,6 +3,7 @@ package lexer
 import (
 	"io"
 	"strconv"
+	"strings"
 )
 
 type mapperDef struct {
@@ -86,4 +87,16 @@ func Unquote(def Definition, types ...string) Definition {
 		}
 		return t
 	})
+}
+
+// Upper case all tokens of the given type. Useful for case normalisation.
+func Upper(def Definition, types ...string) Definition {
+	table := MakeSymbolTable(def, types...)
+	return Map(def, func(token *Token) *Token {
+		if table[token.Type] {
+			token.Value = strings.ToUpper(token.Value)
+		}
+		return token
+	})
+
 }
