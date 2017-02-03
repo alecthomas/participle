@@ -560,9 +560,13 @@ func setField(pos lexer.Position, strct reflect.Value, field reflect.StructField
 		f.Set(reflect.Append(f, fieldValue...))
 
 	case reflect.Ptr:
-		fv := reflect.New(f.Type().Elem()).Elem()
-		f.Set(fv.Addr())
-		f = fv
+		if f.IsNil() {
+			fv := reflect.New(f.Type().Elem()).Elem()
+			f.Set(fv.Addr())
+			f = fv
+		} else {
+			f = f.Elem()
+		}
 		fallthrough
 
 	default:

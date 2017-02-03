@@ -21,6 +21,19 @@ type Select struct {
 	Distinct   bool              `[  @"DISTINCT"`
 	All        bool              ` | @"ALL" ]`
 	Expression *SelectExpression `@@`
+	From       *From             `"FROM" @@`
+}
+
+type From struct {
+	TableExpressions []*TableExpression `@@ { "," @@ }`
+	Where            *Expression        `[ "WHERE" @@ ]`
+}
+
+type TableExpression struct {
+	Table  string        `( @Ident { "." @Ident }`
+	Select *Select       `  | "(" @@ ")"`
+	Values []*Expression `  | "VALUES" "(" @@ { "," @@ } ")")`
+	As     string        `[ "AS" @Ident ]`
 }
 
 type SelectExpression struct {
@@ -97,12 +110,12 @@ type Factor struct {
 }
 
 type Term struct {
-	Number     *float64 `  @Number`
-	ColumnName *string  `| @Ident`
-	String     *string  `| @String`
-	Boolean    *Boolean `| @("TRUE" | "FALSE")`
-	Null       bool     `| @"NULL"`
-	Array      *Array   `| @@`
+	ColumnRef *string  `  @Ident @{ "." Ident }`
+	Number    *float64 `| @Number`
+	String    *string  `| @String`
+	Boolean   *Boolean `| @("TRUE" | "FALSE")`
+	Null      bool     `| @"NULL"`
+	Array     *Array   `| @@`
 }
 
 type Array struct {
@@ -123,7 +136,7 @@ var sqlParser = participle.MustBuild(&Select{}, sqlLexer)
 func main() {
 	kingpin.Parse()
 	sql := &Select{}
-	err := sqlParser.ParseString(`SELECT name, age, date_of_birth AS dob, 1.5`, sql)
+	err := sqlParser.ParseString(`SELECT u.name, age, date_of_birth AS dob FROM user AS u`, sql)
 	kingpin.FatalIfError(err, "")
 	repr.Println(sql, repr.Indent("  "), repr.OmitEmpty())
 }
