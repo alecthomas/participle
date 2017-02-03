@@ -136,7 +136,7 @@ var sqlParser = participle.MustBuild(&Select{}, sqlLexer)
 func main() {
 	kingpin.Parse()
 	sql := &Select{}
-	err := sqlParser.ParseString(`SELECT u.name, age, date_of_birth AS dob FROM user AS u`, sql)
+	err := sqlParser.ParseString(`SELECT u.name, u.age, u.date_of_birth AS dob FROM user AS u`, sql)
 	kingpin.FatalIfError(err, "")
 	repr.Println(sql, repr.Indent("  "), repr.OmitEmpty())
 }
