@@ -10,13 +10,13 @@ import (
 var (
 	sqlArg = kingpin.Arg("sql", "SQL to parse.").Required().String()
 
-	sqlLexer = lexer.Upper(lexer.Must(lexer.Regexp(`(\s+)`+
+	sqlLexer = lexer.Unquote(lexer.Upper(lexer.Must(lexer.Regexp(`(\s+)`+
 		`|(?P<Keyword>(?i)SELECT|FROM|TOP|DISTINCT|ALL|WHERE|GROUP|BY|HAVING|UNION|MINUS|EXCEPT|INTERSECT|ORDER|LIMIT|OFFSET|TRUE|FALSE|NULL|IS|NOT|ANY|SOME|BETWEEN|AND|OR|LIKE|AS|IN)`+
 		`|(?P<Ident>[a-zA-Z_][a-zA-Z0-9_]*)`+
 		`|(?P<Number>[-+]?\d*\.?\d+([eE][-+]?\d+)?)`+
-		`|(?P<String>'[^']*')`+
+		`|(?P<String>'[^']*'|"[^"]*")`+
 		`|(?P<Operators><>|!=|<=|>=|[-+*/%,.()=<>])`,
-	)), "Keyword")
+	)), "Keyword"), "String")
 	sqlParser = participle.MustBuild(&Select{}, sqlLexer)
 )
 
@@ -136,13 +136,25 @@ type Factor struct {
 }
 
 type Term struct {
-	Negated   bool     `[ @"-" | "+" ]`
-	ColumnRef *string  `(  @Ident @{ "." Ident }`
-	Number    *float64 ` | @Number`
-	String    *string  ` | @String`
-	Boolean   *Boolean ` | @("TRUE" | "FALSE")`
-	Null      bool     ` | @"NULL"`
-	Array     *Array   ` | @@ )`
+	Select    *Select    `(  "(" @@ ")"`
+	SymbolRef *SymbolRef ` | @@`
+	Value     *Value     ` | @@ )`
+}
+
+type SymbolRef struct {
+	Symbol     string        `@Ident @{ "." Ident }`
+	Parameters []*Expression `[ "(" @@ { "," @@ } ")" ]`
+}
+
+type Value struct {
+	Negated bool `[ @"-" | "+" ]`
+
+	Wildcard bool     `(  @"*"`
+	Number   *float64 ` | @Number`
+	String   *string  ` | @String`
+	Boolean  *Boolean ` | @("TRUE" | "FALSE")`
+	Null     bool     ` | @"NULL"`
+	Array    *Array   ` | @@ )`
 }
 
 type Array struct {
