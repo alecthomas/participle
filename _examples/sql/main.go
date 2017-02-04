@@ -2,10 +2,22 @@ package main
 
 import (
 	"github.com/alecthomas/participle"
+	"github.com/alecthomas/participle/lexer"
 	"github.com/alecthomas/repr"
 	"gopkg.in/alecthomas/kingpin.v2"
+)
 
-	"github.com/alecthomas/participle/lexer"
+var (
+	sqlArg = kingpin.Arg("sql", "SQL to parse.").Required().String()
+
+	sqlLexer = lexer.Upper(lexer.Must(lexer.Regexp(`(\s+)`+
+		`|(?P<Keyword>(?i)SELECT|FROM|TOP|DISTINCT|ALL|WHERE|GROUP|BY|HAVING|UNION|MINUS|EXCEPT|INTERSECT|ORDER|LIMIT|OFFSET|TRUE|FALSE|NULL|IS|NOT|ANY|SOME|BETWEEN|AND|OR|LIKE|AS|IN)`+
+		`|(?P<Ident>[a-zA-Z_][a-zA-Z0-9_]*)`+
+		`|(?P<Number>[-+]?\d*\.?\d+([eE][-+]?\d+)?)`+
+		`|(?P<String>'[^']*')`+
+		`|(?P<Operators><>|!=|<=|>=|[-+*/%,.()=<>])`,
+	)), "Keyword")
+	sqlParser = participle.MustBuild(&Select{}, sqlLexer)
 )
 
 type Boolean bool
@@ -66,10 +78,24 @@ type ConditionOperand struct {
 }
 
 type ConditionRHS struct {
-	Is      *Is      `  "IS" @@`
+	Compare *Compare `  @@`
+	Is      *Is      `| "IS" @@`
 	Between *Between `| "BETWEEN" @@`
 	In      *In      `| "IN" "(" @@ ")"`
 	Like    *Like    `| "LIKE" @@`
+}
+
+type Compare struct {
+	Operator string         `@( "<>" | "<=" | ">=" | "=" | "<" | ">" | "!=" )`
+	Operand  *Operand       `(  @@`
+	Select   *CompareSelect ` | @@ )`
+}
+
+type CompareSelect struct {
+	All    bool    `(  @"ALL"`
+	Any    bool    ` | @"ANY"`
+	Some   bool    ` | @"SOME" )`
+	Select *Select `"(" @@ ")"`
 }
 
 type Like struct {
@@ -90,7 +116,7 @@ type Between struct {
 
 type In struct {
 	Select      *Select       `  @@`
-	Expressions []*Expression `| "(" @@ { "," @@ } ")"`
+	Expressions []*Expression `| @@ { "," @@ }`
 }
 
 type Operand struct {
@@ -110,33 +136,23 @@ type Factor struct {
 }
 
 type Term struct {
-	ColumnRef *string  `  @Ident @{ "." Ident }`
-	Number    *float64 `| @Number`
-	String    *string  `| @String`
-	Boolean   *Boolean `| @("TRUE" | "FALSE")`
-	Null      bool     `| @"NULL"`
-	Array     *Array   `| @@`
+	Negated   bool     `[ @"-" | "+" ]`
+	ColumnRef *string  `(  @Ident @{ "." Ident }`
+	Number    *float64 ` | @Number`
+	String    *string  ` | @String`
+	Boolean   *Boolean ` | @("TRUE" | "FALSE")`
+	Null      bool     ` | @"NULL"`
+	Array     *Array   ` | @@ )`
 }
 
 type Array struct {
 	Expressions []*Expression `"(" @@ { "," @@ } ")"`
 }
 
-var sqlLexer = lexer.Upper(lexer.Must(lexer.Regexp(`(\s+)`+
-	`|(?P<Keyword>(?i)SELECT|TOP|DISTINCT|ALL|WHERE|GROUP|BY|HAVING|UNION|MINUS|EXCEPT|INTERSECT|ORDER|LIMIT|OFFSET|TRUE|FALSE|NULL|IS|NOT|ANY|SOME|BETWEEN|AND|OR|LIKE|AS)`+
-	`|(?P<Ident>[a-zA-Z_][a-zA-Z0-9_]*)`+
-	`|(?P<Number>[-+]?\d*\.?\d+([eE][-+]?\d+)?)`+
-	`|(?P<String>'[^']*')`+
-	`|(?P<Punctuation>[-+*/%,.()])`+
-	`|()`,
-)), "Keyword")
-
-var sqlParser = participle.MustBuild(&Select{}, sqlLexer)
-
 func main() {
 	kingpin.Parse()
 	sql := &Select{}
-	err := sqlParser.ParseString(`SELECT u.name, u.age, u.date_of_birth AS dob FROM user AS u`, sql)
+	err := sqlParser.ParseString(*sqlArg, sql)
 	kingpin.FatalIfError(err, "")
 	repr.Println(sql, repr.Indent("  "), repr.OmitEmpty())
 }
