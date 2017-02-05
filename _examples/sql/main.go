@@ -34,6 +34,9 @@ type Select struct {
 	All        bool              ` | @"ALL" ]`
 	Expression *SelectExpression `@@`
 	From       *From             `"FROM" @@`
+	Limit      *Expression       `[ "LIMIT" @@ ]`
+	Offset     *Expression       `[ "OFFSET" @@ ]`
+	GroupBy    *Expression       `[ "GROUP" "BY" @@ ]`
 }
 
 type From struct {
@@ -136,9 +139,10 @@ type Factor struct {
 }
 
 type Term struct {
-	Select    *Select    `(  "(" @@ ")"`
-	SymbolRef *SymbolRef ` | @@`
-	Value     *Value     ` | @@ )`
+	Select        *Select     `  @@`
+	SymbolRef     *SymbolRef  `| @@`
+	Value         *Value      `| @@`
+	SubExpression *Expression `| "(" @@ ")"`
 }
 
 type SymbolRef struct {
