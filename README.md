@@ -1,12 +1,34 @@
-# A dead simple parser package for Go [![](https://godoc.org/github.com/alecthomas/participle?status.svg)](http://godoc.org/github.com/alecthomas/participle) [![Build Status](https://travis-ci.org/alecthomas/participle.svg?branch=master)](https://travis-ci.org/alecthomas/participle) [![Go Report Card](https://goreportcard.com/badge/github.com/alecthomas/participle)](https://goreportcard.com/report/github.com/alecthomas/participle)
+# A dead simple parser package for Go
 
-The goals of this package are:
+[![](https://godoc.org/github.com/alecthomas/participle?status.svg)](http://godoc.org/github.com/alecthomas/participle) [![Build Status](https://travis-ci.org/alecthomas/participle.svg?branch=master)](https://travis-ci.org/alecthomas/participle) [![Go Report Card](https://goreportcard.com/badge/github.com/alecthomas/participle)](https://goreportcard.com/report/github.com/alecthomas/participle) [![Gitter chat](https://badges.gitter.im/alecthomas.png)](https://gitter.im/alecthomas/Lobby)
 
-1. Provide a simple, idiomatic and elegant way to define parsers.
-2. Allow generation of very fast parsers from this definition.
+<!-- MarkdownTOC -->
 
-Conceptually, Participle operates similarly to how the JSON package works;
-annotations on the struct define how this mapping occurs.
+- [Introduction](#introduction)
+- [Tutorial](#tutorial)
+- [Overview](#overview)
+- [Annotation syntax](#annotation-syntax)
+- [Capturing](#capturing)
+- [Lexing](#lexing)
+- [Example](#example)
+- [Performance](#performance)
+
+<!-- /MarkdownTOC -->
+
+## Introduction
+
+The goal of this package is to provide a simple, idiomatic and elegant way of
+defining parsers in Go.
+
+Participle's method of defining grammars should be familiar to any Go
+programmer who has used the `encoding/json` package: struct field tags define
+what and how input is mapped to those same fields. This is not unusual for Go
+encoders, but is unusual for a parser.
+
+## Tutorial
+
+A [tutorial](TUTORIAL.md) is available, walking through the creation of an
+.ini parser.
 
 ## Overview
 

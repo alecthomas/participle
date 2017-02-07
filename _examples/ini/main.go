@@ -13,30 +13,31 @@ import (
 var iniLexer = lexer.Unquote(lexer.Must(lexer.Regexp(
 	`(?m)` +
 		`(\s+)` +
-		`|(^#.*$)` +
+		`|(^[#;].*$)` +
 		`|(?P<Ident>[a-zA-Z][a-zA-Z_\d]*)` +
 		`|(?P<String>"(?:\\.|[^"])*")` +
-		`|(?P<Number>\d+(?:\.\d+)?)` +
+		`|(?P<Float>\d+(?:\.\d+)?)` +
 		`|(?P<Punct>[][=])`,
 )))
 
-// Value is either a string or a number.
-type Value struct {
-	String *string  `  @String`
-	Number *float64 `| @Number`
+type INI struct {
+	Properties []*Property `{ @@ }`
+	Sections   []*Section  `{ @@ }`
 }
 
-type Entry struct {
+type Section struct {
+	Identifier string      `"[" @Ident "]"`
+	Properties []*Property `{ @@ }`
+}
+
+type Property struct {
 	Key   string `@Ident "="`
 	Value *Value `@@`
 }
-type Section struct {
-	Name    string   `"[" @Ident "]"`
-	Entries []*Entry `{ @@ }`
-}
 
-type INI struct {
-	Sections []*Section `{ @@ }`
+type Value struct {
+	String *string  `  @String`
+	Number *float64 `| @Float`
 }
 
 func main() {
@@ -49,5 +50,5 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	repr.Println(ini, repr.Indent("  "))
+	repr.Println(ini, repr.Indent("  "), repr.OmitEmpty())
 }

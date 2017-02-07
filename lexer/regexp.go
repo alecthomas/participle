@@ -77,7 +77,8 @@ nextToken:
 	for len(r.b) != 0 {
 		matches := r.re.FindSubmatchIndex(r.b)
 		if matches == nil || matches[0] != 0 {
-			Panic(r.pos, "invalid token")
+			rn, _ := utf8.DecodeRune(r.b)
+			Panicf(r.pos, "invalid token %q", rn)
 		}
 		match := r.b[:matches[1]]
 		token := Token{
