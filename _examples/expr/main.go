@@ -17,6 +17,50 @@ var (
 	exprArgs = kingpin.Arg("expression", "Expression to evaluate.").Required().Strings()
 )
 
+type Operator int
+
+const (
+	OpMul Operator = iota
+	OpDiv
+	OpAdd
+	OpSub
+)
+
+var operatorMap = map[string]Operator{"+": OpAdd, "-": OpSub, "*": OpMul, "/": OpDiv}
+
+func (o *Operator) Capture(s []string) error {
+	*o = operatorMap[s[0]]
+	return nil
+}
+
+func (o Operator) Eval(l, r float64) float64 {
+	switch o {
+	case OpMul:
+		return l * r
+	case OpDiv:
+		return l / r
+	case OpAdd:
+		return l + r
+	case OpSub:
+		return l - r
+	}
+	panic("unsupported operator")
+}
+
+func (o Operator) String() string {
+	switch o {
+	case OpMul:
+		return "*"
+	case OpDiv:
+		return "/"
+	case OpSub:
+		return "-"
+	case OpAdd:
+		return "+"
+	}
+	panic("unsupported operator")
+}
+
 // E --> T {( "+" | "-" ) T}
 // T --> F {( "*" | "/" ) F}
 // F --> P ["^" F]
@@ -48,8 +92,8 @@ func (f *Factor) Eval() float64 {
 }
 
 type OpFactor struct {
-	Operator string  `@("*" | "/")`
-	Factor   *Factor `@@`
+	Operator Operator `@("*" | "/")`
+	Factor   *Factor  `@@`
 }
 
 type Term struct {
@@ -60,19 +104,14 @@ type Term struct {
 func (t *Term) Eval() float64 {
 	n := t.Left.Eval()
 	for _, r := range t.Right {
-		switch r.Operator {
-		case "*":
-			n *= r.Factor.Eval()
-		case "/":
-			n /= r.Factor.Eval()
-		}
+		n = r.Operator.Eval(n, r.Factor.Eval())
 	}
 	return n
 }
 
 type OpTerm struct {
-	Operator string `@("+" | "-")`
-	Term     *Term  `@@`
+	Operator Operator `@("+" | "-")`
+	Term     *Term    `@@`
 }
 
 type Expression struct {
@@ -83,12 +122,7 @@ type Expression struct {
 func (e *Expression) Eval() float64 {
 	l := e.Left.Eval()
 	for _, r := range e.Right {
-		switch r.Operator {
-		case "+":
-			l += r.Term.Eval()
-		case "-":
-			l -= r.Term.Eval()
-		}
+		l = r.Operator.Eval(l, r.Term.Eval())
 	}
 	return l
 }
