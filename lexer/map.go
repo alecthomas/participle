@@ -79,7 +79,7 @@ func Unquote(def Definition, types ...string) Definition {
 	table := MakeSymbolTable(def, types...)
 	return Map(def, func(t *Token) *Token {
 		if table[t.Type] {
-			value, err := strconv.Unquote(t.Value)
+			value, err := unquote(t.Value)
 			if err != nil {
 				Panicf(t.Pos, "invalid quoted string %q: %s", t.Value, err.Error())
 			}
@@ -87,6 +87,21 @@ func Unquote(def Definition, types ...string) Definition {
 		}
 		return t
 	})
+}
+
+func unquote(s string) (string, error) {
+	quote := s[0]
+	s = s[1 : len(s)-1]
+	out := ""
+	for s != "" {
+		value, _, tail, err := strconv.UnquoteChar(s, quote)
+		if err != nil {
+			return "", err
+		}
+		s = tail
+		out += string(value)
+	}
+	return out, nil
 }
 
 // Upper case all tokens of the given type. Useful for case normalisation.
