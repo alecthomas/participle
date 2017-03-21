@@ -4,13 +4,14 @@
 //
 // The supported annotation syntax is:
 //
-//     - `@<expr>` Capture subexpression into the field.
+//     - `@<expr>` Capture expression into the field.
 //     - `@@` Recursively capture using the fields own type.
-//     - `@Identifier` Match token of the given name and capture it.
+//     - `<identifier>` Match named lexer token.
 //     - `{ ... }` Match 0 or more times.
 //     - `( ... )` Group.
 //     - `[ ... ]` Optional.
 //     - `"..."` Match the literal.
+//     - `<expr> <expr> ...` Match expressions.
 //     - `<expr> | <expr>` Match one of the alternatives.
 //
 // Here's an example of an EBNF grammar.

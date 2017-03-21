@@ -42,6 +42,8 @@ type Grammar struct {
 }
 ```
 
+> **Note:** Participle also supports named struct tags (eg. <code>Hello string &#96;parser:"@Ident"&#96;</code>).
+
 A parser is constructed from a grammar and a lexer:
 
 ```go
