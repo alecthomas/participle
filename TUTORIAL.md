@@ -3,12 +3,12 @@
 <!-- MarkdownTOC -->
 
 - [Introduction](#introduction)
+- [The complete grammar](#the-complete-grammar)
 - [Root of the .ini AST \(structure, fields\)](#root-of-the-ini-ast-structure-fields)
 - [.ini properties \(named tokens, capturing, literals\)](#ini-properties-named-tokens-capturing-literals)
 - [.ini property values \(alternates, recursive structs, sequences\)](#ini-property-values-alternates-recursive-structs-sequences)
 - [Complete, but limited, .ini grammar \(top-level properties only\)](#complete-but-limited-ini-grammar-top-level-properties-only)
 - [Extending our grammar to support sections](#extending-our-grammar-to-support-sections)
-- [The complete grammar](#the-complete-grammar)
 - [Parsing using our grammar](#parsing-using-our-grammar)
 
 <!-- /MarkdownTOC -->
@@ -31,6 +31,33 @@ name = "Bob Smith"
 city = "Beverly Hills"
 postal_code = 90210
 ```
+
+## The complete grammar
+
+I think it's useful to see the complete grammar first, to see what we're
+working towards. Read on below for details.
+
+ ```go
+ type INI struct {
+   Properties []*Property `{ @@ }`
+   Sections   []*Section  `{ @@ }`
+ }
+
+ type Section struct {
+   Identifier string      `"[" @Ident "]"`
+   Properties []*Property `{ @@ }`
+ }
+
+ type Property struct {
+   Key   string `@Ident "="`
+   Value *Value `@@`
+ }
+
+ type Value struct {
+   String *string  `  @String`
+   Number *float64 `| @Float`
+ }
+ ```
 
 ## Root of the .ini AST (structure, fields)
 
@@ -184,30 +211,6 @@ type INI struct {
 ```
 
 And we're done!
-
-## The complete grammar
-
- ```go
- type INI struct {
-   Properties []*Property `{ @@ }`
-   Sections   []*Section  `{ @@ }`
- }
-
- type Section struct {
-   Identifier string      `"[" @Ident "]"`
-   Properties []*Property `{ @@ }`
- }
-
- type Property struct {
-   Key   string `@Ident "="`
-   Value *Value `@@`
- }
-
- type Value struct {
-   String *string  `  @String`
-   Number *float64 `| @Float`
- }
- ```
 
 ## Parsing using our grammar
 
