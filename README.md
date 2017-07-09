@@ -66,7 +66,7 @@ err := parser.ParseString("world", ast)
 - `{ ... }` Match 0 or more times.
 - `( ... )` Group.
 - `[ ... ]` Optional.
-- `"..."` Match the literal.
+- `"..."[:<identifier>]` Match the literal, optionally specifying the exact lexer token type to match.
 - `<expr> <expr> ...` Match expressions.
 - `<expr> | <expr>` Match one of the alternatives.
 

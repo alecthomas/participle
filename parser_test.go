@@ -617,3 +617,21 @@ func TestCaptureInterface(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, expected, actual)
 }
+
+func TestLiteralTypeConstraint(t *testing.T) {
+	type grammar struct {
+		Literal string `@"123456":String`
+	}
+
+	parser, err := Build(&grammar{}, lexer.DefaultDefinition)
+	assert.NoError(t, err)
+
+	actual := &grammar{}
+	expected := &grammar{Literal: "123456"}
+	err = parser.ParseString(`"123456"`, actual)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, actual)
+
+	err = parser.ParseString(`123456`, actual)
+	assert.Error(t, err)
+}

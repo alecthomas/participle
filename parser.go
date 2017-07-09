@@ -93,8 +93,8 @@ func nodePrinter(seen map[reflect.Value]bool, v node) string {
 	case *repetition:
 		return fmt.Sprintf("{ %s }", nodePrinter(seen, n.node))
 
-	case str:
-		return fmt.Sprintf("%q", string(n))
+	case *literal:
+		return n.String()
 
 	}
 	return "?"
@@ -383,7 +383,7 @@ func parseTerm(context *generatorContext, slexer *structLexer) node {
 		}
 		return &reference{field, parseTerm(context, slexer)}
 	case scanner.String, scanner.RawString, scanner.Char:
-		return parseQuotedString(slexer)
+		return parseLiteral(context, slexer)
 	case '[':
 		return parseOptional(context, slexer)
 	case '{':
@@ -506,27 +506,48 @@ func parseGroup(context *generatorContext, slexer *structLexer) node {
 	return n
 }
 
-func parseQuotedString(lex *structLexer) node {
+func parseLiteral(context *generatorContext, lex *structLexer) node {
 	token := lex.Next()
 	if token.Type != scanner.String && token.Type != scanner.RawString && token.Type != scanner.Char {
 		panic("expected quoted string but got " + token.String())
 	}
-	return str(token.Value)
-}
-
-// Match a string exactly "..."
-type str string
-
-func (s str) String() string {
-	return fmt.Sprintf("%q", string(s))
-}
-
-func (s str) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
-	token := lex.Peek()
-	if token.Value != string(s) {
-		return nil
+	s := token.Value
+	t := rune(-1)
+	token = lex.Peek()
+	if token.Value == ":" {
+		lex.Next()
+		token = lex.Next()
+		if token.Type != scanner.Ident {
+			panic("expected identifier for literal type constraint but got " + token.String())
+		}
+		var ok bool
+		t, ok = context.Symbols()[token.Value]
+		if !ok {
+			panic("unknown token type " + token.String() + " in literal type constraint")
+		}
 	}
-	return []reflect.Value{reflect.ValueOf(lex.Next().Value)}
+	return &literal{s: s, t: t}
+}
+
+// Match a token literal exactly "...".
+type literal struct {
+	s string
+	t rune
+}
+
+func (s *literal) String() string {
+	if s.t != -1 {
+		return fmt.Sprintf("%q:%d", s.s, s.t)
+	}
+	return fmt.Sprintf("%q", s.s)
+}
+
+func (s *literal) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
+	token := lex.Peek()
+	if token.Value == s.s && (s.t == -1 || s.t == token.Type) {
+		return []reflect.Value{reflect.ValueOf(lex.Next().Value)}
+	}
+	return nil
 }
 
 func conform(t reflect.Type, values []reflect.Value) (out []reflect.Value) {
