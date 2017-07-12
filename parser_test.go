@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/alecthomas/participle/lexer"
 )
@@ -15,7 +15,7 @@ func TestProductionReference(t *testing.T) {
 	}
 
 	_, err := Build(&testReference{}, nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestTermReference(t *testing.T) {
@@ -29,8 +29,8 @@ func TestTermReference(t *testing.T) {
 	expected := &grammar{"..."}
 
 	err := parser.ParseString("...", actual)
-	assert.NoError(t, err)
-	assert.Equal(t, expected, actual)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
 }
 
 func TestParseScalar(t *testing.T) {
@@ -42,8 +42,8 @@ func TestParseScalar(t *testing.T) {
 
 	actual := &grammar{}
 	err := parser.ParseString("one", actual)
-	assert.NoError(t, err)
-	assert.Equal(t, &grammar{"one"}, actual)
+	require.NoError(t, err)
+	require.Equal(t, &grammar{"one"}, actual)
 }
 
 func TestParseGroup(t *testing.T) {
@@ -55,13 +55,13 @@ func TestParseGroup(t *testing.T) {
 
 	actual := &grammar{}
 	err := parser.ParseString("one", actual)
-	assert.NoError(t, err)
-	assert.Equal(t, &grammar{"one"}, actual)
+	require.NoError(t, err)
+	require.Equal(t, &grammar{"one"}, actual)
 
 	actual = &grammar{}
 	err = parser.ParseString("two", actual)
-	assert.NoError(t, err)
-	assert.Equal(t, &grammar{"two"}, actual)
+	require.NoError(t, err)
+	require.Equal(t, &grammar{"two"}, actual)
 }
 
 func TestParseAlternative(t *testing.T) {
@@ -74,13 +74,13 @@ func TestParseAlternative(t *testing.T) {
 
 	actual := &grammar{}
 	err := parser.ParseString("one", actual)
-	assert.NoError(t, err)
-	assert.Equal(t, &grammar{A: "one"}, actual)
+	require.NoError(t, err)
+	require.Equal(t, &grammar{A: "one"}, actual)
 
 	actual = &grammar{}
 	err = parser.ParseString("two", actual)
-	assert.NoError(t, err)
-	assert.Equal(t, &grammar{B: "two"}, actual)
+	require.NoError(t, err)
+	require.Equal(t, &grammar{B: "two"}, actual)
 }
 
 func TestParseSequence(t *testing.T) {
@@ -95,14 +95,14 @@ func TestParseSequence(t *testing.T) {
 	actual := &grammar{}
 	expected := &grammar{"one", "two", "three"}
 	err := parser.ParseString("one two three", actual)
-	assert.NoError(t, err)
-	assert.Equal(t, expected, actual)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
 
 	actual = &grammar{}
 	expected = &grammar{}
 	err = parser.ParseString("moo", actual)
-	assert.Error(t, err)
-	assert.Equal(t, expected, actual)
+	require.Error(t, err)
+	require.Equal(t, expected, actual)
 }
 
 func TestNested(t *testing.T) {
@@ -120,8 +120,8 @@ func TestNested(t *testing.T) {
 	actual := &testNested{}
 	expected := &testNested{A: &nestedInner{B: "one", C: "two"}}
 	err := parser.ParseString("one two", actual)
-	assert.NoError(t, err)
-	assert.Equal(t, expected, actual)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
 }
 
 func TestAccumulateNested(t *testing.T) {
@@ -138,8 +138,8 @@ func TestAccumulateNested(t *testing.T) {
 	actual := &testAccumulateNested{}
 	expected := &testAccumulateNested{A: []*nestedInner{{B: "one", C: "two"}, {B: "one", C: "two"}}}
 	err := parser.ParseString("one two one two", actual)
-	assert.NoError(t, err)
-	assert.Equal(t, expected, actual)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
 }
 
 func TestRepititionNoMatch(t *testing.T) {
@@ -151,8 +151,8 @@ func TestRepititionNoMatch(t *testing.T) {
 	expected := &grammar{}
 	actual := &grammar{}
 	err := parser.ParseString(``, actual)
-	assert.NoError(t, err)
-	assert.Equal(t, expected, actual)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
 }
 
 func TestRepitition(t *testing.T) {
@@ -164,8 +164,8 @@ func TestRepitition(t *testing.T) {
 	expected := &grammar{A: []string{".", ".", "."}}
 	actual := &grammar{}
 	err := parser.ParseString(`...`, actual)
-	assert.NoError(t, err)
-	assert.Equal(t, expected, actual)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
 }
 
 func TestRepititionAcrossFields(t *testing.T) {
@@ -186,8 +186,8 @@ func TestRepititionAcrossFields(t *testing.T) {
 		B: &b,
 	}
 	err := parser.ParseString("...b", actual)
-	assert.NoError(t, err)
-	assert.Equal(t, expected, actual)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
 
 	actual = &testRepitition{}
 	expected = &testRepitition{
@@ -195,16 +195,16 @@ func TestRepititionAcrossFields(t *testing.T) {
 		C: &c,
 	}
 	err = parser.ParseString("...c", actual)
-	assert.NoError(t, err)
-	assert.Equal(t, expected, actual)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
 
 	actual = &testRepitition{}
 	expected = &testRepitition{
 		B: &b,
 	}
 	err = parser.ParseString("b", actual)
-	assert.NoError(t, err)
-	assert.Equal(t, expected, actual)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
 }
 
 func TestAccumulateString(t *testing.T) {
@@ -219,8 +219,8 @@ func TestAccumulateString(t *testing.T) {
 		A: "...",
 	}
 	err := parser.ParseString("...", actual)
-	assert.NoError(t, err)
-	assert.Equal(t, expected, actual)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
 }
 
 type Group struct {
@@ -448,8 +448,8 @@ Option      = "[" Expression "]" .
 Repetition  = "{" Expression "}" .
 
 `), actual)
-	assert.NoError(t, err)
-	assert.Equal(t, expected, actual)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
 }
 
 func TestParseType(t *testing.T) {
@@ -476,8 +476,8 @@ func TestParseExpression(t *testing.T) {
 	}
 	actual := &testExpression{}
 	err := parser.ParseString(";b", actual)
-	assert.NoError(t, err)
-	assert.Equal(t, expected, actual)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
 }
 
 func TestParseTokenReference(t *testing.T) {
@@ -494,8 +494,8 @@ func TestParseOptional(t *testing.T) {
 	expected := &testOptional{B: "c"}
 	actual := &testOptional{}
 	err := parser.ParseString(`c`, actual)
-	assert.NoError(t, err)
-	assert.Equal(t, expected, actual)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
 }
 
 func TestParseRepitition(t *testing.T) {
@@ -518,19 +518,19 @@ func TestHello(t *testing.T) {
 	expected := &testHello{"hello", "Bobby Brown"}
 	actual := &testHello{}
 	err := parser.ParseString(`hello "Bobby Brown"`, actual)
-	assert.NoError(t, err)
-	assert.Equal(t, expected, actual)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
 }
 
 func mustTestParser(t *testing.T, grammar interface{}) *Parser {
 	parser, err := Build(grammar, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	return parser
 }
 
 func BenchmarkEBNFParser(b *testing.B) {
 	parser, err := Build(&EBNF{}, nil)
-	assert.NoError(b, err)
+	require.NoError(b, err)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		actual := &EBNF{}
@@ -559,8 +559,8 @@ func TestRepeatAcrossFields(t *testing.T) {
 	expected := &grammar{A: ".>.>.>.>", B: ",<,<,<"}
 
 	err := parser.ParseString(".>,<.>.>,<.>,<", actual)
-	assert.NoError(t, err)
-	assert.Equal(t, expected, actual)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
 }
 
 func TestPosInjection(t *testing.T) {
@@ -594,8 +594,8 @@ func TestPosInjection(t *testing.T) {
 	}
 
 	err := parser.ParseString("...,,,", actual)
-	assert.NoError(t, err)
-	assert.Equal(t, expected, actual)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
 }
 
 type parseableCount int
@@ -614,8 +614,8 @@ func TestCaptureInterface(t *testing.T) {
 	actual := &grammar{}
 	expected := &grammar{Count: 3}
 	err := parser.ParseString("a a a", actual)
-	assert.NoError(t, err)
-	assert.Equal(t, expected, actual)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
 }
 
 func TestLiteralTypeConstraint(t *testing.T) {
@@ -624,14 +624,68 @@ func TestLiteralTypeConstraint(t *testing.T) {
 	}
 
 	parser, err := Build(&grammar{}, lexer.DefaultDefinition)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	actual := &grammar{}
 	expected := &grammar{Literal: "123456"}
 	err = parser.ParseString(`"123456"`, actual)
-	assert.NoError(t, err)
-	assert.Equal(t, expected, actual)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
 
 	err = parser.ParseString(`123456`, actual)
-	assert.Error(t, err)
+	require.Error(t, err)
+}
+
+type nestedCapture struct {
+	tokens []string
+}
+
+func (n *nestedCapture) Capture(tokens []string) error {
+	n.tokens = tokens
+	return nil
+}
+
+func TestStructCaptureInterface(t *testing.T) {
+	type grammar struct {
+		Capture *nestedCapture `@String`
+	}
+
+	parser, err := Build(&grammar{}, nil)
+	require.NoError(t, err)
+
+	actual := &grammar{}
+	expected := &grammar{Capture: &nestedCapture{tokens: []string{"hello"}}}
+	err = parser.ParseString(`"hello"`, actual)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
+}
+
+type parseableStruct struct {
+	tokens []string
+}
+
+func (p *parseableStruct) Parse(lex lexer.Lexer) error {
+	tokens, err := lexer.ConsumeAll(lex)
+	if err != nil {
+		return err
+	}
+	for _, t := range tokens {
+		p.tokens = append(p.tokens, t.Value)
+	}
+	return nil
+}
+
+func TestParseable(t *testing.T) {
+	type grammar struct {
+		Inner *parseableStruct `@@`
+	}
+
+	parser, err := Build(&grammar{}, nil)
+	require.NoError(t, err)
+
+	actual := &grammar{}
+	expected := &grammar{Inner: &parseableStruct{tokens: []string{"hello", "123", "world", ""}}}
+	err = parser.ParseString(`hello 123 "world"`, actual)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
 }

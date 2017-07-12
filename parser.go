@@ -14,11 +14,13 @@ import (
 )
 
 var (
-	positionType = reflect.TypeOf(lexer.Position{})
+	positionType  = reflect.TypeOf(lexer.Position{})
+	captureType   = reflect.TypeOf((*Capture)(nil)).Elem()
+	parseableType = reflect.TypeOf((*Parseable)(nil)).Elem()
 
 	// NextMatch should be returned by Parseable.Parse() method implementations to indicate
 	// that the node did not match and that other matches should be attempted, if appropriate.
-	NextMatch = errors.New("no match")
+	NextMatch = errors.New("no match") // nolint: golint
 )
 
 // A node in the grammar.
@@ -34,7 +36,7 @@ type Capture interface {
 	Capture(values []string) error
 }
 
-// The Parseable interface can be implemented by grammar roots to implement custom parsing.
+// The Parseable interface can be implemented by any element in the grammar to implement custom parsing.
 type Parseable interface {
 	// Parse into the receiver.
 	// Should return NextMatch if no tokens matched and parsing should continue.
@@ -202,7 +204,9 @@ func decorate(name string) {
 
 // Takes a type and builds a tree of nodes out of it.
 func parseType(context *generatorContext, t reflect.Type) node {
-	defer decorate(indirectType(t).Name())
+	rt := t
+	t = indirectType(t)
+	defer decorate(t.Name())
 	if n, ok := context.typeNodes[t]; ok {
 		return n
 	}
@@ -212,6 +216,9 @@ func parseType(context *generatorContext, t reflect.Type) node {
 		fallthrough
 
 	case reflect.Struct:
+		if rt.Implements(parseableType) {
+			return &parseable{rt}
+		}
 		out := &strct{typ: t}
 		context.typeNodes[t] = out
 		slexer := lexStruct(t)
@@ -228,6 +235,27 @@ func parseType(context *generatorContext, t reflect.Type) node {
 		return out
 	}
 	panic("expected struct type but got " + t.String())
+}
+
+type parseable struct {
+	t reflect.Type
+}
+
+func (p *parseable) String() string {
+	return p.t.String()
+}
+
+func (p *parseable) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
+	rv := reflect.New(p.t.Elem())
+	v := rv.Interface().(Parseable)
+	err := v.Parse(lex)
+	if err != nil {
+		if err == NextMatch {
+			return nil
+		}
+		panic(err)
+	}
+	return []reflect.Value{rv.Elem()}
 }
 
 type strct struct {
@@ -376,10 +404,10 @@ func parseTerm(context *generatorContext, slexer *structLexer) node {
 		field := slexer.Field()
 		if token.Type == '@' {
 			slexer.Next()
-			return &reference{field, parseType(context, indirectType(field.Type))}
+			return &reference{field, parseType(context, field.Type)}
 		}
-		if indirectType(field.Type).Kind() == reflect.Struct {
-			panic("structs can only be parsed with @@")
+		if indirectType(field.Type).Kind() == reflect.Struct && !field.Type.Implements(captureType) {
+			panic("structs can only be parsed with @@ or by implementing the Capture interface")
 		}
 		return &reference{field, parseTerm(context, slexer)}
 	case scanner.String, scanner.RawString, scanner.Char:
@@ -573,7 +601,7 @@ func conform(t reflect.Type, values []reflect.Value) (out []reflect.Value) {
 //
 // For all other types, an attempt will be made to convert the string to the corresponding
 // type (int, float32, etc.).
-func setField(pos lexer.Position, strct reflect.Value, field reflect.StructField, fieldValue []reflect.Value) {
+func setField(pos lexer.Position, strct reflect.Value, field reflect.StructField, fieldValue []reflect.Value) { // nolint: gocyclo
 	f := strct.FieldByIndex(field.Index)
 	switch f.Kind() {
 	case reflect.Slice:
