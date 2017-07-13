@@ -88,6 +88,7 @@ func RuneToken(r rune) Token {
 	return Token{Type: r, Value: string(r)}
 }
 
+// EOF returns true if this Token is an EOF token.
 func (t Token) EOF() bool {
 	return t.Type == EOF
 }

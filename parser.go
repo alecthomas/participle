@@ -36,9 +36,10 @@ type Capture interface {
 	Capture(values []string) error
 }
 
-// The Parseable interface can be implemented by any element in the grammar to implement custom parsing.
+// The Parseable interface can be implemented by any element in the grammar to provide custom parsing.
 type Parseable interface {
 	// Parse into the receiver.
+	//
 	// Should return NextMatch if no tokens matched and parsing should continue.
 	// Nil should be returned if parsing was successful.
 	Parse(lex lexer.Lexer) error
@@ -229,7 +230,7 @@ func parseType(context *generatorContext, t reflect.Type) node {
 		}()
 		e := parseExpression(context, slexer)
 		if !slexer.Peek().EOF() {
-			panic("unexpected input " + string(slexer.Peek().Value))
+			panic("unexpected input " + slexer.Peek().Value)
 		}
 		out.expr = e
 		return out
@@ -434,7 +435,7 @@ type tokenReference struct {
 }
 
 func (t *tokenReference) String() string {
-	return fmt.Sprintf("%s", t.identifier)
+	return t.identifier
 }
 
 func (t *tokenReference) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
@@ -534,7 +535,7 @@ func parseGroup(context *generatorContext, slexer *structLexer) node {
 	return n
 }
 
-func parseLiteral(context *generatorContext, lex *structLexer) node {
+func parseLiteral(context *generatorContext, lex *structLexer) node { // nolint: interfacer
 	token := lex.Next()
 	if token.Type != scanner.String && token.Type != scanner.RawString && token.Type != scanner.Char {
 		panic("expected quoted string but got " + token.String())

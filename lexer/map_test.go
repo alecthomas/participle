@@ -24,9 +24,9 @@ func TestMap(t *testing.T) {
 	require.NoError(t, err)
 
 	expected := []Token{
-		Token{Type: -3, Value: "HELLO", Pos: Position{Filename: "", Offset: 0, Line: 1, Column: 1}},
-		Token{Type: -3, Value: "WORLD", Pos: Position{Filename: "", Offset: 6, Line: 1, Column: 7}},
-		Token{Type: -1, Value: "<<EOF>>", Pos: Position{Filename: "", Offset: 11, Line: 1, Column: 12}},
+		{Type: -3, Value: "HELLO", Pos: Position{Filename: "", Offset: 0, Line: 1, Column: 1}},
+		{Type: -3, Value: "WORLD", Pos: Position{Filename: "", Offset: 6, Line: 1, Column: 7}},
+		{Type: -1, Value: "<<EOF>>", Pos: Position{Filename: "", Offset: 11, Line: 1, Column: 12}},
 	}
 
 	require.Equal(t, expected, actual)
@@ -38,9 +38,9 @@ func TestUnquote(t *testing.T) {
 	actual, err := ConsumeAll(lexer)
 	require.NoError(t, err)
 	expected := []Token{
-		Token{Type: -3, Value: "hello", Pos: Position{Filename: "", Offset: 0, Line: 1, Column: 1}},
-		Token{Type: -4, Value: "world", Pos: Position{Filename: "", Offset: 6, Line: 1, Column: 7}},
-		Token{Type: -1, Value: "<<EOF>>", Pos: Position{Filename: "", Offset: 13, Line: 1, Column: 14}},
+		{Type: -3, Value: "hello", Pos: Position{Filename: "", Offset: 0, Line: 1, Column: 1}},
+		{Type: -4, Value: "world", Pos: Position{Filename: "", Offset: 6, Line: 1, Column: 7}},
+		{Type: -1, Value: "<<EOF>>", Pos: Position{Filename: "", Offset: 13, Line: 1, Column: 14}},
 	}
 	require.Equal(t, expected, actual)
 }
@@ -51,9 +51,9 @@ func TestUnquoteSingleQuote(t *testing.T) {
 	actual, err := ConsumeAll(lexer)
 	require.NoError(t, err)
 	expected := []Token{
-		Token{Type: -3, Value: "hello", Pos: Position{Filename: "", Offset: 0, Line: 1, Column: 1}},
-		Token{Type: -4, Value: "world'", Pos: Position{Filename: "", Offset: 6, Line: 1, Column: 7}},
-		Token{Type: -1, Value: "<<EOF>>", Pos: Position{Filename: "", Offset: 15, Line: 1, Column: 16}},
+		{Type: -3, Value: "hello", Pos: Position{Filename: "", Offset: 0, Line: 1, Column: 1}},
+		{Type: -4, Value: "world'", Pos: Position{Filename: "", Offset: 6, Line: 1, Column: 7}},
+		{Type: -1, Value: "<<EOF>>", Pos: Position{Filename: "", Offset: 15, Line: 1, Column: 16}},
 	}
 	require.Equal(t, expected, actual)
 }
@@ -64,9 +64,9 @@ func TestElide(t *testing.T) {
 	actual, err := ConsumeAll(lex)
 	require.NoError(t, err)
 	expected := []Token{
-		Token{Type: -3, Value: "hello", Pos: Position{Filename: "", Offset: 0, Line: 1, Column: 1}},
-		Token{Type: -3, Value: "world", Pos: Position{Filename: "", Offset: 6, Line: 1, Column: 7}},
-		Token{Type: -1, Value: "<<EOF>>", Pos: Position{Filename: "", Offset: 11, Line: 1, Column: 12}},
+		{Type: -3, Value: "hello", Pos: Position{Filename: "", Offset: 0, Line: 1, Column: 1}},
+		{Type: -3, Value: "world", Pos: Position{Filename: "", Offset: 6, Line: 1, Column: 7}},
+		{Type: -1, Value: "<<EOF>>", Pos: Position{Filename: "", Offset: 11, Line: 1, Column: 12}},
 	}
 	require.Equal(t, expected, actual)
 }

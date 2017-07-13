@@ -49,6 +49,7 @@ func (m *mapper) Next() Token {
 	return t
 }
 
+// MakeSymbolTable is a useful helper function for Definition decorator types.
 func MakeSymbolTable(def Definition, types ...string) map[rune]bool {
 	sym := def.Symbols()
 	table := map[rune]bool{}

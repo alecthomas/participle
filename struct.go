@@ -2,7 +2,6 @@ package participle
 
 import (
 	"reflect"
-	"strings"
 
 	"github.com/alecthomas/participle/lexer"
 )
@@ -12,7 +11,6 @@ type structLexer struct {
 	s     reflect.Type
 	field int
 	lexer lexer.Lexer
-	r     *strings.Reader
 }
 
 func lexStruct(s reflect.Type) *structLexer {

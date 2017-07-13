@@ -56,7 +56,7 @@ func Lex(r io.Reader) Lexer {
 	return lexer
 }
 
-// LexString returns a new default lexer over bytes.
+// LexBytes returns a new default lexer over bytes.
 func LexBytes(b []byte) Lexer {
 	return Lex(bytes.NewReader(b))
 }

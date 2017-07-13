@@ -34,26 +34,24 @@ func (e *ebnfLexer) Next() Token {
 }
 
 func (e *ebnfLexer) readToken() Token {
-	for {
-		if e.peek() == EOF {
-			return EOFToken
-		}
-		pos := e.pos
-		for name, production := range e.def.productions {
-			if match := e.match(production.Expr); match != nil {
-				return Token{
-					Type:  e.def.symbols[name],
-					Pos:   pos,
-					Value: strings.Join(match, ""),
-				}
+	if e.peek() == EOF {
+		return EOFToken
+	}
+	pos := e.pos
+	for name, production := range e.def.productions {
+		if match := e.match(production.Expr); match != nil {
+			return Token{
+				Type:  e.def.symbols[name],
+				Pos:   pos,
+				Value: strings.Join(match, ""),
 			}
 		}
-		e.panic("no match found")
-		return Token{}
 	}
+	e.panic("no match found")
+	return Token{}
 }
 
-func (e *ebnfLexer) match(expr ebnf.Expression) []string {
+func (e *ebnfLexer) match(expr ebnf.Expression) []string { // nolint: gocyclo
 	switch n := expr.(type) {
 	case ebnf.Alternative:
 		for _, an := range n {
@@ -304,7 +302,7 @@ func optimize(expr ebnf.Expression) ebnf.Expression {
 }
 
 // Validate the grammar against the lexer rules.
-func validate(grammar ebnf.Grammar, expr ebnf.Expression) error {
+func validate(grammar ebnf.Grammar, expr ebnf.Expression) error { // nolint: gocyclo
 	switch n := expr.(type) {
 	case *ebnf.Production:
 		return validate(grammar, n.Expr)
