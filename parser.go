@@ -667,10 +667,11 @@ func setValue(pos lexer.Position, fieldName string, f reflect.Value, fieldValue 
 			panicf("a single value must be assigned to an integer field but have %#v", fieldValue)
 		}
 		n, err := strconv.ParseInt(fieldValue[0].String(), 10, 64)
-		if err != nil {
-			panicf("expected integer but got %q", fieldValue[0].String())
+		if err == nil {
+			f.SetInt(n)
+		} else {
+			f.SetInt(f.Int() + 1)
 		}
-		f.SetInt(n)
 
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		if len(fieldValue) != 1 {
