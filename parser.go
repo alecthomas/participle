@@ -607,7 +607,11 @@ func setField(pos lexer.Position, strct reflect.Value, field reflect.StructField
 	switch f.Kind() {
 	case reflect.Slice:
 		fieldValue = conform(f.Type().Elem(), fieldValue)
-		f.Set(reflect.Append(f, fieldValue...))
+		for _, v := range fieldValue {
+			tmp := reflect.New(f.Type().Elem())
+			setValue(pos, field.Name, tmp.Elem(), []reflect.Value{v})
+			f.Set(reflect.Append(f, tmp.Elem()))
+		}
 
 	case reflect.Ptr:
 		if f.IsNil() {
@@ -620,72 +624,76 @@ func setField(pos lexer.Position, strct reflect.Value, field reflect.StructField
 		fallthrough
 
 	default:
-		if f.CanAddr() {
-			if d, ok := f.Addr().Interface().(Capture); ok {
-				ifv := []string{}
-				for _, v := range fieldValue {
-					ifv = append(ifv, v.Interface().(string))
-				}
-				err := d.Capture(ifv)
-				if err != nil {
-					lexer.Panic(pos, err.Error())
-				}
-				return
-			}
-		}
+		setValue(pos, field.Name, f, fieldValue)
+	}
+}
 
-		switch f.Kind() {
-		case reflect.String:
+func setValue(pos lexer.Position, fieldName string, f reflect.Value, fieldValue []reflect.Value) {
+	if f.CanAddr() {
+		if d, ok := f.Addr().Interface().(Capture); ok {
+			ifv := []string{}
 			for _, v := range fieldValue {
-				f.Set(reflect.ValueOf(f.String() + v.String()))
+				ifv = append(ifv, v.Interface().(string))
 			}
-
-		case reflect.Struct:
-			if len(fieldValue) != 1 {
-				values := []interface{}{}
-				for _, v := range fieldValue {
-					values = append(values, v.Interface())
-				}
-				panicf("a single value must be assigned to struct field but have %#v", values)
-			}
-			f.Set(fieldValue[0])
-
-		case reflect.Bool:
-			f.Set(reflect.ValueOf(true))
-
-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			if len(fieldValue) != 1 {
-				panicf("a single value must be assigned to an integer field but have %#v", fieldValue)
-			}
-			n, err := strconv.ParseInt(fieldValue[0].String(), 10, 64)
+			err := d.Capture(ifv)
 			if err != nil {
-				panicf("expected integer but got %q", fieldValue[0].String())
+				lexer.Panic(pos, err.Error())
 			}
-			f.SetInt(n)
-
-		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			if len(fieldValue) != 1 {
-				panicf("a single value must be assigned to an unsigned integer field but have %#v", fieldValue)
-			}
-			n, err := strconv.ParseUint(fieldValue[0].String(), 10, 64)
-			if err != nil {
-				panicf("expected unsigned integer but got %q", fieldValue[0].String())
-			}
-			f.SetUint(n)
-
-		case reflect.Float32, reflect.Float64:
-			if len(fieldValue) != 1 {
-				panicf("a single value must be assigned to a float field but have %#v", fieldValue)
-			}
-			n, err := strconv.ParseFloat(fieldValue[0].String(), 10)
-			if err != nil {
-				panicf("expected float but got %q", fieldValue[0].String())
-			}
-			f.SetFloat(n)
-
-		default:
-			panicf("unsupported field type %s for field %s", f.Type(), field.Name)
+			return
 		}
+	}
+
+	switch f.Kind() {
+	case reflect.String:
+		for _, v := range fieldValue {
+			f.Set(reflect.ValueOf(f.String() + v.String()))
+		}
+
+	case reflect.Struct:
+		if len(fieldValue) != 1 {
+			values := []interface{}{}
+			for _, v := range fieldValue {
+				values = append(values, v.Interface())
+			}
+			panicf("a single value must be assigned to struct field but have %#v", values)
+		}
+		f.Set(fieldValue[0])
+
+	case reflect.Bool:
+		f.Set(reflect.ValueOf(true))
+
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		if len(fieldValue) != 1 {
+			panicf("a single value must be assigned to an integer field but have %#v", fieldValue)
+		}
+		n, err := strconv.ParseInt(fieldValue[0].String(), 10, 64)
+		if err != nil {
+			panicf("expected integer but got %q", fieldValue[0].String())
+		}
+		f.SetInt(n)
+
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		if len(fieldValue) != 1 {
+			panicf("a single value must be assigned to an unsigned integer field but have %#v", fieldValue)
+		}
+		n, err := strconv.ParseUint(fieldValue[0].String(), 10, 64)
+		if err != nil {
+			panicf("expected unsigned integer but got %q", fieldValue[0].String())
+		}
+		f.SetUint(n)
+
+	case reflect.Float32, reflect.Float64:
+		if len(fieldValue) != 1 {
+			panicf("a single value must be assigned to a float field but have %#v", fieldValue)
+		}
+		n, err := strconv.ParseFloat(fieldValue[0].String(), 10)
+		if err != nil {
+			panicf("expected float but got %q", fieldValue[0].String())
+		}
+		f.SetFloat(n)
+
+	default:
+		panicf("unsupported field type %s for field %s", f.Type(), fieldName)
 	}
 }
 
