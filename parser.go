@@ -607,12 +607,29 @@ func setField(pos lexer.Position, strct reflect.Value, field reflect.StructField
 	switch f.Kind() {
 	case reflect.Slice:
 		fieldValue = conform(f.Type().Elem(), fieldValue)
-		for _, v := range fieldValue {
-			tmp := reflect.New(f.Type().Elem())
-			setValue(pos, field.Name, tmp.Elem(), []reflect.Value{v})
-			f.Set(reflect.Append(f, tmp.Elem()))
+		// Check if the slice element type is valid for conversion. Not pretty,
+		// but works.
+		valid := false
+		switch f.Type().Elem().Kind() {
+		case reflect.String, reflect.Struct, reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+			reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Float32, reflect.Float64:
+			valid = true
+		default:
+			if f.CanAddr() {
+				if _, ok := f.Addr().Interface().(Capture); ok {
+					valid = true
+				}
+			}
 		}
-
+		if valid {
+			for _, v := range fieldValue {
+				tmp := reflect.New(f.Type().Elem())
+				setValue(pos, field.Name, tmp.Elem(), []reflect.Value{v})
+				f.Set(reflect.Append(f, tmp.Elem()))
+			}
+		} else {
+			f.Set(reflect.Append(f, fieldValue...))
+		}
 	case reflect.Ptr:
 		if f.IsNil() {
 			fv := reflect.New(f.Type().Elem()).Elem()
