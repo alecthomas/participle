@@ -3,7 +3,7 @@ access_key = "something"
 secret_key = "something_else"
 bucket = "backups"
 
-directory "config" {
+directory config {
     source_dir = "/etc/eventstore"
     dest_prefix = "escluster/config"
     exclude = ["*.hcl"]
@@ -13,7 +13,7 @@ directory "config" {
     post_restore_script = "after_restore.sh"
 }
 
-directory "data" {
+directory data {
     source_dir = "/var/lib/eventstore"
     dest_prefix = "escluster/a/data"
     exclude = [

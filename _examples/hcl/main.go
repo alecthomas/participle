@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/alecthomas/repr"
 
@@ -25,64 +26,60 @@ func (i *Number) Parse(s string) error {
 
 type Bool bool
 
-func (b *Bool) Parse(v []interface{}) error {
-	if len(v) != 1 {
-		return fmt.Errorf("bool can only accept one value")
-	}
-	s, ok := v[0].(string)
-	if !ok {
-		return fmt.Errorf("bool must be either 'true' or 'false' but got %q", v[0])
-	}
-	switch s {
-	case "true":
-		*b = true
-	case "false":
-		*b = false
-	default:
-		return fmt.Errorf("invalid boolean value %q", s)
-	}
-	return nil
-}
-
-type Literal struct {
-	Boolean    *Bool   `parser:"@('true'|'false')" json:"boolean,omitempty"`
-	Identifier *string `parser:"| @Ident" json:"identifier,omitempty"`
-	String     *string `parser:"| @(String|Char|RawString)" json:"string,omitempty"`
-	Number     *Number `parser:"| @(Float|Int)" json:"number,omitempty"`
-}
-
-type BlockHeader struct {
-	Parameters []*Literal `parser:"{ @@ } '{'" json:"parameters,omitempty"`
-	Body       *Block     `parser:"@@ '}'" json:"body,omitempty"`
-}
+func (b *Bool) Capture(v []string) error { *b = v[0] == "true"; return nil }
 
 type Value struct {
-	Literal *Literal   `parser:"@@ |" json:"literal,omitempty"`
-	Array   []*Literal `parser:"'[' { @@ [ ',' ] } ']'" json:"array,omitempty"`
+	Boolean    *Bool    `  @('true'|'false')`
+	Identifier *string  `| @Ident { @"." @Ident }`
+	String     *string  `| @(String|Char|RawString)`
+	Number     *Number  `| @(Float|Int)`
+	Array      []*Value `| '[' { @@ [ ',' ] } ']'`
 }
 
-type Assignment struct {
+func (l *Value) GoString() string {
+	switch {
+	case l.Boolean != nil:
+		return fmt.Sprintf("%v", *l.Boolean)
+	case l.Identifier != nil:
+		return fmt.Sprintf("`%s`", *l.Identifier)
+	case l.String != nil:
+		return fmt.Sprintf("%q", *l.String)
+	case l.Number != nil:
+		return fmt.Sprintf("%v", *l.Number)
+	case l.Array != nil:
+		out := []string{}
+		for _, v := range l.Array {
+			out = append(out, v.GoString())
+		}
+		return fmt.Sprintf("[]*Value{ %s }", strings.Join(out, ", "))
+	}
+	panic("??")
 }
 
 type Entry struct {
-	Key   string       `parser:"@Ident" json:"key,omitempty"`
-	Value *Value       `parser:"( '=' @@ |" json:"value,omitempty"`
-	Block *BlockHeader `parser:"@@ )" json:"block,omitempty"`
+	Key   *Value `@@`
+	Value *Value `( '=' @@`
+	Block *Block `| @@ )`
 }
 
 type Block struct {
-	Entries []*Entry `parser:"{ @@ }" json:"entries,omitempty"`
+	Parameters []*Value `{ @@ }`
+	Entries    []*Entry `'{' { @@ } '}'`
+}
+
+type Config struct {
+	Entries []*Entry `{ @@ }`
 }
 
 func main() {
 	kingpin.Parse()
 
-	parser, err := participle.Build(&Block{}, nil)
+	parser, err := participle.Build(&Config{}, nil)
 	kingpin.FatalIfError(err, "")
 
-	expr := &Block{}
+	expr := &Config{}
 	err = parser.Parse(os.Stdin, expr)
 	kingpin.FatalIfError(err, "")
 
-	repr.Println(expr, repr.Indent("  "), repr.OmitEmpty())
+	repr.Println(expr)
 }
