@@ -170,5 +170,5 @@ func main() {
 	sql := &Select{}
 	err := sqlParser.ParseString(*sqlArg, sql)
 	kingpin.FatalIfError(err, "")
-	repr.Println(sql, repr.Indent("  "), repr.OmitEmpty())
+	repr.Println(sql, repr.Indent("  "), repr.OmitEmpty(true))
 }

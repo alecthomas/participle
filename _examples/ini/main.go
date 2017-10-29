@@ -50,5 +50,5 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	repr.Println(ini, repr.Indent("  "), repr.OmitEmpty())
+	repr.Println(ini, repr.Indent("  "), repr.OmitEmpty(true))
 }
