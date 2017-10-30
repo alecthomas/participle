@@ -689,3 +689,97 @@ func TestParseable(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, expected, actual)
 }
+
+func TestIncrementInt(t *testing.T) {
+	type grammar struct {
+		Field int `@"." { @"." }`
+	}
+
+	parser, err := Build(&grammar{}, nil)
+	require.NoError(t, err)
+
+	actual := &grammar{}
+	expected := &grammar{4}
+	err = parser.ParseString(`. . . .`, actual)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
+}
+
+func TestIncrementUint(t *testing.T) {
+	type grammar struct {
+		Field uint `@"." { @"." }`
+	}
+
+	parser, err := Build(&grammar{}, nil)
+	require.NoError(t, err)
+
+	actual := &grammar{}
+	expected := &grammar{4}
+	err = parser.ParseString(`. . . .`, actual)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
+}
+
+func TestIncrementFloat(t *testing.T) {
+	type grammar struct {
+		Field float32 `@"." { @"." }`
+	}
+
+	parser, err := Build(&grammar{}, nil)
+	require.NoError(t, err)
+
+	actual := &grammar{}
+	expected := &grammar{4}
+	err = parser.ParseString(`. . . .`, actual)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
+}
+
+func TestStringConcat(t *testing.T) {
+	type grammar struct {
+		Field string `@"." { @"." }`
+	}
+
+	parser, err := Build(&grammar{}, nil)
+	require.NoError(t, err)
+
+	actual := &grammar{}
+	expected := &grammar{"...."}
+	err = parser.ParseString(`. . . .`, actual)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
+}
+
+func TestParseIntSlice(t *testing.T) {
+	type grammar struct {
+		Field []int `@Int { @Int }`
+	}
+
+	parser, err := Build(&grammar{}, nil)
+	require.NoError(t, err)
+
+	actual := &grammar{}
+	expected := &grammar{[]int{1, 2, 3, 4}}
+	err = parser.ParseString(`1 2 3 4`, actual)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
+}
+
+// func TestParseIntPointerSlice(t *testing.T) {
+// 	type grammar struct {
+// 		Field []*int `@Int { @Int }`
+// 	}
+
+// 	parser, err := Build(&grammar{}, nil)
+// 	require.NoError(t, err)
+
+// 	actual := &grammar{}
+// 	i0 := 1
+// 	i1 := 2
+// 	i2 := 3
+// 	i3 := 4
+// 	expected := &grammar{[]*int{&i0, &i1, &i2, &i3}}
+// 	err = parser.ParseString(`1 2 3 4`, actual)
+// 	require.NoError(t, err)
+// 	require.Equal(t, expected, actual)
+// }

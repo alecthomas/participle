@@ -144,6 +144,11 @@ func Build(grammar interface{}, lex lexer.Definition) (parser *Parser, err error
 // Parse from r into grammar v which must be of the same type as the grammar passed to
 // participle.Build().
 func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
+	defer func() {
+		if msg := recover(); msg != nil {
+			err = errors.New(msg.(string))
+		}
+	}()
 	lex := p.lex.Lex(r)
 	// If the grammar implements Parseable, use it.
 	if parseable, ok := v.(Parseable); ok {
@@ -579,17 +584,41 @@ func (s *literal) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Va
 	return nil
 }
 
+// Attempt to transform values to given type.
+//
+// This will dereference pointers, and attempt to parse strings into integer values, floats, etc.
 func conform(t reflect.Type, values []reflect.Value) (out []reflect.Value) {
-	var last reflect.Value
 	for _, v := range values {
-		if last.IsValid() && last != v {
-			panicf("inconsistent types %s and %s", v.Type(), last.Type())
-		}
-		last = v
-
 		for t != v.Type() && t.Kind() == reflect.Ptr && v.Kind() != reflect.Ptr {
 			v = v.Addr()
 		}
+
+		switch t.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			n, err := strconv.ParseInt(v.String(), 0, 64)
+			if err == nil {
+				v = reflect.New(t).Elem()
+				v.SetInt(n)
+			}
+
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			n, err := strconv.ParseUint(v.String(), 0, 64)
+			if err == nil {
+				v = reflect.New(t).Elem()
+				v.SetUint(n)
+			}
+
+		case reflect.Bool:
+			v = reflect.ValueOf(true)
+
+		case reflect.Float32, reflect.Float64:
+			n, err := strconv.ParseFloat(v.String(), 64)
+			if err == nil {
+				v = reflect.New(t).Elem()
+				v.SetFloat(n)
+			}
+		}
+
 		out = append(out, v)
 	}
 	return out
@@ -603,33 +632,15 @@ func conform(t reflect.Type, values []reflect.Value) (out []reflect.Value) {
 // For all other types, an attempt will be made to convert the string to the corresponding
 // type (int, float32, etc.).
 func setField(pos lexer.Position, strct reflect.Value, field reflect.StructField, fieldValue []reflect.Value) { // nolint: gocyclo
+	defer decorate(strct.Type().String() + "." + field.Name)
+
 	f := strct.FieldByIndex(field.Index)
 	switch f.Kind() {
 	case reflect.Slice:
 		fieldValue = conform(f.Type().Elem(), fieldValue)
-		// Check if the slice element type is valid for conversion. Not pretty,
-		// but works.
-		valid := false
-		switch f.Type().Elem().Kind() {
-		case reflect.String, reflect.Struct, reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-			reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Float32, reflect.Float64:
-			valid = true
-		default:
-			if f.CanAddr() {
-				if _, ok := f.Addr().Interface().(Capture); ok {
-					valid = true
-				}
-			}
-		}
-		if valid {
-			for _, v := range fieldValue {
-				tmp := reflect.New(f.Type().Elem())
-				setValue(pos, field.Name, tmp.Elem(), []reflect.Value{v})
-				f.Set(reflect.Append(f, tmp.Elem()))
-			}
-		} else {
-			f.Set(reflect.Append(f, fieldValue...))
-		}
+		f.Set(reflect.Append(f, fieldValue...))
+		return
+
 	case reflect.Ptr:
 		if f.IsNil() {
 			fv := reflect.New(f.Type().Elem()).Elem()
@@ -638,14 +649,8 @@ func setField(pos lexer.Position, strct reflect.Value, field reflect.StructField
 		} else {
 			f = f.Elem()
 		}
-		fallthrough
-
-	default:
-		setValue(pos, field.Name, f, fieldValue)
 	}
-}
 
-func setValue(pos lexer.Position, fieldName string, f reflect.Value, fieldValue []reflect.Value) {
 	if f.CanAddr() {
 		if d, ok := f.Addr().Interface().(Capture); ok {
 			ifv := []string{}
@@ -660,58 +665,57 @@ func setValue(pos lexer.Position, fieldName string, f reflect.Value, fieldValue 
 		}
 	}
 
-	switch f.Kind() {
-	case reflect.String:
+	fieldValue = conform(f.Type(), fieldValue)
+
+	// Strings concatenate all captured tokens.
+	if f.Kind() == reflect.String {
 		for _, v := range fieldValue {
 			f.Set(reflect.ValueOf(f.String() + v.String()))
 		}
+		return
+	}
 
-	case reflect.Struct:
-		if len(fieldValue) != 1 {
-			values := []interface{}{}
-			for _, v := range fieldValue {
-				values = append(values, v.Interface())
-			}
-			panicf("a single value must be assigned to struct field but have %#v", values)
+	// All other types are treated as scalar.
+	if len(fieldValue) != 1 {
+		values := []interface{}{}
+		for _, v := range fieldValue {
+			values = append(values, v.Interface())
 		}
-		f.Set(fieldValue[0])
+		panicf("a single value must be assigned to a field of type %s but have %#v", f.Type(), values)
+	}
 
-	case reflect.Bool:
-		f.Set(reflect.ValueOf(true))
+	fv := fieldValue[0]
 
+	switch f.Kind() {
+	// Numeric types will increment if the token can not be coerced.
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		if len(fieldValue) != 1 {
-			panicf("a single value must be assigned to an integer field but have %#v", fieldValue)
-		}
-		n, err := strconv.ParseInt(fieldValue[0].String(), 10, 64)
-		if err == nil {
-			f.SetInt(n)
-		} else {
+		if fv.Type() != f.Type() {
 			f.SetInt(f.Int() + 1)
+		} else {
+			f.Set(fv)
 		}
-
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		if len(fieldValue) != 1 {
-			panicf("a single value must be assigned to an unsigned integer field but have %#v", fieldValue)
+		if fv.Type() != f.Type() {
+			f.SetUint(f.Uint() + 1)
+		} else {
+			f.Set(fv)
 		}
-		n, err := strconv.ParseUint(fieldValue[0].String(), 10, 64)
-		if err != nil {
-			panicf("expected unsigned integer but got %q", fieldValue[0].String())
-		}
-		f.SetUint(n)
 
 	case reflect.Float32, reflect.Float64:
-		if len(fieldValue) != 1 {
-			panicf("a single value must be assigned to a float field but have %#v", fieldValue)
+		if fv.Type() != f.Type() {
+			f.SetFloat(f.Float() + 1)
+		} else {
+			f.Set(fv)
 		}
-		n, err := strconv.ParseFloat(fieldValue[0].String(), 10)
-		if err != nil {
-			panicf("expected float but got %q", fieldValue[0].String())
+
+	case reflect.Bool, reflect.Struct:
+		if fv.Type() != f.Type() {
+			panicf("value %q is not correct type %s", fv, f.Type())
 		}
-		f.SetFloat(n)
+		f.Set(fv)
 
 	default:
-		panicf("unsupported field type %s for field %s", f.Type(), fieldName)
+		panicf("unsupported field type %s for field %s", f.Type(), field.Name)
 	}
 }
 
