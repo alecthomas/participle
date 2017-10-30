@@ -67,7 +67,7 @@ func nodePrinter(seen map[reflect.Value]bool, v node) string {
 	}
 	seen[reflect.ValueOf(v)] = true
 	switch n := v.(type) {
-	case expression:
+	case disjunction:
 		out := []string{}
 		for _, n := range n {
 			out = append(out, nodePrinter(seen, n))
@@ -77,7 +77,7 @@ func nodePrinter(seen map[reflect.Value]bool, v node) string {
 	case *strct:
 		return fmt.Sprintf("strct(type=%s, expr=%s)", n.typ, nodePrinter(seen, n.expr))
 
-	case alternative:
+	case sequence:
 		out := []string{}
 		for _, n := range n {
 			out = append(out, nodePrinter(seen, n))
@@ -300,9 +300,9 @@ func (s *strct) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Valu
 }
 
 // <expr> {"|" <expr>}
-type expression []node
+type disjunction []node
 
-func (e expression) String() string {
+func (e disjunction) String() string {
 	out := []string{}
 	for _, n := range e {
 		out = append(out, n.String())
@@ -310,7 +310,7 @@ func (e expression) String() string {
 	return strings.Join(out, " | ")
 }
 
-func (e expression) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
+func (e disjunction) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
 	for _, a := range e {
 		if value := a.Parse(lex, parent); value != nil {
 			return value
@@ -320,7 +320,7 @@ func (e expression) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.
 }
 
 func parseExpression(context *generatorContext, slexer *structLexer) node {
-	out := expression{}
+	out := disjunction{}
 	for {
 		out = append(out, parseAlternative(context, slexer))
 		if slexer.Peek().Type != '|' {
@@ -335,13 +335,13 @@ func parseExpression(context *generatorContext, slexer *structLexer) node {
 }
 
 // <node> ...
-type alternative []node
+type sequence []node
 
-func (a alternative) String() string {
+func (a sequence) String() string {
 	return a[0].String()
 }
 
-func (a alternative) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
+func (a sequence) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
 	for i, n := range a {
 		// If first value doesn't match, we early exit, otherwise all values must match.
 		child := n.Parse(lex, parent)
@@ -361,7 +361,7 @@ func (a alternative) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect
 }
 
 func parseAlternative(context *generatorContext, slexer *structLexer) node {
-	elements := alternative{}
+	elements := sequence{}
 loop:
 	for {
 		switch slexer.Peek().Type {
