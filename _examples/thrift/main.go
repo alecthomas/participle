@@ -10,11 +10,13 @@ import (
 	"os"
 
 	"github.com/alecthomas/participle"
+	"github.com/alecthomas/participle/lexer"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 var (
-	files = kingpin.Arg("thrift", "Thrift files.").Required().Strings()
+	files         = kingpin.Arg("thrift", "Thrift files.").Required().Strings()
+	parseComments = kingpin.Flag("parseComments", "Enable this flag to allow Go style comments ( /* */ and // ) to be parsed").Short('c').Bool()
 )
 
 type Namespace struct {
@@ -94,6 +96,10 @@ type Literal struct {
 	Map       []*MapItem `| "{" { @@ [ "," ] } "}"`
 }
 
+type Comment struct {
+	Message string `@Comment`
+}
+
 type MapItem struct {
 	Key   *Literal `@@ ":"`
 	Value *Literal `@@`
@@ -127,6 +133,7 @@ type Const struct {
 // The grammar
 type Thrift struct {
 	Includes   []string     `{ "include" @String`
+	Comments   []*Comment   `  | @@`
 	Namespaces []*Namespace `  | @@`
 	Structs    []*Struct    `  | @@`
 	Exceptions []*Exception `  | @@`
@@ -139,7 +146,11 @@ type Thrift struct {
 func main() {
 	kingpin.Parse()
 
-	parser, err := participle.Build(&Thrift{}, nil)
+	var lex lexer.Definition
+	if *parseComments {
+		lex = lexer.CommentScannerLexer
+	}
+	parser, err := participle.Build(&Thrift{}, lex)
 	kingpin.FatalIfError(err, "")
 
 	for _, file := range *files {
