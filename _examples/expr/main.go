@@ -71,6 +71,13 @@ type Value struct {
 	Subexpression *Expression `| "(" @@ ")"`
 }
 
+func (v *Value) String() string {
+	if v.Number != nil {
+		return fmt.Sprintf("%g", *v.Number)
+	}
+	return "(" + v.Subexpression.String() + ")"
+}
+
 func (v *Value) Eval() float64 {
 	if v.Number != nil {
 		return *v.Number
@@ -81,6 +88,14 @@ func (v *Value) Eval() float64 {
 type Factor struct {
 	Base     *Value `@@`
 	Exponent *Value `[ "^" @@ ]`
+}
+
+func (f *Factor) String() string {
+	out := f.Base.String()
+	if f.Exponent != nil {
+		out += " ^ " + f.Exponent.String()
+	}
+	return out
 }
 
 func (f *Factor) Eval() float64 {
@@ -96,9 +111,21 @@ type OpFactor struct {
 	Factor   *Factor  `@@`
 }
 
+func (o *OpFactor) String() string {
+	return fmt.Sprintf("%s %s", o.Operator, o.Factor)
+}
+
 type Term struct {
 	Left  *Factor     `@@`
 	Right []*OpFactor `{ @@ }`
+}
+
+func (t *Term) String() string {
+	out := []string{t.Left.String()}
+	for _, r := range t.Right {
+		out = append(out, r.String())
+	}
+	return strings.Join(out, " ")
 }
 
 func (t *Term) Eval() float64 {
@@ -114,9 +141,21 @@ type OpTerm struct {
 	Term     *Term    `@@`
 }
 
+func (o *OpTerm) String() string {
+	return fmt.Sprintf("%s %s", o.Operator, o.Term)
+}
+
 type Expression struct {
 	Left  *Term     `@@`
 	Right []*OpTerm `{ @@ }`
+}
+
+func (e *Expression) String() string {
+	out := []string{e.Left.String()}
+	for _, r := range e.Right {
+		out = append(out, r.String())
+	}
+	return strings.Join(out, " ")
 }
 
 func (e *Expression) Eval() float64 {
@@ -141,6 +180,6 @@ func main() {
 	if *astFlag {
 		json.NewEncoder(os.Stdout).Encode(expr)
 	} else {
-		fmt.Println(expr.Eval())
+		fmt.Println(expr, "=", expr.Eval())
 	}
 }
