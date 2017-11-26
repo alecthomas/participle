@@ -18,6 +18,26 @@ var (
 	DefaultDefinition Definition = &defaultDefinition{}
 )
 
+// Definition provides the parser with metadata for a lexer.
+type Definition interface {
+	// Lex an io.Reader.
+	Lex(io.Reader) Lexer
+	// Symbols returns a map of symbolic names to the corresponding pseudo-runes for those symbols.
+	// This is the same approach as used by text/scanner. For example, "EOF" might have the rune
+	// value of -1, "Ident" might be -2, and so on.
+	Symbols() map[string]rune
+}
+
+// A Lexer returns tokens from a source.
+//
+// Errors are reported via panic, with the panic value being an instance of Error.
+type Lexer interface {
+	// Peek at the next token.
+	Peek() Token
+	// Next consumes and returns the next token.
+	Next() Token
+}
+
 type namedReader interface {
 	Name() string
 }
@@ -95,24 +115,4 @@ func (t Token) EOF() bool {
 
 func (t Token) String() string {
 	return t.Value
-}
-
-// Definition provides the parser with metadata for a lexer.
-type Definition interface {
-	// Lex an io.Reader.
-	Lex(io.Reader) Lexer
-	// Symbols returns a map of symbolic names to the corresponding pseudo-runes for those symbols.
-	// This is the same approach as used by text/scanner. For example, "EOF" might have the rune
-	// value of -1, "Ident" might be -2, and so on.
-	Symbols() map[string]rune
-}
-
-// A Lexer returns tokens from a source.
-//
-// Errors are reported via panic, with the panic value being an instance of Error.
-type Lexer interface {
-	// Peek at the next token.
-	Peek() Token
-	// Next consumes and returns the next token.
-	Next() Token
 }

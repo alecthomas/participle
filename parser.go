@@ -275,7 +275,7 @@ func (s *strct) String() string {
 
 func (s *strct) maybeInjectPos(pos lexer.Position, v reflect.Value) {
 	// Fast path
-	if f := v.FieldByName("Pos"); f.IsValid() {
+	if f := v.FieldByName("Pos"); f.IsValid() && f.Type() == positionType {
 		f.Set(reflect.ValueOf(pos))
 		return
 	}
