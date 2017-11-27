@@ -46,11 +46,8 @@ func Build(grammar interface{}, lex lexer.Definition) (parser *Parser, err error
 	if lex == nil {
 		lex = lexer.TextScannerLexer
 	}
-	context := &generatorContext{
-		Definition: lex,
-		typeNodes:  map[reflect.Type]node{},
-	}
-	root := parseType(context, reflect.TypeOf(grammar))
+	context := newGeneratorContext(lex)
+	root := context.parseType(reflect.TypeOf(grammar))
 	return &Parser{root: root, lex: lex}, nil
 }
 
