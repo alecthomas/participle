@@ -87,17 +87,7 @@ func parseTerm(context *generatorContext, slexer *structLexer) node {
 	r := slexer.Peek()
 	switch r.Type {
 	case '@':
-		slexer.Next()
-		token := slexer.Peek()
-		field := slexer.Field()
-		if token.Type == '@' {
-			slexer.Next()
-			return &reference{field, parseType(context, field.Type)}
-		}
-		if indirectType(field.Type).Kind() == reflect.Struct && !field.Type.Implements(captureType) {
-			panic("structs can only be parsed with @@ or by implementing the Capture interface")
-		}
-		return &reference{field, parseTerm(context, slexer)}
+		return parseCapture(context, slexer)
 	case scanner.String, scanner.RawString, scanner.Char:
 		return parseLiteral(context, slexer)
 	case '[':
@@ -116,8 +106,22 @@ func parseTerm(context *generatorContext, slexer *structLexer) node {
 	}
 }
 
-// A reference in the form <identifier> refers to an existing production,
-// typically from the lex struct provided to Parse().
+// @<expression> captures <expression> into the current field.
+func parseCapture(context *generatorContext, slexer *structLexer) node {
+	slexer.Next()
+	token := slexer.Peek()
+	field := slexer.Field()
+	if token.Type == '@' {
+		slexer.Next()
+		return &reference{field, parseType(context, field.Type)}
+	}
+	if indirectType(field.Type).Kind() == reflect.Struct && !field.Type.Implements(captureType) {
+		panic("structs can only be parsed with @@ or by implementing the Capture interface")
+	}
+	return &reference{field, parseTerm(context, slexer)}
+}
+
+// A reference in the form <identifier> refers to a named token from the lexer.
 func parseTokenReference(context *generatorContext, slexer *structLexer) node {
 	token := slexer.Next()
 	if token.Type != scanner.Ident {
@@ -130,6 +134,7 @@ func parseTokenReference(context *generatorContext, slexer *structLexer) node {
 	return &tokenReference{typ, token.Value}
 }
 
+// [ <expression> ] optionally matches <expression>.
 func parseOptional(context *generatorContext, slexer *structLexer) node {
 	slexer.Next() // [
 	optional := &optional{parseExpression(context, slexer)}
@@ -141,6 +146,7 @@ func parseOptional(context *generatorContext, slexer *structLexer) node {
 	return optional
 }
 
+// { <expression> } matches 0 or more repititions of <expression>
 func parseRepetition(context *generatorContext, slexer *structLexer) node {
 	slexer.Next() // {
 	n := &repetition{
@@ -153,6 +159,7 @@ func parseRepetition(context *generatorContext, slexer *structLexer) node {
 	return n
 }
 
+// ( <expression> ) groups a sub-expression
 func parseGroup(context *generatorContext, slexer *structLexer) node {
 	slexer.Next() // (
 	n := parseExpression(context, slexer)
@@ -164,6 +171,10 @@ func parseGroup(context *generatorContext, slexer *structLexer) node {
 	return n
 }
 
+// A literal string.
+//
+// Note that for this to match, the tokeniser must be able to produce this string. For example,
+// if the tokeniser only produces individual charactersk but the literal is "hello", or vice versa.
 func parseLiteral(context *generatorContext, lex *structLexer) node { // nolint: interfacer
 	token := lex.Next()
 	if token.Type != scanner.String && token.Type != scanner.RawString && token.Type != scanner.Char {
