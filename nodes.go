@@ -30,7 +30,7 @@ type node interface {
 
 func decorate(name string) {
 	if msg := recover(); msg != nil {
-		panic(name + ": " + msg.(string))
+		panic(fmt.Sprintf("%s: %s", name, msg))
 	}
 }
 

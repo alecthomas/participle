@@ -3,6 +3,7 @@ package participle
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"reflect"
 	"strings"
@@ -56,7 +57,7 @@ func Build(grammar interface{}, lex lexer.Definition) (parser *Parser, err error
 func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
 	defer func() {
 		if msg := recover(); msg != nil {
-			err = errors.New(msg.(string))
+			err = fmt.Errorf("%s", msg)
 		}
 	}()
 	lex := p.lex.Lex(r)
