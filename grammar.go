@@ -1,6 +1,7 @@
 package participle
 
 import (
+	"fmt"
 	"reflect"
 	"text/scanner"
 
@@ -38,7 +39,7 @@ func (g *generatorContext) parseType(t reflect.Type) node {
 		slexer := lexStruct(t)
 		defer func() {
 			if msg := recover(); msg != nil {
-				panic(slexer.Field().Name + ": " + msg.(string))
+				panic(fmt.Sprintf("%s: %s", slexer.Field().Name, msg))
 			}
 		}()
 		e := g.parseExpression(slexer)
