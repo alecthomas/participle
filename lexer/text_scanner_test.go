@@ -39,6 +39,19 @@ func TestLexBacktickString(t *testing.T) {
 	assert.Equal(t, lexer.Next(), Token{Type: scanner.String, Value: "hello\\nworld", Pos: Position{Line: 1, Column: 1}})
 }
 
+func TestLexComments(t *testing.T) {
+	lexer := LexComments(strings.NewReader("// hello world\n/* more comments */"))
+	helloPos := Position{Offset: 0, Line: 1, Column: 1}
+	morePos := Position{Offset: 14, Line: 1, Column: 15}
+	assert.Equal(t, Token{Type: scanner.Comment, Value: "// hello world", Pos: helloPos}, lexer.Next())
+	assert.Equal(t, Token{Type: scanner.Comment, Value: "/* more comments */", Pos: morePos}, lexer.Next())
+}
+
+func TestLexNoComments(t *testing.T) {
+	lexer := LexString("// hello world\n/* more comments */")
+	assert.Equal(t, Token{Type: scanner.EOF, Value: "", Pos: Position{Line: 1, Column: 1}}, lexer.Next())
+}
+
 func BenchmarkTextScannerLexer(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		lex := TextScannerLexer.Lex(strings.NewReader("hello world 123 hello world 123"))

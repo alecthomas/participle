@@ -19,17 +19,32 @@ func (d *defaultDefinition) Lex(r io.Reader) Lexer {
 	return Lex(r)
 }
 
+var runeList = map[string]rune{
+	"EOF":       scanner.EOF,
+	"Char":      scanner.Char,
+	"Ident":     scanner.Ident,
+	"Int":       scanner.Int,
+	"Float":     scanner.Float,
+	"String":    scanner.String,
+	"RawString": scanner.RawString,
+	"Comment":   scanner.Comment,
+}
+
 func (d *defaultDefinition) Symbols() map[string]rune {
-	return map[string]rune{
-		"EOF":       scanner.EOF,
-		"Char":      scanner.Char,
-		"Ident":     scanner.Ident,
-		"Int":       scanner.Int,
-		"Float":     scanner.Float,
-		"String":    scanner.String,
-		"RawString": scanner.RawString,
-		"Comment":   scanner.Comment,
-	}
+	return runeList
+}
+
+// CommentScannerLexer is a lexer that uses the text/scanner with comment lexing enabled.
+var CommentScannerLexer Definition = &commentDefinition{}
+
+type commentDefinition struct{}
+
+func (d *commentDefinition) Lex(r io.Reader) Lexer {
+	return LexComments(r)
+}
+
+func (d *commentDefinition) Symbols() map[string]rune {
+	return runeList
 }
 
 // textScannerLexer is a Lexer based on text/scanner.Scanner
@@ -43,15 +58,39 @@ type textScannerLexer struct {
 //
 // Note that this differs from text/scanner.Scanner in that string tokens will be unquoted.
 func Lex(r io.Reader) Lexer {
-	lexer := &textScannerLexer{
-		filename: NameOfReader(r),
-	}
-	lexer.scanner.Init(r)
-	lexer.scanner.Error = func(s *scanner.Scanner, msg string) {
+	var s scanner.Scanner
+	s.Init(r)
+	s.Error = func(s *scanner.Scanner, msg string) {
 		// This is to support single quoted strings. Hacky.
 		if msg != "illegal char literal" {
-			Panic(Position(lexer.scanner.Pos()), msg)
+			Panic(Position(s.Pos()), msg)
 		}
+	}
+	return LexScanner(r, s)
+}
+
+// LexComments returns a new a lexer using the text/scanner with comment lexing enabled.
+func LexComments(r io.Reader) Lexer {
+	var s scanner.Scanner
+	s.Init(r)
+
+	//Remove the SkipComments flag so that Go style comments ( /**/ and // ) are lexed
+	s.Mode &^= scanner.SkipComments
+
+	s.Error = func(s *scanner.Scanner, msg string) {
+		// This is to support single quoted strings. Hacky.
+		if msg != "illegal char literal" {
+			Panic(Position(s.Pos()), msg)
+		}
+	}
+	return LexScanner(r, s)
+}
+
+// LexScanner returns a new default lexer with custom text/scanner.Scanner.
+func LexScanner(r io.Reader, s scanner.Scanner) Lexer {
+	lexer := &textScannerLexer{
+		scanner:  s,
+		filename: NameOfReader(r),
 	}
 	return lexer
 }
