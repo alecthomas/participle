@@ -11,7 +11,7 @@ import (
 func TestLexer(t *testing.T) {
 	lexer := LexString("hello world")
 	helloPos := Position{Offset: 0, Line: 1, Column: 1}
-	worldPos := Position{Offset: 5, Line: 1, Column: 6}
+	worldPos := Position{Offset: 6, Line: 1, Column: 7}
 	eofPos := Position{Offset: 11, Line: 1, Column: 12}
 	assert.Equal(t, Token{Type: scanner.Ident, Value: "hello", Pos: helloPos}, lexer.Peek())
 	assert.Equal(t, Token{Type: scanner.Ident, Value: "hello", Pos: helloPos}, lexer.Peek())

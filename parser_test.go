@@ -579,21 +579,22 @@ func TestPosInjection(t *testing.T) {
 	actual := &grammar{}
 	expected := &grammar{
 		Pos: lexer.Position{
+			Offset: 3,
 			Line:   1,
-			Column: 1,
+			Column: 4,
 		},
 		A: "...",
 		B: &subgrammar{
 			B: ",,,",
 			Pos: lexer.Position{
-				Offset: 3,
+				Offset: 6,
 				Line:   1,
-				Column: 4,
+				Column: 7,
 			},
 		},
 	}
 
-	err := parser.ParseString("...,,,", actual)
+	err := parser.ParseString("   ...,,,", actual)
 	require.NoError(t, err)
 	require.Equal(t, expected, actual)
 }

@@ -79,11 +79,13 @@ func (t *textScannerLexer) Peek() Token {
 	if t.peek != nil {
 		return *t.peek
 	}
-	pos := Position(t.scanner.Pos())
+	typ := t.scanner.Scan()
+	text := t.scanner.TokenText()
+	pos := Position(t.scanner.Position)
 	pos.Filename = t.filename
 	t.peek = &Token{
-		Type:  t.scanner.Scan(),
-		Value: t.scanner.TokenText(),
+		Type:  typ,
+		Value: text,
 		Pos:   pos,
 	}
 	t.peek.Pos.Filename = t.filename
