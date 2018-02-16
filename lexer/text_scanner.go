@@ -34,25 +34,39 @@ func (d *defaultDefinition) Symbols() map[string]rune {
 
 // textScannerLexer is a Lexer based on text/scanner.Scanner
 type textScannerLexer struct {
-	scanner  scanner.Scanner
+	scanner  *scanner.Scanner
 	peek     *Token
 	filename string
 }
 
 // Lex an io.Reader with text/scanner.Scanner.
 //
+// This provides very fast lexing of source code compatibile with Go tokens.
+//
 // Note that this differs from text/scanner.Scanner in that string tokens will be unquoted.
 func Lex(r io.Reader) Lexer {
-	lexer := &textScannerLexer{
-		filename: NameOfReader(r),
-	}
-	lexer.scanner.Init(r)
+	lexer := LexWithScanner(r, &scanner.Scanner{}).(*textScannerLexer)
 	lexer.scanner.Error = func(s *scanner.Scanner, msg string) {
 		// This is to support single quoted strings. Hacky.
 		if msg != "illegal char literal" {
 			Panic(Position(lexer.scanner.Pos()), msg)
 		}
 	}
+	return lexer
+}
+
+// LexWithScanner creates a Lexer from a user-provided scanner.Scanner.
+//
+// Useful if you need to customise the Scanner.
+//
+// Note that if this function is used, single-quoted strings are not supported. See the source for
+// Lex() for how to achieve this.
+func LexWithScanner(r io.Reader, scan *scanner.Scanner) Lexer {
+	lexer := &textScannerLexer{
+		filename: NameOfReader(r),
+		scanner:  scan,
+	}
+	lexer.scanner.Init(r)
 	return lexer
 }
 
