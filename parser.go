@@ -111,8 +111,3 @@ func (p *Parser) ParseBytes(b []byte, v interface{}) error {
 func (p *Parser) String() string {
 	return dumpNode(p.root)
 }
-
-// Ebnf representation of the grammar.
-func (p *Parser) Ebnf() string {
-	return dumpEbnfNode(p.root)
-}

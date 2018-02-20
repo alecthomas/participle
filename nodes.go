@@ -26,7 +26,6 @@ type node interface {
 	// Nodes should panic if parsing fails.
 	Parse(lex lexer.Lexer, parent reflect.Value) []reflect.Value
 	String() string
-	Definition() string
 }
 
 func decorate(name string) {
@@ -57,10 +56,6 @@ func (p *parseable) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.
 	return []reflect.Value{rv.Elem()}
 }
 
-func (p *parseable) Definition() string {
-	return p.t.String()
-}
-
 type strct struct {
 	typ  reflect.Type
 	expr node
@@ -68,10 +63,6 @@ type strct struct {
 
 func (s *strct) String() string {
 	return s.expr.String()
-}
-
-func (s *strct) Definition() string {
-	return s.typ.String()
 }
 
 func (s *strct) maybeInjectPos(pos lexer.Position, v reflect.Value) {
@@ -111,14 +102,6 @@ func (e disjunction) String() string {
 	return strings.Join(out, " | ")
 }
 
-func (e disjunction) Definition() string {
-	out := []string{}
-	for _, n := range e {
-		out = append(out, n.Definition())
-	}
-	return strings.Join(out, " | ")
-}
-
 func (e disjunction) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
 	for _, a := range e {
 		if value := a.Parse(lex, parent); value != nil {
@@ -133,14 +116,6 @@ type sequence []node
 
 func (a sequence) String() string {
 	return a[0].String()
-}
-
-func (a sequence) Definition() string {
-	out := []string{}
-	for _, n := range a {
-		out = append(out, n.Definition())
-	}
-	return strings.Join(out, " ")
 }
 
 func (a sequence) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
@@ -172,10 +147,6 @@ func (r *reference) String() string {
 	return r.field.Name + ":" + r.node.String()
 }
 
-func (r *reference) Definition() string {
-	return r.field.Name
-}
-
 func (r *reference) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
 	pos := lex.Peek().Pos
 	v := r.node.Parse(lex, parent)
@@ -204,10 +175,6 @@ func (t *tokenReference) Parse(lex lexer.Lexer, parent reflect.Value) (out []ref
 	return []reflect.Value{reflect.ValueOf(token.Value)}
 }
 
-func (t *tokenReference) Definition() string {
-	return t.identifier
-}
-
 // [ <expr> ]
 type optional struct {
 	node node
@@ -223,10 +190,6 @@ func (o *optional) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.V
 		return []reflect.Value{}
 	}
 	return v
-}
-
-func (o *optional) Definition() string {
-	return o.node.Definition()
 }
 
 // { <expr> }
@@ -252,10 +215,6 @@ func (r *repetition) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect
 	return out
 }
 
-func (r *repetition) Definition() string {
-	return "{" + r.node.Definition() + "}"
-}
-
 // Match a token literal exactly "...".
 type literal struct {
 	s string
@@ -275,10 +234,6 @@ func (s *literal) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Va
 		return []reflect.Value{reflect.ValueOf(lex.Next().Value)}
 	}
 	return nil
-}
-
-func (s *literal) Definition() string {
-	return s.s
 }
 
 // Attempt to transform values to given type.
