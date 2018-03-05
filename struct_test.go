@@ -5,10 +5,12 @@ import (
 	"testing"
 	"text/scanner"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/gotestyourself/gotestyourself/assert"
+	"github.com/google/go-cmp/cmp"
 
 	"github.com/alecthomas/participle/lexer"
 )
+
 
 func TestStructLexerTokens(t *testing.T) {
 	type testScanner struct {
@@ -53,5 +55,9 @@ func TestStructLexer(t *testing.T) {
 	assert.Equal(t, `a|b`, s)
 	f0 := gt.Field(0)
 	f1 := gt.Field(1)
-	assert.Equal(t, []reflect.StructField{f0, f0, f1}, f)
+	assert.DeepEqual(t, []reflect.StructField{f0, f0, f1}, f, cmpReflectType)
 }
+
+var cmpReflectType = cmp.Comparer(func(x, y reflect.Type) bool {
+	return x == y
+})
