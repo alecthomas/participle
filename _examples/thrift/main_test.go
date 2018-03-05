@@ -1,17 +1,18 @@
 package main
 
 import (
-	"strings"
-	"testing"
+  "strings"
+  "testing"
 
-	"github.com/alecthomas/go-thrift/parser"
-	"github.com/stretchr/testify/require"
+  "github.com/gotestyourself/gotestyourself/assert"
 
-	"github.com/alecthomas/participle"
+  "github.com/alecthomas/go-thrift/parser"
+
+  "github.com/alecthomas/participle"
 )
 
 var (
-	source = strings.TrimSpace(`
+  source = strings.TrimSpace(`
 namespace cpp thrift.example
 namespace java thrift.example
 
@@ -58,30 +59,30 @@ service Twitter {
 )
 
 func BenchmarkParticipleThrift(b *testing.B) {
-	b.ReportAllocs()
-	parser, err := participle.Build(&Thrift{}, nil)
-	require.NoError(b, err)
+  b.ReportAllocs()
+  parser, err := participle.Build(&Thrift{}, nil)
+  assert.NilError(b, err)
 
-	thrift := &Thrift{}
-	err = parser.ParseString(source, thrift)
-	require.NoError(b, err)
+  thrift := &Thrift{}
+  err = parser.ParseString(source, thrift)
+  assert.NilError(b, err)
 
-	b.ResetTimer()
+  b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
-		thrift := &Thrift{}
-		_ = parser.ParseString(source, thrift)
-	}
+  for i := 0; i < b.N; i++ {
+    thrift := &Thrift{}
+    _ = parser.ParseString(source, thrift)
+  }
 }
 
 func BenchmarkGoThriftParser(b *testing.B) {
-	b.ReportAllocs()
-	_, err := parser.ParseReader("user.thrift", strings.NewReader(source))
-	require.NoError(b, err)
+  b.ReportAllocs()
+  _, err := parser.ParseReader("user.thrift", strings.NewReader(source))
+  assert.NilError(b, err)
 
-	b.ResetTimer()
+  b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
-		_, _ = parser.ParseReader("user.thrift", strings.NewReader(source))
-	}
+  for i := 0; i < b.N; i++ {
+    _, _ = parser.ParseReader("user.thrift", strings.NewReader(source))
+  }
 }
