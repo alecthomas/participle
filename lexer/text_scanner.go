@@ -35,7 +35,6 @@ func (d *defaultDefinition) Symbols() map[string]rune {
 // textScannerLexer is a Lexer based on text/scanner.Scanner
 type textScannerLexer struct {
 	scanner  *scanner.Scanner
-	peek     *Token
 	filename string
 }
 
@@ -45,14 +44,14 @@ type textScannerLexer struct {
 //
 // Note that this differs from text/scanner.Scanner in that string tokens will be unquoted.
 func Lex(r io.Reader) Lexer {
-	lexer := LexWithScanner(r, &scanner.Scanner{}).(*textScannerLexer)
+	lexer := lexWithScanner(r, &scanner.Scanner{})
 	lexer.scanner.Error = func(s *scanner.Scanner, msg string) {
 		// This is to support single quoted strings. Hacky.
 		if msg != "illegal char literal" {
 			Panic(Position(lexer.scanner.Pos()), msg)
 		}
 	}
-	return lexer
+	return Upgrade(lexer)
 }
 
 // LexWithScanner creates a Lexer from a user-provided scanner.Scanner.
@@ -61,7 +60,12 @@ func Lex(r io.Reader) Lexer {
 //
 // Note that if this function is used, single-quoted strings are not supported. See the source for
 // Lex() for how to achieve this.
+
 func LexWithScanner(r io.Reader, scan *scanner.Scanner) Lexer {
+	return Upgrade(lexWithScanner(r, scan))
+}
+
+func lexWithScanner(r io.Reader, scan *scanner.Scanner) *textScannerLexer {
 	lexer := &textScannerLexer{
 		filename: NameOfReader(r),
 		scanner:  scan,
@@ -81,46 +85,34 @@ func LexString(s string) Lexer {
 }
 
 func (t *textScannerLexer) Next() Token {
-	if t.peek == nil {
-		t.Peek()
-	}
-	token := t.peek
-	t.peek = nil
-	return *token
-}
-
-func (t *textScannerLexer) Peek() Token {
-	if t.peek != nil {
-		return *t.peek
-	}
 	typ := t.scanner.Scan()
 	text := t.scanner.TokenText()
 	pos := Position(t.scanner.Position)
 	pos.Filename = t.filename
-	t.peek = &Token{
+	out := Token{
 		Type:  typ,
 		Value: text,
 		Pos:   pos,
 	}
-	t.peek.Pos.Filename = t.filename
+	out.Pos.Filename = t.filename
 	// Unquote strings.
-	switch t.peek.Type {
+	switch out.Type {
 	case scanner.Char:
 		// FIXME(alec): This is pretty hacky...we convert a single quoted char into a double
 		// quoted string in order to support single quoted strings.
-		t.peek.Value = fmt.Sprintf("\"%s\"", t.peek.Value[1:len(t.peek.Value)-1])
+		out.Value = fmt.Sprintf("\"%s\"", out.Value[1:len(out.Value)-1])
 		fallthrough
 	case scanner.String:
-		s, err := strconv.Unquote(t.peek.Value)
+		s, err := strconv.Unquote(out.Value)
 		if err != nil {
-			Panic(t.peek.Pos, err.Error())
+			Panic(out.Pos, err.Error())
 		}
-		t.peek.Value = s
-		if t.peek.Type == scanner.Char && utf8.RuneCountInString(s) > 1 {
-			t.peek.Type = scanner.String
+		out.Value = s
+		if out.Type == scanner.Char && utf8.RuneCountInString(s) > 1 {
+			out.Type = scanner.String
 		}
 	case scanner.RawString:
-		t.peek.Value = t.peek.Value[1 : len(t.peek.Value)-1]
+		out.Value = out.Value[1 : len(out.Value)-1]
 	}
-	return *t.peek
+	return out
 }

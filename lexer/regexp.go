@@ -45,7 +45,7 @@ func (d *regexpDefinition) Lex(r io.Reader) Lexer {
 		// TODO: Make Lex also return an error.
 		panic(err)
 	}
-	return &regexpLexer{
+	return Upgrade(&regexpLexer{
 		pos: Position{
 			Filename: NameOfReader(r),
 			Line:     1,
@@ -54,7 +54,7 @@ func (d *regexpDefinition) Lex(r io.Reader) Lexer {
 		b:     b,
 		re:    d.re,
 		names: d.re.SubexpNames(),
-	}
+	})
 }
 
 func (d *regexpDefinition) Symbols() map[string]rune {
@@ -66,13 +66,9 @@ type regexpLexer struct {
 	b     []byte
 	re    *regexp.Regexp
 	names []string
-	peek  *Token
 }
 
-func (r *regexpLexer) Peek() Token {
-	if r.peek != nil {
-		return *r.peek
-	}
+func (r *regexpLexer) Next() Token {
 nextToken:
 	for len(r.b) != 0 {
 		matches := r.re.FindSubmatchIndex(r.b)
@@ -110,17 +106,10 @@ nextToken:
 			}
 		}
 
-		r.peek = &token
 		return token
 	}
 
 	eof := EOFToken
 	eof.Pos = r.pos
 	return eof
-}
-
-func (r *regexpLexer) Next() Token {
-	token := r.Peek()
-	r.peek = nil
-	return token
 }

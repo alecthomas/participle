@@ -12,28 +12,12 @@ import (
 )
 
 type ebnfLexer struct {
-	r      *bufio.Reader
-	def    *ebnfLexerDefinition
-	pos    Position
-	peeked *Token
-}
-
-func (e *ebnfLexer) Peek() Token {
-	if e.peeked != nil {
-		return *e.peeked
-	}
-	token := e.readToken()
-	e.peeked = &token
-	return token
+	r   *bufio.Reader
+	def *ebnfLexerDefinition
+	pos Position
 }
 
 func (e *ebnfLexer) Next() Token {
-	t := e.Peek()
-	e.peeked = nil
-	return t
-}
-
-func (e *ebnfLexer) readToken() Token {
 	if e.peek() == EOF {
 		return EOFToken
 	}
@@ -239,7 +223,7 @@ func EBNF(grammar string) (Definition, error) {
 }
 
 func (e *ebnfLexerDefinition) Lex(r io.Reader) Lexer {
-	return &ebnfLexer{
+	return Upgrade(&ebnfLexer{
 		r:   bufio.NewReader(r),
 		def: e,
 		pos: Position{
@@ -247,7 +231,7 @@ func (e *ebnfLexerDefinition) Lex(r io.Reader) Lexer {
 			Line:     1,
 			Column:   1,
 		},
-	}
+	})
 }
 
 func (e *ebnfLexerDefinition) Symbols() map[string]rune {

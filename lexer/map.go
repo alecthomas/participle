@@ -22,7 +22,7 @@ func Map(def Definition, f MapFunc) Definition {
 }
 
 func (m *mapperDef) Lex(r io.Reader) Lexer {
-	return &mapper{lexer: m.def.Lex(r), f: m.f}
+	return Upgrade(&mapper{lexer: m.def.Lex(r), f: m.f})
 }
 
 func (m *mapperDef) Symbols() map[string]rune {
@@ -32,21 +32,15 @@ func (m *mapperDef) Symbols() map[string]rune {
 type mapper struct {
 	lexer Lexer
 	f     MapFunc
-	peek  *Token
-}
-
-func (m *mapper) Peek() Token {
-	for m.peek == nil {
-		t := m.lexer.Next()
-		m.peek = m.f(&t)
-	}
-	return *m.peek
 }
 
 func (m *mapper) Next() Token {
-	t := m.Peek()
-	m.peek = nil
-	return t
+	var mapped *Token
+	for mapped == nil {
+		t := m.lexer.Next()
+		mapped = m.f(&t)
+	}
+	return *mapped
 }
 
 // MakeSymbolTable is a useful helper function for Definition decorator types.

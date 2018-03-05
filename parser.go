@@ -63,7 +63,7 @@ func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
 	// If the grammar implements Parseable, use it.
 	if parseable, ok := v.(Parseable); ok {
 		err = parseable.Parse(lex)
-		peek := lex.Peek()
+		peek := lex.Peek(0)
 		if err == NextMatch {
 			return lexer.Errorf(peek.Pos, "invalid syntax")
 		}
@@ -87,11 +87,11 @@ func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
 		return errors.New("target must be a pointer to a struct")
 	}
 	pv := p.root.Parse(lex, rv.Elem())
-	if !lex.Peek().EOF() {
-		lexer.Panicf(lex.Peek().Pos, "unexpected token %q", lex.Peek())
+	if !lex.Peek(0).EOF() {
+		lexer.Panicf(lex.Peek(0).Pos, "unexpected token %q", lex.Peek(0))
 	}
 	if pv == nil {
-		lexer.Panic(lex.Peek().Pos, "invalid syntax")
+		lexer.Panic(lex.Peek(0).Pos, "invalid syntax")
 	}
 	rv.Elem().Set(reflect.Indirect(pv[0]))
 	return

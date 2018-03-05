@@ -34,7 +34,7 @@ func (s *structLexer) Peek() lexer.Token {
 	field := s.field
 	lex := s.lexer
 	for {
-		token := lex.Peek()
+		token := lex.Peek(0)
 		if !token.EOF() {
 			token.Pos.Line = field + 1
 			return token

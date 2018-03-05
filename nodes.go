@@ -84,7 +84,7 @@ func (s *strct) maybeInjectPos(pos lexer.Position, v reflect.Value) {
 
 func (s *strct) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
 	sv := reflect.New(s.typ).Elem()
-	s.maybeInjectPos(lex.Peek().Pos, sv)
+	s.maybeInjectPos(lex.Peek(0).Pos, sv)
 	if s.expr.Parse(lex, sv) == nil {
 		return nil
 	}
@@ -126,7 +126,7 @@ func (a sequence) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Va
 			if i == 0 {
 				return nil
 			}
-			lexer.Panicf(lex.Peek().Pos, "expected ( %s ) not %q", n, lex.Peek())
+			lexer.Panicf(lex.Peek(0).Pos, "expected ( %s ) not %q", n, lex.Peek(0))
 		}
 		if len(child) == 0 && out == nil {
 			out = []reflect.Value{}
@@ -148,7 +148,7 @@ func (r *reference) String() string {
 }
 
 func (r *reference) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
-	pos := lex.Peek().Pos
+	pos := lex.Peek(0).Pos
 	v := r.node.Parse(lex, parent)
 	if v == nil {
 		return nil
@@ -167,7 +167,7 @@ func (t *tokenReference) String() string {
 }
 
 func (t *tokenReference) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
-	token := lex.Peek()
+	token := lex.Peek(0)
 	if token.Type != t.typ {
 		return nil
 	}
@@ -229,7 +229,7 @@ func (s *literal) String() string {
 }
 
 func (s *literal) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
-	token := lex.Peek()
+	token := lex.Peek(0)
 	if token.Value == s.s && (s.t == -1 || s.t == token.Type) {
 		return []reflect.Value{reflect.ValueOf(lex.Next().Value)}
 	}

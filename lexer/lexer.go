@@ -28,14 +28,21 @@ type Definition interface {
 	Symbols() map[string]rune
 }
 
-// A Lexer returns tokens from a source.
+// A SimpleLexer returns tokens from a source.
+//
+// Errors are reported via panic, with the panic value being an instance of Error.
+type SimpleLexer interface {
+	// Next consumes and returns the next token.
+	Next() Token
+}
+
+// A Lexer returns tokens from a source and allows peeking.
 //
 // Errors are reported via panic, with the panic value being an instance of Error.
 type Lexer interface {
+	SimpleLexer
 	// Peek at the next token.
-	Peek() Token
-	// Next consumes and returns the next token.
-	Next() Token
+	Peek(n int) Token
 }
 
 type namedReader interface {
