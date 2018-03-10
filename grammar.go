@@ -52,16 +52,16 @@ func (g *generatorContext) parseType(t reflect.Type) node {
 }
 
 func (g *generatorContext) parseExpression(slexer *structLexer) node {
-	out := disjunction{}
+	out := &disjunction{}
 	for {
-		out = append(out, g.parseAlternative(slexer))
+		out.nodes = append(out.nodes, g.parseAlternative(slexer))
 		if slexer.Peek().Type != '|' {
 			break
 		}
 		slexer.Next() // |
 	}
-	if len(out) == 1 {
-		return out[0]
+	if len(out.nodes) == 1 {
+		return out.nodes[0]
 	}
 	return out
 }

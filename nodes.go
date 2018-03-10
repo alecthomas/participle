@@ -92,18 +92,20 @@ func (s *strct) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Valu
 }
 
 // <expr> {"|" <expr>}
-type disjunction []node
+type disjunction struct {
+	nodes []node
+}
 
 func (e disjunction) String() string {
 	out := []string{}
-	for _, n := range e {
+	for _, n := range e.nodes {
 		out = append(out, n.String())
 	}
 	return strings.Join(out, " | ")
 }
 
 func (e disjunction) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
-	for _, a := range e {
+	for _, a := range e.nodes {
 		if value := a.Parse(lex, parent); value != nil {
 			return value
 		}

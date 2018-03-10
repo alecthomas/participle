@@ -17,9 +17,9 @@ func nodePrinter(seen map[reflect.Value]bool, v node) string {
 	}
 	seen[reflect.ValueOf(v)] = true
 	switch n := v.(type) {
-	case disjunction:
+	case *disjunction:
 		out := []string{}
-		for _, n := range n {
+		for _, n := range n.nodes {
 			out = append(out, nodePrinter(seen, n))
 		}
 		return strings.Join(out, "|")
