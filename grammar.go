@@ -67,7 +67,7 @@ func (g *generatorContext) parseExpression(slexer *structLexer) node {
 }
 
 func (g *generatorContext) parseSequence(slexer *structLexer) node {
-	elements := &sequence{}
+	var head, cursor *sequence
 loop:
 	for {
 		switch slexer.Peek().Type {
@@ -78,13 +78,19 @@ loop:
 			if term == nil {
 				break loop
 			}
-			elements.nodes = append(elements.nodes, term)
+			if head == nil {
+				head = &sequence{node: term}
+				cursor = head
+			} else {
+				cursor.next = &sequence{node: term}
+				cursor = cursor.next
+			}
 		}
 	}
-	if len(elements.nodes) == 1 {
-		return elements.nodes[0]
+	if head.next == nil {
+		return head.node
 	}
-	return elements
+	return head
 }
 
 func (g *generatorContext) parseTerm(slexer *structLexer) node {

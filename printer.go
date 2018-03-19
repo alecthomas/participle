@@ -29,8 +29,8 @@ func nodePrinter(seen map[reflect.Value]bool, v node) string {
 
 	case *sequence:
 		out := []string{}
-		for _, n := range n.nodes {
-			out = append(out, nodePrinter(seen, n))
+		for c := n; c != nil; c = c.next {
+			out = append(out, nodePrinter(seen, c))
 		}
 		return fmt.Sprintf("(%s)", strings.Join(out, " "))
 

@@ -115,19 +115,24 @@ func (e disjunction) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect
 
 // <node> ...
 type sequence struct {
-	nodes []node
+	node node
+	next *sequence
 }
 
 func (a *sequence) String() string {
-	return a.nodes[0].String()
+	out := a.node.String()
+	if a.next != nil {
+		out += " " + a.next.String()
+	}
+	return out
 }
 
-func (a sequence) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
-	for i, n := range a.nodes {
+func (a *sequence) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
+	for n := a; n != nil; n = n.next {
 		// If first value doesn't match, we early exit, otherwise all values must match.
-		child := n.Parse(lex, parent)
+		child := n.node.Parse(lex, parent)
 		if child == nil {
-			if i == 0 {
+			if n == a {
 				return nil
 			}
 			lexer.Panicf(lex.Peek(0).Pos, "expected ( %s ) not %q", n, lex.Peek(0))
