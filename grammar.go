@@ -54,7 +54,7 @@ func (g *generatorContext) parseType(t reflect.Type) node {
 func (g *generatorContext) parseExpression(slexer *structLexer) node {
 	out := &disjunction{}
 	for {
-		out.nodes = append(out.nodes, g.parseAlternative(slexer))
+		out.nodes = append(out.nodes, g.parseSequence(slexer))
 		if slexer.Peek().Type != '|' {
 			break
 		}
@@ -66,7 +66,7 @@ func (g *generatorContext) parseExpression(slexer *structLexer) node {
 	return out
 }
 
-func (g *generatorContext) parseAlternative(slexer *structLexer) node {
+func (g *generatorContext) parseSequence(slexer *structLexer) node {
 	elements := sequence{}
 loop:
 	for {
