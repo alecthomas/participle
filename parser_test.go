@@ -9,16 +9,16 @@ import (
 	"github.com/alecthomas/participle/lexer"
 )
 
-func TestProductionReference(t *testing.T) {
-	type testReference struct {
+func TestProductionCapture(t *testing.T) {
+	type testCapture struct {
 		A string `@Test`
 	}
 
-	_, err := Build(&testReference{}, nil)
+	_, err := Build(&testCapture{}, nil)
 	assert.Check(t, err != nil)
 }
 
-func TestTermReference(t *testing.T) {
+func TestTermCapture(t *testing.T) {
 	type grammar struct {
 		A string `@{"."}`
 	}
@@ -480,7 +480,7 @@ func TestParseExpression(t *testing.T) {
 	assert.DeepEqual(t, expected, actual)
 }
 
-func TestParseTokenReference(t *testing.T) {
+func TestParseTokenCapture(t *testing.T) {
 }
 
 func TestParseOptional(t *testing.T) {

@@ -34,10 +34,10 @@ func nodePrinter(seen map[reflect.Value]bool, v node) string {
 		}
 		return fmt.Sprintf("(%s)", strings.Join(out, " "))
 
-	case *reference:
+	case *capture:
 		return fmt.Sprintf("@(field=%s, node=%s)", n.field.Name, nodePrinter(seen, n.node))
 
-	case *tokenReference:
+	case *reference:
 		return fmt.Sprintf("token(%q)", n.identifier)
 
 	case *optional:

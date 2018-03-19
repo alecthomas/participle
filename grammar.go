@@ -101,7 +101,7 @@ func (g *generatorContext) parseTerm(slexer *structLexer) node {
 	case '(':
 		return g.parseGroup(slexer)
 	case scanner.Ident:
-		return g.parseTokenReference(slexer)
+		return g.parseReference(slexer)
 	case lexer.EOF:
 		slexer.Next()
 		return nil
@@ -117,16 +117,16 @@ func (g *generatorContext) parseCapture(slexer *structLexer) node {
 	field := slexer.Field()
 	if token.Type == '@' {
 		slexer.Next()
-		return &reference{field, g.parseType(field.Type)}
+		return &capture{field, g.parseType(field.Type)}
 	}
 	if indirectType(field.Type).Kind() == reflect.Struct && !field.Type.Implements(captureType) {
 		panic("structs can only be parsed with @@ or by implementing the Capture interface")
 	}
-	return &reference{field, g.parseTerm(slexer)}
+	return &capture{field, g.parseTerm(slexer)}
 }
 
 // A reference in the form <identifier> refers to a named token from the lexer.
-func (g *generatorContext) parseTokenReference(slexer *structLexer) node {
+func (g *generatorContext) parseReference(slexer *structLexer) node {
 	token := slexer.Next()
 	if token.Type != scanner.Ident {
 		panic("expected identifier")
@@ -135,7 +135,7 @@ func (g *generatorContext) parseTokenReference(slexer *structLexer) node {
 	if !ok {
 		panicf("unknown token type %q", token.String())
 	}
-	return &tokenReference{typ, token.Value}
+	return &reference{typ, token.Value}
 }
 
 // [ <expression> ] optionally matches <expression>.

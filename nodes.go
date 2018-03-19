@@ -140,16 +140,16 @@ func (a sequence) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Va
 }
 
 // @<expr>
-type reference struct {
+type capture struct {
 	field reflect.StructField
 	node  node
 }
 
-func (r *reference) String() string {
+func (r *capture) String() string {
 	return r.field.Name + ":" + r.node.String()
 }
 
-func (r *reference) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
+func (r *capture) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
 	pos := lex.Peek(0).Pos
 	v := r.node.Parse(lex, parent)
 	if v == nil {
@@ -159,16 +159,16 @@ func (r *reference) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.
 	return []reflect.Value{parent}
 }
 
-type tokenReference struct {
+type reference struct {
 	typ        rune
 	identifier string
 }
 
-func (t *tokenReference) String() string {
+func (t *reference) String() string {
 	return t.identifier
 }
 
-func (t *tokenReference) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
+func (t *reference) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
 	token := lex.Peek(0)
 	if token.Type != t.typ {
 		return nil
