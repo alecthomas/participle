@@ -27,9 +27,9 @@ func nodePrinter(seen map[reflect.Value]bool, v node) string {
 	case *strct:
 		return fmt.Sprintf("strct(type=%s, expr=%s)", n.typ, nodePrinter(seen, n.expr))
 
-	case sequence:
+	case *sequence:
 		out := []string{}
-		for _, n := range n {
+		for _, n := range n.nodes {
 			out = append(out, nodePrinter(seen, n))
 		}
 		return fmt.Sprintf("(%s)", strings.Join(out, " "))

@@ -114,14 +114,16 @@ func (e disjunction) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect
 }
 
 // <node> ...
-type sequence []node
+type sequence struct {
+	nodes []node
+}
 
-func (a sequence) String() string {
-	return a[0].String()
+func (a *sequence) String() string {
+	return a.nodes[0].String()
 }
 
 func (a sequence) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
-	for i, n := range a {
+	for i, n := range a.nodes {
 		// If first value doesn't match, we early exit, otherwise all values must match.
 		child := n.Parse(lex, parent)
 		if child == nil {
