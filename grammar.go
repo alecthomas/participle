@@ -87,7 +87,7 @@ loop:
 			}
 		}
 	}
-	if head.next == nil {
+	if head != nil && head.next == nil {
 		return head.node
 	}
 	return head
