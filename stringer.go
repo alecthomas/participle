@@ -12,14 +12,14 @@ type stringerVisitor struct {
 	seen map[node]bool
 }
 
-func stringer(n node) string {
+func stringer(n node, depth int) string {
 	v := &stringerVisitor{seen: map[node]bool{}}
-	v.visit(n)
+	v.visit(n, depth)
 	return v.String()
 }
 
-func (s *stringerVisitor) visit(n node) {
-	if s.seen[n] {
+func (s *stringerVisitor) visit(n node, depth int) {
+	if s.seen[n] || depth == 0 {
 		fmt.Fprintf(s, "...")
 		return
 	}
@@ -31,33 +31,33 @@ func (s *stringerVisitor) visit(n node) {
 			if i > 0 {
 				fmt.Fprint(s, " | ")
 			}
-			s.visit(c)
+			s.visit(c, depth-1)
 		}
 
 	case *strct:
-		s.visit(n.expr)
+		s.visit(n.expr, depth-1)
 
 	case *sequence:
-		s.visit(n.node)
+		s.visit(n.node, depth-1)
 		if n.next != nil {
 			fmt.Fprint(s, " ")
-			s.visit(n.next)
+			s.visit(n.next, depth-1)
 		}
 
 	case *capture:
-		s.visit(n.node)
+		s.visit(n.node, depth-1)
 
 	case *reference:
 		fmt.Fprintf(s, "%s", n.identifier)
 
 	case *optional:
 		fmt.Fprint(s, "[ ")
-		s.visit(n.node)
+		s.visit(n.node, depth-1)
 		fmt.Fprint(s, " ]")
 
 	case *repetition:
 		fmt.Fprint(s, "( ")
-		s.visit(n.node)
+		s.visit(n.node, depth-1)
 		fmt.Fprint(s, " )")
 
 	case *literal:

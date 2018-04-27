@@ -3,6 +3,8 @@ package participle
 import (
 	"fmt"
 	"strings"
+
+	"github.com/alecthomas/participle/lexer"
 )
 
 func dumpNode(v node) string {
@@ -46,7 +48,10 @@ func nodePrinter(seen map[node]bool, v node) string {
 		return fmt.Sprintf("{ %s }", nodePrinter(seen, n.node))
 
 	case *literal:
-		return stringer(n)
+		if n.t == lexer.EOF {
+			return n.s
+		}
+		return n.s + ":" + n.tt
 
 	default:
 		panic(fmt.Sprintf("unsupported type %T", v))

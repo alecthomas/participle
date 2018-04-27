@@ -109,7 +109,7 @@ func (a *sequence) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.V
 			if n == a {
 				return nil
 			}
-			lexer.Panicf(lex.Peek(0).Pos, "expected ( %s ) not %q", stringer(n), lex.Peek(0))
+			lexer.Panicf(lex.Peek(0).Pos, "expected ( %s ) not %q", stringer(n, 16), lex.Peek(0))
 		}
 		if len(child) == 0 && out == nil {
 			out = []reflect.Value{}
