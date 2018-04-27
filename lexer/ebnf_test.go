@@ -173,6 +173,6 @@ digit = "0"…"9" .
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		lex := def.Lex(strings.NewReader("hello world 123 hello world 123"))
-		ConsumeAll(lex)
+		ConsumeAll(lex, false)
 	}
 }

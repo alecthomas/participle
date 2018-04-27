@@ -1,7 +1,9 @@
 package participle
 
 import (
+	"fmt"
 	"reflect"
+	"strconv"
 	"text/scanner"
 
 	"github.com/alecthomas/participle/lexer"
@@ -25,38 +27,46 @@ func newGeneratorContext(lex lexer.Definition) *generatorContext {
 func (g *generatorContext) parseType(t reflect.Type) node {
 	rt := t
 	t = indirectType(t)
-	defer decorate(t.Name())
 	if n, ok := g.typeNodes[t]; ok {
 		return n
+	}
+	if rt.Implements(parseableType) {
+		return &parseable{rt.Elem()}
+	}
+	if reflect.PtrTo(rt).Implements(parseableType) {
+		return &parseable{rt}
 	}
 	switch t.Kind() {
 	case reflect.Slice, reflect.Ptr:
 		t = indirectType(t.Elem())
+		if t.Kind() != reflect.Struct {
+			panic(fmt.Sprintf("expected a struct but got %T", t))
+		}
 		fallthrough
 
 	case reflect.Struct:
-		if rt.Implements(parseableType) {
-			return &parseable{rt}
-		}
 		out := &strct{typ: t}
-		g.typeNodes[t] = out
+		g.typeNodes[t] = out // Ensure we avoid infinite recursion.
 		if t.NumField() == 0 {
 			panicf("can not parse into empty struct %s", t)
 		}
 		slexer := lexStruct(t)
-		defer decorate(slexer.Field().Name)
-		e := g.parseExpression(slexer)
+		defer decorate(func() string { return slexer.Field().Name })
+		e := g.parseDisjunction(slexer)
+		if e == nil {
+			panicf("no grammar found in %s", t)
+		}
 		if !slexer.Peek().EOF() {
 			panicf("unexpected input %q", slexer.Peek().Value)
 		}
 		out.expr = e
 		return out
 	}
-	panicf("expected struct type but got %s", t)
+	panicf("%s should be a struct or should implement the Parseable interface", t)
 	return nil
 }
 
-func (g *generatorContext) parseExpression(slexer *structLexer) node {
+func (g *generatorContext) parseDisjunction(slexer *structLexer) node {
 	out := &disjunction{}
 	for {
 		out.nodes = append(out.nodes, g.parseSequence(slexer))
@@ -72,27 +82,29 @@ func (g *generatorContext) parseExpression(slexer *structLexer) node {
 }
 
 func (g *generatorContext) parseSequence(slexer *structLexer) node {
-	var head, cursor *sequence
+	head := &sequence{}
+	cursor := head
 loop:
 	for {
-		switch slexer.Peek().Type {
-		case lexer.EOF:
+		if slexer.Peek().Type == lexer.EOF {
 			break loop
-		default:
-			term := g.parseTerm(slexer)
-			if term == nil {
-				break loop
-			}
-			if head == nil {
-				head = &sequence{node: term}
-				cursor = head
-			} else {
-				cursor.next = &sequence{node: term}
-				cursor = cursor.next
-			}
+		}
+		term := g.parseTerm(slexer)
+		if term == nil {
+			break loop
+		}
+		if cursor.node == nil {
+			cursor.head = true
+			cursor.node = term
+		} else {
+			cursor.next = &sequence{node: term}
+			cursor = cursor.next
 		}
 	}
-	if head != nil && head.next == nil {
+	if head.node == nil {
+		return nil
+	}
+	if head.next == nil {
 		return head.node
 	}
 	return head
@@ -152,7 +164,7 @@ func (g *generatorContext) parseReference(slexer *structLexer) node {
 // [ <expression> ] optionally matches <expression>.
 func (g *generatorContext) parseOptional(slexer *structLexer) node {
 	slexer.Next() // [
-	optional := &optional{g.parseExpression(slexer)}
+	optional := &optional{g.parseDisjunction(slexer)}
 	next := slexer.Peek()
 	if next.Type != ']' {
 		panicf("expected ] but got %q", next)
@@ -165,7 +177,7 @@ func (g *generatorContext) parseOptional(slexer *structLexer) node {
 func (g *generatorContext) parseRepetition(slexer *structLexer) node {
 	slexer.Next() // {
 	n := &repetition{
-		node: g.parseExpression(slexer),
+		node: g.parseDisjunction(slexer),
 	}
 	next := slexer.Next()
 	if next.Type != '}' {
@@ -177,7 +189,7 @@ func (g *generatorContext) parseRepetition(slexer *structLexer) node {
 // ( <expression> ) groups a sub-expression
 func (g *generatorContext) parseGroup(slexer *structLexer) node {
 	slexer.Next() // (
-	n := g.parseExpression(slexer)
+	n := g.parseDisjunction(slexer)
 	next := slexer.Peek() // )
 	if next.Type != ')' {
 		panicf("expected ) but got %q", next)
@@ -189,12 +201,13 @@ func (g *generatorContext) parseGroup(slexer *structLexer) node {
 // A literal string.
 //
 // Note that for this to match, the tokeniser must be able to produce this string. For example,
-// if the tokeniser only produces individual charactersk but the literal is "hello", or vice versa.
+// if the tokeniser only produces individual characters but the literal is "hello", or vice versa.
 func (g *generatorContext) parseLiteral(lex *structLexer) node { // nolint: interfacer
 	token := lex.Next()
 	if token.Type != scanner.String && token.Type != scanner.RawString && token.Type != scanner.Char {
 		panicf("expected quoted string but got %q", token)
 	}
+	token = unquoteScannerString(token)
 	s := token.Value
 	t := rune(-1)
 	token = lex.Peek()
@@ -211,4 +224,25 @@ func (g *generatorContext) parseLiteral(lex *structLexer) node { // nolint: inte
 		}
 	}
 	return &literal{s: s, t: t, tt: g.symbolsToIDs[t]}
+}
+
+func unquoteScannerString(t lexer.Token) lexer.Token {
+	// Unquote strings.
+	switch t.Type {
+	case scanner.Char:
+		// FIXME(alec): This is pretty hacky...we convert a single quoted char into a double
+		// quoted string in order to support single quoted strings.
+		t.Value = fmt.Sprintf("\"%s\"", t.Value[1:len(t.Value)-1])
+		fallthrough
+	case scanner.String:
+		s, err := strconv.Unquote(t.Value)
+		if err != nil {
+			panicf("could not unquote %q: %s", t.Value, err)
+		}
+		t.Value = s
+	case scanner.RawString:
+		t.Value = t.Value[1 : len(t.Value)-1]
+	}
+	return t
+
 }

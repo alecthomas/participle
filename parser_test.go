@@ -236,13 +236,18 @@ type Repetition struct {
 }
 
 type Literal struct {
-	Start string  `@String` // Lexer token "String"
-	End   *string `[ "…" @String ]`
+	Start string `@String`
+}
+
+type Range struct {
+	Start string `@String`
+	End   string `"…" @String`
 }
 
 type Term struct {
 	Name       string      `@Ident |`
 	Literal    *Literal    `@@ |`
+	Range      *Range      `@@ |`
 	Group      *Group      `@@ |`
 	Option     *Option     `@@ |`
 	Repetition *Repetition `@@`
@@ -446,7 +451,6 @@ Term        = name | token [ "…" token ] | "@@" | Group | Option | Repetition 
 Group       = "(" Expression ")" .
 Option      = "[" Expression "]" .
 Repetition  = "{" Expression "}" .
-
 `), actual)
 	require.NoError(t, err)
 	require.Equal(t, expected, actual)
@@ -485,7 +489,7 @@ func TestParseTokenCapture(t *testing.T) {
 
 func TestParseOptional(t *testing.T) {
 	type testOptional struct {
-		A string `@[ "a" "b" ]`
+		A string `[ @"a" @"b" ]`
 		B string `@"c"`
 	}
 
@@ -523,6 +527,7 @@ func TestHello(t *testing.T) {
 }
 
 func mustTestParser(t *testing.T, grammar interface{}) *Parser {
+	t.Helper()
 	parser, err := Build(grammar, nil)
 	require.NoError(t, err)
 	return parser
@@ -621,7 +626,7 @@ func TestCaptureInterface(t *testing.T) {
 
 func TestLiteralTypeConstraint(t *testing.T) {
 	type grammar struct {
-		Literal string `@"123456":String`
+		Literal string `@"\"123456\"":String`
 	}
 
 	parser, err := Build(&grammar{}, lexer.DefaultDefinition)
@@ -666,7 +671,7 @@ type parseableStruct struct {
 }
 
 func (p *parseableStruct) Parse(lex lexer.Lexer) error {
-	tokens, err := lexer.ConsumeAll(lex)
+	tokens, err := lexer.ConsumeAll(lex, true)
 	if err != nil {
 		return err
 	}

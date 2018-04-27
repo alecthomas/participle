@@ -2,8 +2,8 @@ package lexer
 
 import (
 	"bufio"
+	"fmt"
 	"io"
-	"reflect"
 	"strings"
 	"text/scanner"
 	"unicode/utf8"
@@ -34,6 +34,8 @@ func (e *ebnfLexer) Next() Token {
 	e.panic("no match found")
 	return Token{}
 }
+
+func (e *ebnfLexer) Transform(t Token) Token { return t }
 
 func (e *ebnfLexer) match(expr ebnf.Expression) []string { // nolint: gocyclo
 	switch n := expr.(type) {
@@ -122,7 +124,7 @@ func (e *ebnfLexer) match(expr ebnf.Expression) []string { // nolint: gocyclo
 		}
 		e.panic("expected EOF")
 	}
-	panic("unsupported lexer expression type " + reflect.TypeOf(expr).String())
+	panic(fmt.Sprintf("unsupported lexer expression type %T", expr))
 }
 
 func (e *ebnfLexer) peek() rune {
@@ -238,6 +240,8 @@ func (e *ebnfLexerDefinition) Symbols() map[string]rune {
 	return e.symbols
 }
 
+func (e *ebnfLexerDefinition) Transform(t Token) Token { return t }
+
 type characterSet struct {
 	pos scanner.Position
 	Set string
@@ -337,5 +341,5 @@ func validate(grammar ebnf.Grammar, expr ebnf.Expression) error { // nolint: goc
 	case nil:
 		return nil
 	}
-	return Errorf(Position(expr.Pos()), "unknown EBNF expression "+reflect.TypeOf(expr).String())
+	return Errorf(Position(expr.Pos()), "unknown EBNF expression %T", expr)
 }

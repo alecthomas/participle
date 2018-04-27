@@ -31,7 +31,7 @@ func nodePrinter(seen map[node]bool, v node) string {
 	case *sequence:
 		out := []string{}
 		for c := n; c != nil; c = c.next {
-			out = append(out, nodePrinter(seen, c))
+			out = append(out, nodePrinter(seen, c.node))
 		}
 		return fmt.Sprintf("(%s)", strings.Join(out, " "))
 
@@ -39,7 +39,7 @@ func nodePrinter(seen map[node]bool, v node) string {
 		return fmt.Sprintf("@(field=%s, node=%s)", n.field.Name, nodePrinter(seen, n.node))
 
 	case *reference:
-		return fmt.Sprintf("token(%q)", n.identifier)
+		return fmt.Sprintf("%s", n.identifier)
 
 	case *optional:
 		return fmt.Sprintf("[%s]", nodePrinter(seen, n.node))
@@ -49,9 +49,9 @@ func nodePrinter(seen map[node]bool, v node) string {
 
 	case *literal:
 		if n.t == lexer.EOF {
-			return n.s
+			return fmt.Sprintf("%q", n.s)
 		}
-		return n.s + ":" + n.tt
+		return fmt.Sprintf("%q:%s", n.s, n.tt)
 
 	default:
 		panicf("unsupported type %T", v)

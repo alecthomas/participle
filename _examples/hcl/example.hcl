@@ -11,6 +11,7 @@ directory config {
     post_backup_script = "after_backup.sh"
     pre_restore_script = "before_restore.sh"
     post_restore_script = "after_restore.sh"
+    chmod = 0755
 }
 
 directory data {

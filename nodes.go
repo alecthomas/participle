@@ -26,13 +26,13 @@ type node interface {
 	Parse(lex lexer.Lexer, parent reflect.Value) []reflect.Value
 }
 
-func decorate(name string) {
+func decorate(name func() string) {
 	if msg := recover(); msg != nil {
 		switch msg := msg.(type) {
 		case Error:
-			panicf("%s: %s", name, msg)
+			panicf("%s: %s", name(), msg)
 		case *lexer.Error:
-			panic(&lexer.Error{Message: name + ": " + msg.Message, Pos: msg.Pos})
+			panic(&lexer.Error{Message: name() + ": " + msg.Message, Pos: msg.Pos})
 		default:
 			panic(msg)
 		}
@@ -58,7 +58,7 @@ type parseable struct {
 }
 
 func (p *parseable) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
-	rv := reflect.New(p.t.Elem())
+	rv := reflect.New(p.t)
 	v := rv.Interface().(Parseable)
 	err := v.Parse(lex)
 	if err != nil {
@@ -103,39 +103,55 @@ func (s *strct) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Valu
 
 // <expr> {"|" <expr>}
 type disjunction struct {
-	nodes []node
+	nodes     []node
+	lookahead []lookahead
 }
 
-func (e disjunction) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
-	for _, a := range e.nodes {
-		if value := a.Parse(lex, parent); value != nil {
-			return value
+func (e *disjunction) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
+	for _, look := range e.lookahead {
+		lt := look.token
+
+		// This will occur with Parseable interfaces.
+		if look.depth == 0 && lt.EOF() {
+			if out = e.nodes[look.root].Parse(lex, parent); out != nil {
+				return out
+			}
+			continue
+		}
+
+		t := lex.Peek(look.depth)
+		if (lt.Value == "" || lt.Value == t.Value) && (lt.Type == lexer.EOF || lt.Type == t.Type) {
+			// repr.Println(lt, t)
+			// fmt.Println(stringer(e.nodes[look.root], 1))
+			return e.nodes[look.root].Parse(lex, parent)
 		}
 	}
+	// for _, a := range e.nodes {
+	// 	if value := a.Parse(lex, parent); value != nil {
+	// 		return value
+	// 	}
+	// }
 	return nil
 }
 
 // <node> ...
 type sequence struct {
+	head bool
 	node node
 	next *sequence
 }
 
 func (a *sequence) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
 	for n := a; n != nil; n = n.next {
-		// If first value doesn't match, we early exit, otherwise all values must match.
 		child := n.node.Parse(lex, parent)
 		if child == nil {
+			// If first value doesn't match, we early exit, otherwise all values must match.
 			if n == a {
 				return nil
 			}
-			lexer.Panicf(lex.Peek(0).Pos, "expected ( %s ) not %q", stringer(n, 16), lex.Peek(0))
+			lexer.Panicf(lex.Peek(0).Pos, "expected %s not %q", stringer(n, 1), lex.Peek(0))
 		}
-		if len(child) == 0 && out == nil {
-			out = []reflect.Value{}
-		} else {
-			out = append(out, child...)
-		}
+		out = append(out, child...)
 	}
 	return out
 }
@@ -156,6 +172,7 @@ func (r *capture) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Va
 	return []reflect.Value{parent}
 }
 
+// <identifier> - named lexer token reference
 type reference struct {
 	typ        rune
 	identifier string // Used for informational purposes.
@@ -166,7 +183,7 @@ func (t *reference) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.
 	if token.Type != t.typ {
 		return nil
 	}
-	lex.Next()
+	token = lex.Transform(lex.Next())
 	return []reflect.Value{reflect.ValueOf(token.Value)}
 }
 
@@ -212,7 +229,8 @@ type literal struct {
 func (s *literal) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
 	token := lex.Peek(0)
 	if token.Value == s.s && (s.t == -1 || s.t == token.Type) {
-		return []reflect.Value{reflect.ValueOf(lex.Next().Value)}
+		token = lex.Transform(lex.Next())
+		return []reflect.Value{reflect.ValueOf(token.Value)}
 	}
 	return nil
 }
@@ -265,7 +283,7 @@ func conform(t reflect.Type, values []reflect.Value) (out []reflect.Value) {
 // For all other types, an attempt will be made to convert the string to the corresponding
 // type (int, float32, etc.).
 func setField(pos lexer.Position, strct reflect.Value, field reflect.StructField, fieldValue []reflect.Value) { // nolint: gocyclo
-	defer decorate(strct.Type().String() + "." + field.Name)
+	defer decorate(func() string { return strct.Type().String() + "." + field.Name })
 
 	f := strct.FieldByIndex(field.Index)
 	switch f.Kind() {
@@ -303,7 +321,7 @@ func setField(pos lexer.Position, strct reflect.Value, field reflect.StructField
 	// Strings concatenate all captured tokens.
 	if f.Kind() == reflect.String {
 		for _, v := range fieldValue {
-			f.Set(reflect.ValueOf(f.String() + v.String()))
+			f.Set(reflect.ValueOf(f.String() + v.String()).Convert(f.Type()))
 		}
 		return
 	}

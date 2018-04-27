@@ -4,25 +4,14 @@ package main
 import (
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/alecthomas/repr"
 
-	"github.com/alecthomas/participle"
 	"gopkg.in/alecthomas/kingpin.v2"
+
+	"github.com/alecthomas/participle"
 )
-
-type Number float64
-
-func (i *Number) Parse(s string) error {
-	n, err := strconv.ParseFloat(s, 64)
-	if err != nil {
-		return err
-	}
-	*i = Number(n)
-	return nil
-}
 
 type Bool bool
 
@@ -32,7 +21,7 @@ type Value struct {
 	Boolean    *Bool    `  @('true'|'false')`
 	Identifier *string  `| @Ident { @"." @Ident }`
 	String     *string  `| @(String|Char|RawString)`
-	Number     *Number  `| @(Float|Int)`
+	Number     *float64 `| @(Float|Int)`
 	Array      []*Value `| '[' { @@ [ ',' ] } ']'`
 }
 

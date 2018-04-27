@@ -1,8 +1,8 @@
 package lexer
 
-// Upgrade a SimpleLexer to a Lexer with arbitrary lookahead.
-func Upgrade(simple SimpleLexer) Lexer {
-	return &lookaheadLexer{SimpleLexer: simple}
+// Upgrade a SimpleLexer to a full Lexer with arbitrary lookahead.
+func Upgrade(lexer SimpleLexer) Lexer {
+	return &lookaheadLexer{SimpleLexer: lexer}
 }
 
 type lookaheadLexer struct {
@@ -18,7 +18,6 @@ func (l *lookaheadLexer) Peek(n int) Token {
 		}
 		l.peeked = append(l.peeked, t)
 	}
-
 	return l.peeked[n]
 }
 

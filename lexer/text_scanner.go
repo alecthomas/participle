@@ -11,7 +11,12 @@ import (
 )
 
 // TextScannerLexer is a lexer that uses the text/scanner module.
-var TextScannerLexer Definition = &defaultDefinition{}
+var (
+	TextScannerLexer Definition = &defaultDefinition{}
+
+	// DefaultDefinition defines properties for the default lexer.
+	DefaultDefinition = TextScannerLexer
+)
 
 type defaultDefinition struct{}
 
@@ -57,10 +62,6 @@ func Lex(r io.Reader) Lexer {
 // LexWithScanner creates a Lexer from a user-provided scanner.Scanner.
 //
 // Useful if you need to customise the Scanner.
-//
-// Note that if this function is used, single-quoted strings are not supported. See the source for
-// Lex() for how to achieve this.
-
 func LexWithScanner(r io.Reader, scan *scanner.Scanner) Lexer {
 	return Upgrade(lexWithScanner(r, scan))
 }
@@ -89,30 +90,33 @@ func (t *textScannerLexer) Next() Token {
 	text := t.scanner.TokenText()
 	pos := Position(t.scanner.Position)
 	pos.Filename = t.filename
-	out := Token{
+	return Token{
 		Type:  typ,
 		Value: text,
 		Pos:   pos,
 	}
-	out.Pos.Filename = t.filename
+}
+
+// Transform strips quotes off strings.
+func (t *textScannerLexer) Transform(token Token) Token {
 	// Unquote strings.
-	switch out.Type {
+	switch token.Type {
 	case scanner.Char:
 		// FIXME(alec): This is pretty hacky...we convert a single quoted char into a double
 		// quoted string in order to support single quoted strings.
-		out.Value = fmt.Sprintf("\"%s\"", out.Value[1:len(out.Value)-1])
+		token.Value = fmt.Sprintf("\"%s\"", token.Value[1:len(token.Value)-1])
 		fallthrough
 	case scanner.String:
-		s, err := strconv.Unquote(out.Value)
+		s, err := strconv.Unquote(token.Value)
 		if err != nil {
-			Panic(out.Pos, err.Error())
+			Panic(token.Pos, err.Error())
 		}
-		out.Value = s
-		if out.Type == scanner.Char && utf8.RuneCountInString(s) > 1 {
-			out.Type = scanner.String
+		token.Value = s
+		if token.Type == scanner.Char && utf8.RuneCountInString(s) > 1 {
+			token.Type = scanner.String
 		}
 	case scanner.RawString:
-		out.Value = out.Value[1 : len(out.Value)-1]
+		token.Value = token.Value[1 : len(token.Value)-1]
 	}
-	return out
+	return token
 }

@@ -24,24 +24,25 @@ func TestLexer(t *testing.T) {
 
 func TestLexString(t *testing.T) {
 	lexer := LexString(`"hello\nworld"`)
-	require.Equal(t, lexer.Next(), Token{Type: scanner.String, Value: "hello\nworld", Pos: Position{Line: 1, Column: 1}})
+	require.Equal(t, Token{Type: scanner.String, Value: "hello\nworld", Pos: Position{Line: 1, Column: 1}}, lexer.Transform(lexer.Next()))
 }
 
 func TestLexSingleString(t *testing.T) {
 	lexer := LexString(`'hello\nworld'`)
-	require.Equal(t, lexer.Next(), Token{Type: scanner.String, Value: "hello\nworld", Pos: Position{Line: 1, Column: 1}})
+	require.Equal(t, Token{Type: scanner.String, Value: "hello\nworld", Pos: Position{Line: 1, Column: 1}}, lexer.Transform(lexer.Next()))
 	lexer = LexString(`'\U00008a9e'`)
-	require.Equal(t, lexer.Next(), Token{Type: scanner.Char, Value: "\U00008a9e", Pos: Position{Line: 1, Column: 1}})
+	require.Equal(t, Token{Type: scanner.Char, Value: "\U00008a9e", Pos: Position{Line: 1, Column: 1}}, lexer.Transform(lexer.Next()))
 }
 
 func TestLexBacktickString(t *testing.T) {
 	lexer := LexString("`hello\\nworld`")
-	require.Equal(t, lexer.Next(), Token{Type: scanner.String, Value: "hello\\nworld", Pos: Position{Line: 1, Column: 1}})
+	token := lexer.Transform(lexer.Next())
+	require.Equal(t, token, Token{Type: scanner.String, Value: "hello\\nworld", Pos: Position{Line: 1, Column: 1}})
 }
 
 func BenchmarkTextScannerLexer(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		lex := TextScannerLexer.Lex(strings.NewReader("hello world 123 hello world 123"))
-		ConsumeAll(lex)
+		ConsumeAll(lex, false)
 	}
 }

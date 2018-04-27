@@ -8,8 +8,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/alecthomas/participle"
 	"gopkg.in/alecthomas/kingpin.v2"
+
+	"github.com/alecthomas/participle"
 )
 
 var (
@@ -33,19 +34,42 @@ func (o *Operator) Capture(s []string) error {
 	return nil
 }
 
-func (o Operator) Eval(l, r float64) float64 {
-	switch o {
-	case OpMul:
-		return l * r
-	case OpDiv:
-		return l / r
-	case OpAdd:
-		return l + r
-	case OpSub:
-		return l - r
-	}
-	panic("unsupported operator")
+// E --> T {( "+" | "-" ) T}
+// T --> F {( "*" | "/" ) F}
+// F --> P ["^" F]
+// P --> v | "(" E ")" | "-" T
+
+type Value struct {
+	Number        *float64    `@(Float|Int)`
+	Subexpression *Expression `| "(" @@ ")"`
 }
+
+type Factor struct {
+	Base     *Value `@@`
+	Exponent *Value `[ "^" @@ ]`
+}
+
+type OpFactor struct {
+	Operator Operator `@("*" | "/")`
+	Factor   *Factor  `@@`
+}
+
+type Term struct {
+	Left  *Factor     `@@`
+	Right []*OpFactor `{ @@ }`
+}
+
+type OpTerm struct {
+	Operator Operator `@("+" | "-")`
+	Term     *Term    `@@`
+}
+
+type Expression struct {
+	Left  *Term     `@@`
+	Right []*OpTerm `{ @@ }`
+}
+
+// Display
 
 func (o Operator) String() string {
 	switch o {
@@ -61,33 +85,11 @@ func (o Operator) String() string {
 	panic("unsupported operator")
 }
 
-// E --> T {( "+" | "-" ) T}
-// T --> F {( "*" | "/" ) F}
-// F --> P ["^" F]
-// P --> v | "(" E ")" | "-" T
-
-type Value struct {
-	Number        *float64    `@(Float|Int)`
-	Subexpression *Expression `| "(" @@ ")"`
-}
-
 func (v *Value) String() string {
 	if v.Number != nil {
 		return fmt.Sprintf("%g", *v.Number)
 	}
 	return "(" + v.Subexpression.String() + ")"
-}
-
-func (v *Value) Eval() float64 {
-	if v.Number != nil {
-		return *v.Number
-	}
-	return v.Subexpression.Eval()
-}
-
-type Factor struct {
-	Base     *Value `@@`
-	Exponent *Value `[ "^" @@ ]`
 }
 
 func (f *Factor) String() string {
@@ -98,26 +100,8 @@ func (f *Factor) String() string {
 	return out
 }
 
-func (f *Factor) Eval() float64 {
-	b := f.Base.Eval()
-	if f.Exponent != nil {
-		return math.Pow(b, f.Exponent.Eval())
-	}
-	return b
-}
-
-type OpFactor struct {
-	Operator Operator `@("*" | "/")`
-	Factor   *Factor  `@@`
-}
-
 func (o *OpFactor) String() string {
 	return fmt.Sprintf("%s %s", o.Operator, o.Factor)
-}
-
-type Term struct {
-	Left  *Factor     `@@`
-	Right []*OpFactor `{ @@ }`
 }
 
 func (t *Term) String() string {
@@ -128,26 +112,8 @@ func (t *Term) String() string {
 	return strings.Join(out, " ")
 }
 
-func (t *Term) Eval() float64 {
-	n := t.Left.Eval()
-	for _, r := range t.Right {
-		n = r.Operator.Eval(n, r.Factor.Eval())
-	}
-	return n
-}
-
-type OpTerm struct {
-	Operator Operator `@("+" | "-")`
-	Term     *Term    `@@`
-}
-
 func (o *OpTerm) String() string {
 	return fmt.Sprintf("%s %s", o.Operator, o.Term)
-}
-
-type Expression struct {
-	Left  *Term     `@@`
-	Right []*OpTerm `{ @@ }`
 }
 
 func (e *Expression) String() string {
@@ -156,6 +122,45 @@ func (e *Expression) String() string {
 		out = append(out, r.String())
 	}
 	return strings.Join(out, " ")
+}
+
+// Evaluation
+
+func (o Operator) Eval(l, r float64) float64 {
+	switch o {
+	case OpMul:
+		return l * r
+	case OpDiv:
+		return l / r
+	case OpAdd:
+		return l + r
+	case OpSub:
+		return l - r
+	}
+	panic("unsupported operator")
+}
+
+func (v *Value) Eval() float64 {
+	if v.Number != nil {
+		return *v.Number
+	}
+	return v.Subexpression.Eval()
+}
+
+func (f *Factor) Eval() float64 {
+	b := f.Base.Eval()
+	if f.Exponent != nil {
+		return math.Pow(b, f.Exponent.Eval())
+	}
+	return b
+}
+
+func (t *Term) Eval() float64 {
+	n := t.Left.Eval()
+	for _, r := range t.Right {
+		n = r.Operator.Eval(n, r.Factor.Eval())
+	}
+	return n
 }
 
 func (e *Expression) Eval() float64 {

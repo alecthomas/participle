@@ -19,7 +19,7 @@ func stringer(n node, depth int) string {
 }
 
 func (s *stringerVisitor) visit(n node, depth int) {
-	if s.seen[n] || depth == 0 {
+	if s.seen[n] || depth <= 0 {
 		fmt.Fprintf(s, "...")
 		return
 	}
@@ -31,33 +31,43 @@ func (s *stringerVisitor) visit(n node, depth int) {
 			if i > 0 {
 				fmt.Fprint(s, " | ")
 			}
-			s.visit(c, depth-1)
+			s.visit(c, depth)
 		}
 
 	case *strct:
-		s.visit(n.expr, depth-1)
+		s.visit(n.expr, depth)
 
 	case *sequence:
-		s.visit(n.node, depth-1)
-		if n.next != nil {
-			fmt.Fprint(s, " ")
-			s.visit(n.next, depth-1)
+		for c, i := n, 0; c != nil && depth-i > 0; c, i = c.next, i+1 {
+			if c != n {
+				fmt.Fprint(s, " ")
+			}
+			s.visit(c.node, depth-i)
 		}
 
+	case *parseable:
+		fmt.Fprint(s, n.t.Name())
+
 	case *capture:
-		s.visit(n.node, depth-1)
+		if _, ok := n.node.(*parseable); ok {
+			fmt.Fprint(s, n.field.Name)
+		} else {
+			fmt.Fprintf(s, "%s<", n.field.Name)
+			s.visit(n.node, depth)
+			fmt.Fprint(s, ">")
+		}
 
 	case *reference:
 		fmt.Fprintf(s, "%s", n.identifier)
 
 	case *optional:
 		fmt.Fprint(s, "[ ")
-		s.visit(n.node, depth-1)
+		s.visit(n.node, depth)
 		fmt.Fprint(s, " ]")
 
 	case *repetition:
 		fmt.Fprint(s, "( ")
-		s.visit(n.node, depth-1)
+		s.visit(n.node, depth)
 		fmt.Fprint(s, " )")
 
 	case *literal:

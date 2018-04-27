@@ -9,8 +9,10 @@ package main
 import (
 	"os"
 
-	"github.com/alecthomas/participle"
 	"gopkg.in/alecthomas/kingpin.v2"
+
+	"github.com/alecthomas/participle"
+	"github.com/alecthomas/repr"
 )
 
 var (
@@ -148,5 +150,6 @@ func main() {
 		kingpin.FatalIfError(err, "")
 		err = parser.Parse(r, thrift)
 		kingpin.FatalIfError(err, "")
+		repr.Println(thrift)
 	}
 }

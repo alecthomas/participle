@@ -13,9 +13,6 @@ const (
 var (
 	// EOFToken is a Token representing EOF.
 	EOFToken = Token{Type: EOF, Value: "<<EOF>>"}
-
-	// DefaultDefinition defines properties for the default lexer.
-	DefaultDefinition Definition = &defaultDefinition{}
 )
 
 // Definition provides the parser with metadata for a lexer.
@@ -34,6 +31,10 @@ type Definition interface {
 type SimpleLexer interface {
 	// Next consumes and returns the next token.
 	Next() Token
+	// Transform token just prior to field assignment.
+	//
+	// This is useful (for example) for unquoting strings.
+	Transform(Token) Token
 }
 
 // A Lexer returns tokens from a source and allows peeking.
@@ -43,10 +44,6 @@ type Lexer interface {
 	SimpleLexer
 	// Peek at the next token.
 	Peek(n int) Token
-}
-
-type namedReader interface {
-	Name() string
 }
 
 func SymbolsByRune(def Definition) map[rune]string {
@@ -59,7 +56,7 @@ func SymbolsByRune(def Definition) map[rune]string {
 
 // NameOfReader attempts to retrieve the filename of a reader.
 func NameOfReader(r io.Reader) string {
-	if nr, ok := r.(namedReader); ok {
+	if nr, ok := r.(interface{ Name() string }); ok {
 		return nr.Name()
 	}
 	return ""
@@ -79,7 +76,7 @@ func Must(def Definition, err error) Definition {
 }
 
 // ConsumeAll reads all tokens from a Lexer.
-func ConsumeAll(lexer Lexer) (tokens []Token, err error) {
+func ConsumeAll(lexer Lexer, transform bool) (tokens []Token, err error) {
 	defer func() {
 		if msg := recover(); msg != nil {
 			if msgErr, ok := msg.(*Error); ok {
@@ -91,6 +88,9 @@ func ConsumeAll(lexer Lexer) (tokens []Token, err error) {
 	}()
 	for {
 		token := lexer.Next()
+		if transform {
+			token = lexer.Transform(token)
+		}
 		tokens = append(tokens, token)
 		if token.Type == EOF {
 			return
@@ -104,6 +104,11 @@ type Position struct {
 	Offset   int
 	Line     int
 	Column   int
+}
+
+func (p Position) GoString() string {
+	return fmt.Sprintf("Position{Filename: %q, Offset: %d, Line: %d, Column: %d}",
+		p.Filename, p.Offset, p.Line, p.Column)
 }
 
 func (p Position) String() string {
@@ -134,4 +139,8 @@ func (t Token) EOF() bool {
 
 func (t Token) String() string {
 	return t.Value
+}
+
+func (t Token) GoString() string {
+	return fmt.Sprintf("Token{%d, %q}", t.Type, t.Value)
 }

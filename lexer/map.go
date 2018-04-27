@@ -8,21 +8,26 @@ import (
 
 type mapperDef struct {
 	def Definition
-	f   MapFunc
+	f   TransformerFunc
 }
 
-// MapFunc transforms tokens.
-//
-// If nil is returned that token will be discarded.
-type MapFunc func(*Token) *Token
+// A Transformer transforms tokens just prior to assignment to AST struct fields.
+type Transformer interface {
+	Transform(Token) Token
+}
+
+// TransformerFunc is a convenience function implementing the Transform interface.
+type TransformerFunc func(Token) Token
+
+func (m TransformerFunc) Transform(t Token) Token { return m(t) }
 
 // Map is a Lexer that applies a mapping function to a Lexer's tokens.
-func Map(def Definition, f MapFunc) Definition {
-	return &mapperDef{def, f}
+func Map(def Definition, f TransformerFunc) Definition {
+	return &mapperDef{def: def, f: f}
 }
 
 func (m *mapperDef) Lex(r io.Reader) Lexer {
-	return Upgrade(&mapper{lexer: m.def.Lex(r), f: m.f})
+	return Upgrade(&mapper{Lexer: m.def.Lex(r), f: m.f})
 }
 
 func (m *mapperDef) Symbols() map[string]rune {
@@ -30,17 +35,12 @@ func (m *mapperDef) Symbols() map[string]rune {
 }
 
 type mapper struct {
-	lexer Lexer
-	f     MapFunc
+	Lexer
+	f TransformerFunc
 }
 
-func (m *mapper) Next() Token {
-	var mapped *Token
-	for mapped == nil {
-		t := m.lexer.Next()
-		mapped = m.f(&t)
-	}
-	return *mapped
+func (m *mapper) Transform(t Token) Token {
+	return m.f.Transform(m.Lexer.Transform(t))
 }
 
 // MakeSymbolTable is a useful helper function for Definition decorator types.
@@ -53,17 +53,6 @@ func MakeSymbolTable(def Definition, types ...string) map[rune]bool {
 	return table
 }
 
-// Elide wraps a Lexer, removing tokens matching the given types.
-func Elide(def Definition, types ...string) Definition {
-	table := MakeSymbolTable(def, types...)
-	return Map(def, func(token *Token) *Token {
-		if table[token.Type] {
-			return nil
-		}
-		return token
-	})
-}
-
 // Unquote applies strconv.Unquote() to tokens of the given types.
 //
 // Tokens of type "String" will be unquoted if no other types are provided.
@@ -72,7 +61,7 @@ func Unquote(def Definition, types ...string) Definition {
 		types = []string{"String"}
 	}
 	table := MakeSymbolTable(def, types...)
-	return Map(def, func(t *Token) *Token {
+	return Map(def, func(t Token) Token {
 		if table[t.Type] {
 			value, err := unquote(t.Value)
 			if err != nil {
@@ -102,7 +91,7 @@ func unquote(s string) (string, error) {
 // Upper case all tokens of the given type. Useful for case normalisation.
 func Upper(def Definition, types ...string) Definition {
 	table := MakeSymbolTable(def, types...)
-	return Map(def, func(token *Token) *Token {
+	return Map(def, func(token Token) Token {
 		if table[token.Type] {
 			token.Value = strings.ToUpper(token.Value)
 		}
