@@ -28,7 +28,27 @@ type node interface {
 
 func decorate(name string) {
 	if msg := recover(); msg != nil {
-		panic(name + ": " + msg.(string))
+		switch msg := msg.(type) {
+		case Error:
+			panicf("%s: %s", name, msg)
+		case *lexer.Error:
+			panic(&lexer.Error{Message: name + ": " + msg.Message, Pos: msg.Pos})
+		default:
+			panic(msg)
+		}
+	}
+}
+
+func recoverToError(err *error) {
+	if msg := recover(); msg != nil {
+		switch msg := msg.(type) {
+		case Error:
+			*err = msg
+		case *lexer.Error:
+			*err = msg
+		default:
+			panic(msg)
+		}
 	}
 }
 
@@ -340,5 +360,9 @@ func indirectType(t reflect.Type) reflect.Type {
 }
 
 func panicf(f string, args ...interface{}) {
-	panic(fmt.Sprintf(f, args...))
+	panic(Error(fmt.Sprintf(f, args...)))
 }
+
+type Error string
+
+func (e Error) Error() string { return string(e) }

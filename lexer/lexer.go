@@ -82,7 +82,11 @@ func Must(def Definition, err error) Definition {
 func ConsumeAll(lexer Lexer) (tokens []Token, err error) {
 	defer func() {
 		if msg := recover(); msg != nil {
-			err = msg.(error)
+			if msgErr, ok := msg.(*Error); ok {
+				err = msgErr
+			} else {
+				panic(msg)
+			}
 		}
 	}()
 	for {

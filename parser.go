@@ -32,17 +32,7 @@ func MustBuild(grammar interface{}, lex lexer.Definition) *Parser {
 //
 // See documentation for details
 func Build(grammar interface{}, lex lexer.Definition) (parser *Parser, err error) {
-	defer func() {
-		if msg := recover(); msg != nil {
-			if s, ok := msg.(string); ok {
-				err = errors.New(s)
-			} else if e, ok := msg.(error); ok {
-				err = e
-			} else {
-				panic("unsupported panic type, can not recover")
-			}
-		}
-	}()
+	defer recoverToError(&err)
 	if lex == nil {
 		lex = lexer.TextScannerLexer
 	}
@@ -54,11 +44,7 @@ func Build(grammar interface{}, lex lexer.Definition) (parser *Parser, err error
 // Parse from r into grammar v which must be of the same type as the grammar passed to
 // participle.Build().
 func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
-	defer func() {
-		if msg := recover(); msg != nil {
-			err = errors.New(msg.(string))
-		}
-	}()
+	defer recoverToError(&err)
 	lex := p.lex.Lex(r)
 	// If the grammar implements Parseable, use it.
 	if parseable, ok := v.(Parseable); ok {
@@ -72,16 +58,6 @@ func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
 		}
 		return err
 	}
-
-	defer func() {
-		if msg := recover(); msg != nil {
-			if perr, ok := msg.(*lexer.Error); ok {
-				err = perr
-			} else {
-				panicf("unexpected error %s", msg)
-			}
-		}
-	}()
 	rv := reflect.ValueOf(v)
 	if rv.Kind() != reflect.Ptr || rv.Elem().Kind() != reflect.Struct {
 		return errors.New("target must be a pointer to a struct")

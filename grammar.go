@@ -41,19 +41,16 @@ func (g *generatorContext) parseType(t reflect.Type) node {
 		out := &strct{typ: t}
 		g.typeNodes[t] = out
 		slexer := lexStruct(t)
-		defer func() {
-			if msg := recover(); msg != nil {
-				panic(slexer.Field().Name + ": " + msg.(string))
-			}
-		}()
+		defer decorate(slexer.Field().Name)
 		e := g.parseExpression(slexer)
 		if !slexer.Peek().EOF() {
-			panic("unexpected input " + slexer.Peek().Value)
+			panicf("unexpected input %q", slexer.Peek().Value)
 		}
 		out.expr = e
 		return out
 	}
-	panic("expected struct type but got " + t.String())
+	panicf("expected struct type but got %s", t)
+	return nil
 }
 
 func (g *generatorContext) parseExpression(slexer *structLexer) node {
@@ -131,7 +128,7 @@ func (g *generatorContext) parseCapture(slexer *structLexer) node {
 		return &capture{field, g.parseType(field.Type)}
 	}
 	if indirectType(field.Type).Kind() == reflect.Struct && !field.Type.Implements(captureType) {
-		panic("structs can only be parsed with @@ or by implementing the Capture interface")
+		panicf("structs can only be parsed with @@ or by implementing the Capture interface")
 	}
 	return &capture{field, g.parseTerm(slexer)}
 }
@@ -140,11 +137,11 @@ func (g *generatorContext) parseCapture(slexer *structLexer) node {
 func (g *generatorContext) parseReference(slexer *structLexer) node {
 	token := slexer.Next()
 	if token.Type != scanner.Ident {
-		panic("expected identifier")
+		panicf("expected identifier")
 	}
 	typ, ok := g.Symbols()[token.Value]
 	if !ok {
-		panicf("unknown token type %q", token.String())
+		panicf("unknown token type %q", token)
 	}
 	return &reference{typ: typ, identifier: token.Value}
 }
@@ -155,7 +152,7 @@ func (g *generatorContext) parseOptional(slexer *structLexer) node {
 	optional := &optional{g.parseExpression(slexer)}
 	next := slexer.Peek()
 	if next.Type != ']' {
-		panic("expected ] but got " + next.String())
+		panicf("expected ] but got %q", next)
 	}
 	slexer.Next()
 	return optional
@@ -169,7 +166,7 @@ func (g *generatorContext) parseRepetition(slexer *structLexer) node {
 	}
 	next := slexer.Next()
 	if next.Type != '}' {
-		panic("expected } but got " + next.String())
+		panicf("expected } but got %q", next)
 	}
 	return n
 }
@@ -180,7 +177,7 @@ func (g *generatorContext) parseGroup(slexer *structLexer) node {
 	n := g.parseExpression(slexer)
 	next := slexer.Peek() // )
 	if next.Type != ')' {
-		panic("expected ) but got " + next.Value)
+		panicf("expected ) but got %q", next)
 	}
 	slexer.Next() // )
 	return n
@@ -193,7 +190,7 @@ func (g *generatorContext) parseGroup(slexer *structLexer) node {
 func (g *generatorContext) parseLiteral(lex *structLexer) node { // nolint: interfacer
 	token := lex.Next()
 	if token.Type != scanner.String && token.Type != scanner.RawString && token.Type != scanner.Char {
-		panic("expected quoted string but got " + token.String())
+		panicf("expected quoted string but got %q", token)
 	}
 	s := token.Value
 	t := rune(-1)
@@ -202,12 +199,12 @@ func (g *generatorContext) parseLiteral(lex *structLexer) node { // nolint: inte
 		lex.Next()
 		token = lex.Next()
 		if token.Type != scanner.Ident {
-			panic("expected identifier for literal type constraint but got " + token.String())
+			panicf("expected identifier for literal type constraint but got %q", token)
 		}
 		var ok bool
 		t, ok = g.Symbols()[token.Value]
 		if !ok {
-			panic("unknown token type " + token.String() + " in literal type constraint")
+			panicf("unknown token type %q in literal type constraint", token)
 		}
 	}
 	return &literal{s: s, t: t, tt: g.symbolsToIDs[t]}

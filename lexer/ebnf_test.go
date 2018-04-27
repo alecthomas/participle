@@ -147,12 +147,8 @@ func TestBuilder(t *testing.T) {
 
 func readAllTokens(lex Lexer) (out []string, err error) {
 	defer func() {
-		if msg := recover(); msg != nil {
-			if perr, ok := msg.(error); ok {
-				err = perr
-			} else {
-				panic(msg)
-			}
+		if msg, ok := recover().(error); ok {
+			err = msg
 		}
 	}()
 	for {
