@@ -49,6 +49,14 @@ type namedReader interface {
 	Name() string
 }
 
+func SymbolsByRune(def Definition) map[rune]string {
+	out := map[rune]string{}
+	for s, r := range def.Symbols() {
+		out[r] = s
+	}
+	return out
+}
+
 // NameOfReader attempts to retrieve the filename of a reader.
 func NameOfReader(r io.Reader) string {
 	if nr, ok := r.(namedReader); ok {

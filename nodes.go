@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
-	"strings"
 
 	"github.com/alecthomas/participle/lexer"
 )
@@ -25,7 +24,6 @@ type node interface {
 	// Parse from scanner into value.
 	// Nodes should panic if parsing fails.
 	Parse(lex lexer.Lexer, parent reflect.Value) []reflect.Value
-	String() string
 }
 
 func decorate(name string) {
@@ -37,10 +35,6 @@ func decorate(name string) {
 // A node that proxies to an implementation that implements the Parseable interface.
 type parseable struct {
 	t reflect.Type
-}
-
-func (p *parseable) String() string {
-	return p.t.String()
 }
 
 func (p *parseable) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
@@ -59,10 +53,6 @@ func (p *parseable) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.
 type strct struct {
 	typ  reflect.Type
 	expr node
-}
-
-func (s *strct) String() string {
-	return s.expr.String()
 }
 
 func (s *strct) maybeInjectPos(pos lexer.Position, v reflect.Value) {
@@ -96,14 +86,6 @@ type disjunction struct {
 	nodes []node
 }
 
-func (e disjunction) String() string {
-	out := []string{}
-	for _, n := range e.nodes {
-		out = append(out, n.String())
-	}
-	return strings.Join(out, " | ")
-}
-
 func (e disjunction) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
 	for _, a := range e.nodes {
 		if value := a.Parse(lex, parent); value != nil {
@@ -119,14 +101,6 @@ type sequence struct {
 	next *sequence
 }
 
-func (a *sequence) String() string {
-	out := a.node.String()
-	if a.next != nil {
-		out += " " + a.next.String()
-	}
-	return out
-}
-
 func (a *sequence) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
 	for n := a; n != nil; n = n.next {
 		// If first value doesn't match, we early exit, otherwise all values must match.
@@ -135,7 +109,7 @@ func (a *sequence) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.V
 			if n == a {
 				return nil
 			}
-			lexer.Panicf(lex.Peek(0).Pos, "expected ( %s ) not %q", n, lex.Peek(0))
+			lexer.Panicf(lex.Peek(0).Pos, "expected ( %s ) not %q", stringer(n), lex.Peek(0))
 		}
 		if len(child) == 0 && out == nil {
 			out = []reflect.Value{}
@@ -152,10 +126,6 @@ type capture struct {
 	node  node
 }
 
-func (r *capture) String() string {
-	return r.field.Name + ":" + r.node.String()
-}
-
 func (r *capture) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
 	pos := lex.Peek(0).Pos
 	v := r.node.Parse(lex, parent)
@@ -168,11 +138,7 @@ func (r *capture) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Va
 
 type reference struct {
 	typ        rune
-	identifier string
-}
-
-func (t *reference) String() string {
-	return t.identifier
+	identifier string // Used for informational purposes.
 }
 
 func (t *reference) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
@@ -189,10 +155,6 @@ type optional struct {
 	node node
 }
 
-func (o *optional) String() string {
-	return o.node.String()
-}
-
 func (o *optional) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
 	v := o.node.Parse(lex, parent)
 	if v == nil {
@@ -204,10 +166,6 @@ func (o *optional) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.V
 // { <expr> }
 type repetition struct {
 	node node
-}
-
-func (r *repetition) String() string {
-	return r.node.String()
 }
 
 // Parse a repetition. Once a repetition is encountered it will always match, so grammars
@@ -224,17 +182,11 @@ func (r *repetition) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect
 	return out
 }
 
-// Match a token literal exactly "...".
+// Match a token literal exactly "..."[:<type>].
 type literal struct {
-	s string
-	t rune
-}
-
-func (s *literal) String() string {
-	if s.t != -1 {
-		return fmt.Sprintf("%q:%d", s.s, s.t)
-	}
-	return fmt.Sprintf("%q", s.s)
+	s  string
+	t  rune
+	tt string // Used for display purposes - symbolic name of t.
 }
 
 func (s *literal) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {

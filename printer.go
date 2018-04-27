@@ -2,20 +2,19 @@ package participle
 
 import (
 	"fmt"
-	"reflect"
 	"strings"
 )
 
 func dumpNode(v node) string {
-	seen := map[reflect.Value]bool{}
+	seen := map[node]bool{}
 	return nodePrinter(seen, v)
 }
 
-func nodePrinter(seen map[reflect.Value]bool, v node) string {
-	if seen[reflect.ValueOf(v)] {
+func nodePrinter(seen map[node]bool, v node) string {
+	if seen[v] {
 		return "<>"
 	}
-	seen[reflect.ValueOf(v)] = true
+	seen[v] = true
 	switch n := v.(type) {
 	case *disjunction:
 		out := []string{}
@@ -47,8 +46,9 @@ func nodePrinter(seen map[reflect.Value]bool, v node) string {
 		return fmt.Sprintf("{ %s }", nodePrinter(seen, n.node))
 
 	case *literal:
-		return n.String()
+		return stringer(n)
 
+	default:
+		panic(fmt.Sprintf("unsupported type %T", v))
 	}
-	return "?"
 }

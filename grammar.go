@@ -9,11 +9,16 @@ import (
 
 type generatorContext struct {
 	lexer.Definition
-	typeNodes map[reflect.Type]node
+	typeNodes    map[reflect.Type]node
+	symbolsToIDs map[rune]string
 }
 
 func newGeneratorContext(lex lexer.Definition) *generatorContext {
-	return &generatorContext{Definition: lex, typeNodes: map[reflect.Type]node{}}
+	return &generatorContext{
+		Definition:   lex,
+		typeNodes:    map[reflect.Type]node{},
+		symbolsToIDs: lexer.SymbolsByRune(lex),
+	}
 }
 
 // Takes a type and builds a tree of nodes out of it.
@@ -141,7 +146,7 @@ func (g *generatorContext) parseReference(slexer *structLexer) node {
 	if !ok {
 		panicf("unknown token type %q", token.String())
 	}
-	return &reference{typ, token.Value}
+	return &reference{typ: typ, identifier: token.Value}
 }
 
 // [ <expression> ] optionally matches <expression>.
@@ -205,5 +210,5 @@ func (g *generatorContext) parseLiteral(lex *structLexer) node { // nolint: inte
 			panic("unknown token type " + token.String() + " in literal type constraint")
 		}
 	}
-	return &literal{s: s, t: t}
+	return &literal{s: s, t: t, tt: g.symbolsToIDs[t]}
 }
