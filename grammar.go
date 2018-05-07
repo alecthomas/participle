@@ -40,6 +40,9 @@ func (g *generatorContext) parseType(t reflect.Type) node {
 		}
 		out := &strct{typ: t}
 		g.typeNodes[t] = out
+		if t.NumField() == 0 {
+			panicf("can not parse into empty struct %s", t)
+		}
 		slexer := lexStruct(t)
 		defer decorate(slexer.Field().Name)
 		e := g.parseExpression(slexer)

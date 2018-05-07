@@ -756,12 +756,11 @@ func TestParseIntSlice(t *testing.T) {
 		Field []int `@Int { @Int }`
 	}
 
-	parser, err := Build(&grammar{}, nil)
-	assert.NilError(t, err)
+	parser := mustTestParser(t, &grammar{})
 
 	actual := &grammar{}
 	expected := &grammar{[]int{1, 2, 3, 4}}
-	err = parser.ParseString(`1 2 3 4`, actual)
+	err := parser.ParseString(`1 2 3 4`, actual)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, expected, actual)
 }
@@ -784,3 +783,11 @@ func TestParseIntSlice(t *testing.T) {
 // 	assert.NilError(t, err)
 // 	assert.DeepEqual(t, expected, actual)
 // }
+
+func TestEmptyStructErrorsNotPanicsIssue21(t *testing.T) {
+	type grammar struct {
+		Foo struct{} `@@`
+	}
+	_, err := Build(&grammar{}, nil)
+	assert.Check(t, err != nil)
+}
