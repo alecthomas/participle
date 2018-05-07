@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gotestyourself/gotestyourself/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBuilder(t *testing.T) {
@@ -119,10 +119,10 @@ func TestBuilder(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			defi, err := EBNF(test.grammar)
 			if test.failBuild {
-				assert.Check(t, err != nil)
+				require.Error(t, err)
 				return
 			}
-			assert.NilError(t, err)
+			require.NoError(t, err)
 			def := defi.(*ebnfLexerDefinition)
 			if test.roots != nil {
 				roots := []string{}
@@ -131,16 +131,16 @@ func TestBuilder(t *testing.T) {
 						roots = append(roots, sym)
 					}
 				}
-				assert.DeepEqual(t, test.roots, roots)
+				require.Equal(t, test.roots, roots)
 			}
 			// repr.Println(def, repr.Indent("  "))
 			tokens, err := readAllTokens(def.Lex(strings.NewReader(test.source)))
 			if test.fail {
-				assert.Check(t, err != nil)
+				require.Error(t, err)
 			} else {
-				assert.NilError(t, err)
+				require.NoError(t, err)
 			}
-			assert.DeepEqual(t, test.tokens, tokens)
+			require.Equal(t, test.tokens, tokens)
 		})
 	}
 }
@@ -169,7 +169,7 @@ Number = digit { digit } .
 alpha = "a"…"z" | "A"…"Z" | "_" .
 digit = "0"…"9" .
 `)
-	assert.NilError(b, err)
+	require.NoError(b, err)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		lex := def.Lex(strings.NewReader("hello world 123 hello world 123"))

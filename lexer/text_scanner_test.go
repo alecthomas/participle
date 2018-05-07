@@ -5,7 +5,7 @@ import (
 	"testing"
 	"text/scanner"
 
-	"github.com/gotestyourself/gotestyourself/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestLexer(t *testing.T) {
@@ -13,30 +13,30 @@ func TestLexer(t *testing.T) {
 	helloPos := Position{Offset: 0, Line: 1, Column: 1}
 	worldPos := Position{Offset: 6, Line: 1, Column: 7}
 	eofPos := Position{Offset: 11, Line: 1, Column: 12}
-	assert.DeepEqual(t, Token{Type: scanner.Ident, Value: "hello", Pos: helloPos}, lexer.Peek(0))
-	assert.DeepEqual(t, Token{Type: scanner.Ident, Value: "hello", Pos: helloPos}, lexer.Peek(0))
-	assert.DeepEqual(t, Token{Type: scanner.Ident, Value: "hello", Pos: helloPos}, lexer.Next())
-	assert.DeepEqual(t, Token{Type: scanner.Ident, Value: "world", Pos: worldPos}, lexer.Peek(0))
-	assert.DeepEqual(t, Token{Type: scanner.Ident, Value: "world", Pos: worldPos}, lexer.Next())
-	assert.DeepEqual(t, Token{Type: scanner.EOF, Value: "", Pos: eofPos}, lexer.Peek(0))
-	assert.DeepEqual(t, Token{Type: scanner.EOF, Value: "", Pos: eofPos}, lexer.Next())
+	require.Equal(t, Token{Type: scanner.Ident, Value: "hello", Pos: helloPos}, lexer.Peek(0))
+	require.Equal(t, Token{Type: scanner.Ident, Value: "hello", Pos: helloPos}, lexer.Peek(0))
+	require.Equal(t, Token{Type: scanner.Ident, Value: "hello", Pos: helloPos}, lexer.Next())
+	require.Equal(t, Token{Type: scanner.Ident, Value: "world", Pos: worldPos}, lexer.Peek(0))
+	require.Equal(t, Token{Type: scanner.Ident, Value: "world", Pos: worldPos}, lexer.Next())
+	require.Equal(t, Token{Type: scanner.EOF, Value: "", Pos: eofPos}, lexer.Peek(0))
+	require.Equal(t, Token{Type: scanner.EOF, Value: "", Pos: eofPos}, lexer.Next())
 }
 
 func TestLexString(t *testing.T) {
 	lexer := LexString(`"hello\nworld"`)
-	assert.DeepEqual(t, lexer.Next(), Token{Type: scanner.String, Value: "hello\nworld", Pos: Position{Line: 1, Column: 1}})
+	require.Equal(t, lexer.Next(), Token{Type: scanner.String, Value: "hello\nworld", Pos: Position{Line: 1, Column: 1}})
 }
 
 func TestLexSingleString(t *testing.T) {
 	lexer := LexString(`'hello\nworld'`)
-	assert.DeepEqual(t, lexer.Next(), Token{Type: scanner.String, Value: "hello\nworld", Pos: Position{Line: 1, Column: 1}})
+	require.Equal(t, lexer.Next(), Token{Type: scanner.String, Value: "hello\nworld", Pos: Position{Line: 1, Column: 1}})
 	lexer = LexString(`'\U00008a9e'`)
-	assert.DeepEqual(t, lexer.Next(), Token{Type: scanner.Char, Value: "\U00008a9e", Pos: Position{Line: 1, Column: 1}})
+	require.Equal(t, lexer.Next(), Token{Type: scanner.Char, Value: "\U00008a9e", Pos: Position{Line: 1, Column: 1}})
 }
 
 func TestLexBacktickString(t *testing.T) {
 	lexer := LexString("`hello\\nworld`")
-	assert.DeepEqual(t, lexer.Next(), Token{Type: scanner.String, Value: "hello\\nworld", Pos: Position{Line: 1, Column: 1}})
+	require.Equal(t, lexer.Next(), Token{Type: scanner.String, Value: "hello\\nworld", Pos: Position{Line: 1, Column: 1}})
 }
 
 func BenchmarkTextScannerLexer(b *testing.B) {
