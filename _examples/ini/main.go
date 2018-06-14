@@ -10,7 +10,7 @@ import (
 
 // A custom lexer for INI files. This illustrates a relatively complex Regexp lexer, as well
 // as use of the Unquote filter, which unquotes string tokens.
-var iniLexer = lexer.Unquote(lexer.Must(lexer.Regexp(
+var iniLexer = lexer.Must(lexer.Regexp(
 	`(?m)` +
 		`(\s+)` +
 		`|(^[#;].*$)` +
@@ -18,7 +18,7 @@ var iniLexer = lexer.Unquote(lexer.Must(lexer.Regexp(
 		`|(?P<String>"(?:\\.|[^"])*")` +
 		`|(?P<Float>\d+(?:\.\d+)?)` +
 		`|(?P<Punct>[][=])`,
-)))
+))
 
 type INI struct {
 	Properties []*Property `{ @@ }`
@@ -41,7 +41,7 @@ type Value struct {
 }
 
 func main() {
-	parser, err := participle.Build(&INI{}, iniLexer)
+	parser, err := participle.Build(&INI{}, participle.Lexer(iniLexer), participle.Unquote(iniLexer, "String"))
 	if err != nil {
 		panic(err)
 	}

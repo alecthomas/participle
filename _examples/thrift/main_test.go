@@ -60,7 +60,7 @@ service Twitter {
 
 func BenchmarkParticipleThrift(b *testing.B) {
   b.ReportAllocs()
-  parser, err := participle.Build(&Thrift{}, nil)
+  parser, err := participle.Build(&Thrift{})
   require.NoError(b, err)
 
   thrift := &Thrift{}

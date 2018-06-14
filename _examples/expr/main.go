@@ -188,7 +188,7 @@ type Context map[string]float64
 func main() {
 	kong.Parse(&cli, kong.Description("A basic expression parser and evaluator."))
 
-	parser, err := participle.Build(&Expression{}, nil)
+	parser, err := participle.Build(&Expression{})
 	kong.FatalIfErrorf(err)
 
 	expr := &Expression{}

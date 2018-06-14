@@ -16,6 +16,8 @@ var (
 )
 
 // Definition provides the parser with metadata for a lexer.
+//
+// If it implements the Transform interface, that will be used as the default Transform.
 type Definition interface {
 	// Lex an io.Reader.
 	Lex(io.Reader) Lexer
@@ -31,14 +33,6 @@ type Definition interface {
 type Lexer interface {
 	// Next consumes and returns the next token.
 	Next() Token
-}
-
-// A Transform can be implemented by a SimpleLexer to transform tokens after parsing but before assignment.
-type Transform interface {
-	// Transform token just prior to field assignment.
-	//
-	// This is useful (for example) for unquoting strings.
-	Transform(Token) Token
 }
 
 // A PeekingLexer returns tokens from a source and allows peeking.
@@ -80,7 +74,7 @@ func Must(def Definition, err error) Definition {
 }
 
 // ConsumeAll reads all tokens from a Lexer.
-func ConsumeAll(lexer Lexer, transform bool) (tokens []Token, err error) {
+func ConsumeAll(lexer Lexer) (tokens []Token, err error) {
 	defer func() {
 		if msg := recover(); msg != nil {
 			if msgErr, ok := msg.(*Error); ok {
@@ -90,12 +84,8 @@ func ConsumeAll(lexer Lexer, transform bool) (tokens []Token, err error) {
 			}
 		}
 	}()
-	transformer, _ := lexer.(Transform)
 	for {
 		token := lexer.Next()
-		if transform && transformer != nil {
-			token = transformer.Transform(token)
-		}
 		tokens = append(tokens, token)
 		if token.Type == EOF {
 			return
@@ -148,4 +138,20 @@ func (t Token) String() string {
 
 func (t Token) GoString() string {
 	return fmt.Sprintf("Token{%d, %q}", t.Type, t.Value)
+}
+
+// MakeSymbolTable builds a lookup table for checking token ID existence.
+//
+// For each symbolic name in "types", the returned map will contain the corresponding token ID as a key.
+func MakeSymbolTable(def Definition, types ...string) (map[rune]bool, error) {
+	symbols := def.Symbols()
+	table := map[rune]bool{}
+	for _, symbol := range types {
+		rn, ok := symbols[symbol]
+		if !ok {
+			return nil, fmt.Errorf("lexer does not support symbol %q", symbol)
+		}
+		table[rn] = true
+	}
+	return table, nil
 }

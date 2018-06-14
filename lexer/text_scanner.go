@@ -90,15 +90,14 @@ func (t *textScannerLexer) Next() Token {
 	text := t.scanner.TokenText()
 	pos := Position(t.scanner.Position)
 	pos.Filename = t.filename
-	return Token{
+	return textScannerTransform(Token{
 		Type:  typ,
 		Value: text,
 		Pos:   pos,
-	}
+	})
 }
 
-// Transform strips quotes off strings.
-func (t *textScannerLexer) Transform(token Token) Token {
+func textScannerTransform(token Token) Token {
 	// Unquote strings.
 	switch token.Type {
 	case scanner.Char:
@@ -109,7 +108,7 @@ func (t *textScannerLexer) Transform(token Token) Token {
 	case scanner.String:
 		s, err := strconv.Unquote(token.Value)
 		if err != nil {
-			Panic(token.Pos, err.Error())
+			Panicf(token.Pos, "%s: %q", err.Error(), token.Value)
 		}
 		token.Value = s
 		if token.Type == scanner.Char && utf8.RuneCountInString(s) > 1 {

@@ -1,3 +1,5 @@
+// +build lookahead
+
 package participle
 
 import (

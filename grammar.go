@@ -3,7 +3,6 @@ package participle
 import (
 	"fmt"
 	"reflect"
-	"strconv"
 	"text/scanner"
 
 	"github.com/alecthomas/participle/lexer"
@@ -207,7 +206,6 @@ func (g *generatorContext) parseLiteral(lex *structLexer) node { // nolint: inte
 	if token.Type != scanner.String && token.Type != scanner.RawString && token.Type != scanner.Char {
 		panicf("expected quoted string but got %q", token)
 	}
-	token = unquoteScannerString(token)
 	s := token.Value
 	t := rune(-1)
 	token = lex.Peek()
@@ -224,25 +222,4 @@ func (g *generatorContext) parseLiteral(lex *structLexer) node { // nolint: inte
 		}
 	}
 	return &literal{s: s, t: t, tt: g.symbolsToIDs[t]}
-}
-
-func unquoteScannerString(t lexer.Token) lexer.Token {
-	// Unquote strings.
-	switch t.Type {
-	case scanner.Char:
-		// FIXME(alec): This is pretty hacky...we convert a single quoted char into a double
-		// quoted string in order to support single quoted strings.
-		t.Value = fmt.Sprintf("\"%s\"", t.Value[1:len(t.Value)-1])
-		fallthrough
-	case scanner.String:
-		s, err := strconv.Unquote(t.Value)
-		if err != nil {
-			panicf("could not unquote %q: %s", t.Value, err)
-		}
-		t.Value = s
-	case scanner.RawString:
-		t.Value = t.Value[1 : len(t.Value)-1]
-	}
-	return t
-
 }

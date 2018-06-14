@@ -108,29 +108,31 @@ type disjunction struct {
 }
 
 func (e *disjunction) Parse(lex lexer.PeekingLexer, parent reflect.Value) (out []reflect.Value) {
-	for _, look := range e.lookahead {
-		lt := look.token
+	// for _, look := range e.lookahead {
+	// 	lt := look.token
 
-		// This will occur with Parseable interfaces.
-		if look.depth == 0 && lt.EOF() {
-			if out = e.nodes[look.root].Parse(lex, parent); out != nil {
-				return out
-			}
-			continue
-		}
+	// 	// This will occur with Parseable interfaces.
+	// 	if look.depth == 0 && lt.EOF() {
+	// 		if out = e.nodes[look.root].Parse(lex, parent); out != nil {
+	// 			return out
+	// 		}
+	// 		continue
+	// 	}
 
-		t := lex.Peek(look.depth)
-		if (lt.Value == "" || lt.Value == t.Value) && (lt.Type == lexer.EOF || lt.Type == t.Type) {
-			// repr.Println(lt, t)
-			// fmt.Println(stringer(e.nodes[look.root], 1))
-			return e.nodes[look.root].Parse(lex, parent)
-		}
-	}
-	// for _, a := range e.nodes {
-	// 	if value := a.Parse(lex, parent); value != nil {
-	// 		return value
+	// 	t := lex.Peek(look.depth)
+	// 	if (lt.Value == "" || lt.Value == t.Value) && (lt.Type == lexer.EOF || lt.Type == t.Type) {
+	// 		// repr.Println(lt, t)
+	// 		// fmt.Println(stringer(e.nodes[look.root], 1))
+	// 		return e.nodes[look.root].Parse(lex, parent)
 	// 	}
 	// }
+
+	// Same logic without lookahead.
+	for _, a := range e.nodes {
+		if value := a.Parse(lex, parent); value != nil {
+			return value
+		}
+	}
 	return nil
 }
 
@@ -145,7 +147,7 @@ func (a *sequence) Parse(lex lexer.PeekingLexer, parent reflect.Value) (out []re
 	for n := a; n != nil; n = n.next {
 		child := n.node.Parse(lex, parent)
 		if child == nil {
-			// If first value doesn't match, we early exit, otherwise all values must match.
+			// Early exit if first value doesn't match, otherwise all values must match.
 			if n == a {
 				return nil
 			}
@@ -183,11 +185,7 @@ func (t *reference) Parse(lex lexer.PeekingLexer, parent reflect.Value) (out []r
 	if token.Type != t.typ {
 		return nil
 	}
-	lex.Next()
-	if transform, ok := lex.(lexer.Transform); ok {
-		token = transform.Transform(token)
-	}
-	return []reflect.Value{reflect.ValueOf(token.Value)}
+	return []reflect.Value{reflect.ValueOf(lex.Next().Value)}
 }
 
 // [ <expr> ]
@@ -232,11 +230,7 @@ type literal struct {
 func (s *literal) Parse(lex lexer.PeekingLexer, parent reflect.Value) (out []reflect.Value) {
 	token := lex.Peek(0)
 	if token.Value == s.s && (s.t == -1 || s.t == token.Type) {
-		lex.Next()
-		if transform, ok := lex.(lexer.Transform); ok {
-			token = transform.Transform(token)
-		}
-		return []reflect.Value{reflect.ValueOf(token.Value)}
+		return []reflect.Value{reflect.ValueOf(lex.Next().Value)}
 	}
 	return nil
 }

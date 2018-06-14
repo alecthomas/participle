@@ -4,14 +4,14 @@
 
 <!-- MarkdownTOC -->
 
-- [Introduction](#introduction)
-- [Tutorial](#tutorial)
-- [Overview](#overview)
-- [Annotation syntax](#annotation-syntax)
-- [Capturing](#capturing)
-- [Lexing](#lexing)
-- [Example](#example)
-- [Performance](#performance)
+1. [Introduction](#introduction)
+1. [Tutorial](#tutorial)
+1. [Overview](#overview)
+1. [Annotation syntax](#annotation-syntax)
+1. [Capturing](#capturing)
+1. [Lexing](#lexing)
+1. [Example](#example)
+1. [Performance](#performance)
 
 <!-- /MarkdownTOC -->
 
@@ -35,7 +35,6 @@ A [tutorial](TUTORIAL.md) is available, walking through the creation of an
 A grammar is an annotated Go structure used to both define the parser grammar,
 and be the AST output by the parser:
 
-
 ```go
 type Grammar struct {
   Hello string `@Ident`
@@ -47,7 +46,7 @@ type Grammar struct {
 A parser is constructed from a grammar and a lexer:
 
 ```go
-parser, err := participle.Build(&Grammar{}, nil)
+parser, err := participle.Build(&Grammar{})
 ```
 
 Once constructed, the parser is applied to input to produce an AST:
@@ -191,7 +190,7 @@ type EBNF struct {
 }
 
 func main() {
-  parser, err := participle.Build(&EBNF{}, nil)
+  parser, err := participle.Build(&EBNF{})
   if err != nil { panic(err) }
 
   ebnf := &EBNF{}

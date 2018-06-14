@@ -7,8 +7,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/alecthomas/participle"
 	"gopkg.in/alecthomas/kingpin.v2"
+
+	"github.com/alecthomas/participle"
 )
 
 var (
@@ -149,7 +150,7 @@ in the form:
 `
 	kingpin.Parse()
 
-	parser, err := participle.Build(&EBNF{}, nil)
+	parser, err := participle.Build(&EBNF{})
 	kingpin.FatalIfError(err, "")
 
 	ebnf := &EBNF{}

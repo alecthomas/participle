@@ -5,14 +5,12 @@ func Upgrade(lexer Lexer) PeekingLexer {
 	if peeking, ok := lexer.(PeekingLexer); ok {
 		return peeking
 	}
-	transform, _ := lexer.(Transform)
-	return &lookaheadLexer{Lexer: lexer, transform: transform}
+	return &lookaheadLexer{Lexer: lexer}
 }
 
 type lookaheadLexer struct {
 	Lexer
-	peeked    []Token
-	transform Transform
+	peeked []Token
 }
 
 func (l *lookaheadLexer) Peek(n int) Token {
@@ -33,11 +31,4 @@ func (l *lookaheadLexer) Next() Token {
 		return t
 	}
 	return l.Lexer.Next()
-}
-
-func (l *lookaheadLexer) Transform(token Token) Token {
-	if l.transform != nil {
-		return l.transform.Transform(token)
-	}
-	return token
 }

@@ -1,3 +1,4 @@
+// nolint: govet
 package main
 
 import (
@@ -11,14 +12,18 @@ import (
 var (
 	sqlArg = kingpin.Arg("sql", "SQL to parse.").Required().String()
 
-	sqlLexer = lexer.Unquote(lexer.Upper(lexer.Must(lexer.Regexp(`(\s+)`+
-		`|(?P<Keyword>(?i)SELECT|FROM|TOP|DISTINCT|ALL|WHERE|GROUP|BY|HAVING|UNION|MINUS|EXCEPT|INTERSECT|ORDER|LIMIT|OFFSET|TRUE|FALSE|NULL|IS|NOT|ANY|SOME|BETWEEN|AND|OR|LIKE|AS|IN)`+
-		`|(?P<Ident>[a-zA-Z_][a-zA-Z0-9_]*)`+
-		`|(?P<Number>[-+]?\d*\.?\d+([eE][-+]?\d+)?)`+
-		`|(?P<String>'[^']*'|"[^"]*")`+
+	sqlLexer = lexer.Must(lexer.Regexp(`(\s+)` +
+		`|(?P<Keyword>(?i)SELECT|FROM|TOP|DISTINCT|ALL|WHERE|GROUP|BY|HAVING|UNION|MINUS|EXCEPT|INTERSECT|ORDER|LIMIT|OFFSET|TRUE|FALSE|NULL|IS|NOT|ANY|SOME|BETWEEN|AND|OR|LIKE|AS|IN)` +
+		`|(?P<Ident>[a-zA-Z_][a-zA-Z0-9_]*)` +
+		`|(?P<Number>[-+]?\d*\.?\d+([eE][-+]?\d+)?)` +
+		`|(?P<String>'[^']*'|"[^"]*")` +
 		`|(?P<Operators><>|!=|<=|>=|[-+*/%,.()=<>])`,
-	)), "Keyword"), "String")
-	sqlParser = participle.MustBuild(&Expression{}, sqlLexer)
+	))
+	sqlParser = participle.MustBuild(
+		&Expression{},
+		participle.Lexer(sqlLexer),
+		participle.Unquote(sqlLexer, "String"),
+		participle.Upper(sqlLexer, "Keyword"))
 )
 
 type Boolean bool

@@ -14,7 +14,7 @@ func TestProductionCapture(t *testing.T) {
 		A string `@Test`
 	}
 
-	_, err := Build(&testCapture{}, nil)
+	_, err := Build(&testCapture{})
 	require.Error(t, err)
 }
 
@@ -227,7 +227,7 @@ type Group struct {
 	Expression *Expression `"(" @@ ")"`
 }
 
-type Option struct {
+type EBNFOption struct {
 	Expression *Expression `"[" @@ "]"`
 }
 
@@ -249,7 +249,7 @@ type Term struct {
 	Literal    *Literal    `@@ |`
 	Range      *Range      `@@ |`
 	Group      *Group      `@@ |`
-	Option     *Option     `@@ |`
+	Option     *EBNFOption `@@ |`
 	Repetition *Repetition `@@`
 }
 
@@ -285,7 +285,7 @@ func TestEBNF(t *testing.T) {
 									{Name: "name"},
 									{Literal: &Literal{Start: "="}},
 									{
-										Option: &Option{
+										Option: &EBNFOption{
 											Expression: &Expression{
 												Alternatives: []*Sequence{
 													{
@@ -369,7 +369,7 @@ func TestEBNF(t *testing.T) {
 								Terms: []*Term{
 									{Name: "token"},
 									{
-										Option: &Option{
+										Option: &EBNFOption{
 											Expression: &Expression{
 												Alternatives: []*Sequence{
 													{
@@ -386,7 +386,7 @@ func TestEBNF(t *testing.T) {
 							},
 							{Terms: []*Term{{Literal: &Literal{Start: "@@"}}}},
 							{Terms: []*Term{{Name: "Group"}}},
-							{Terms: []*Term{{Name: "Option"}}},
+							{Terms: []*Term{{Name: "EBNFOption"}}},
 							{Terms: []*Term{{Name: "Repetition"}}},
 						},
 					},
@@ -409,7 +409,7 @@ func TestEBNF(t *testing.T) {
 				},
 			},
 			{
-				Name: "Option",
+				Name: "EBNFOption",
 				Expression: []*Expression{
 					{
 						Alternatives: []*Sequence{
@@ -447,16 +447,13 @@ func TestEBNF(t *testing.T) {
 Production  = name "=" [ Expression ] "." .
 Expression  = Alternative { "|" Alternative } .
 Alternative = Term { Term } .
-Term        = name | token [ "…" token ] | "@@" | Group | Option | Repetition .
+Term        = name | token [ "…" token ] | "@@" | Group | EBNFOption | Repetition .
 Group       = "(" Expression ")" .
-Option      = "[" Expression "]" .
+EBNFOption      = "[" Expression "]" .
 Repetition  = "{" Expression "}" .
 `), actual)
 	require.NoError(t, err)
 	require.Equal(t, expected, actual)
-}
-
-func TestParseType(t *testing.T) {
 }
 
 func TestParseExpression(t *testing.T) {
@@ -526,15 +523,15 @@ func TestHello(t *testing.T) {
 	require.Equal(t, expected, actual)
 }
 
-func mustTestParser(t *testing.T, grammar interface{}) *Parser {
+func mustTestParser(t *testing.T, grammar interface{}, options ...Option) *Parser {
 	t.Helper()
-	parser, err := Build(grammar, nil)
+	parser, err := Build(grammar, options...)
 	require.NoError(t, err)
 	return parser
 }
 
 func BenchmarkEBNFParser(b *testing.B) {
-	parser, err := Build(&EBNF{}, nil)
+	parser, err := Build(&EBNF{})
 	require.NoError(b, err)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -543,9 +540,9 @@ func BenchmarkEBNFParser(b *testing.B) {
 Production  = name "=" [ Expression ] "." .
 Expression  = Alternative { "|" Alternative } .
 Alternative = Term { Term } .
-Term        = name | token [ "…" token ] | "@@" | Group | Option | Repetition .
+Term        = name | token [ "…" token ] | "@@" | Group | EBNFOption | Repetition .
 Group       = "(" Expression ")" .
-Option      = "[" Expression "]" .
+EBNFOption      = "[" Expression "]" .
 Repetition  = "{" Expression "}" .
 
 `), actual)
@@ -626,15 +623,14 @@ func TestCaptureInterface(t *testing.T) {
 
 func TestLiteralTypeConstraint(t *testing.T) {
 	type grammar struct {
-		Literal string `@"\"123456\"":String`
+		Literal string `@"123456":String`
 	}
 
-	parser, err := Build(&grammar{}, lexer.DefaultDefinition)
-	require.NoError(t, err)
+	parser := mustTestParser(t, &grammar{})
 
 	actual := &grammar{}
 	expected := &grammar{Literal: "123456"}
-	err = parser.ParseString(`"123456"`, actual)
+	err := parser.ParseString(`"123456"`, actual)
 	require.NoError(t, err)
 	require.Equal(t, expected, actual)
 
@@ -656,7 +652,7 @@ func TestStructCaptureInterface(t *testing.T) {
 		Capture *nestedCapture `@String`
 	}
 
-	parser, err := Build(&grammar{}, nil)
+	parser, err := Build(&grammar{})
 	require.NoError(t, err)
 
 	actual := &grammar{}
@@ -671,7 +667,7 @@ type parseableStruct struct {
 }
 
 func (p *parseableStruct) Parse(lex lexer.PeekingLexer) error {
-	tokens, err := lexer.ConsumeAll(lex, true)
+	tokens, err := lexer.ConsumeAll(lex)
 	if err != nil {
 		return err
 	}
@@ -686,7 +682,7 @@ func TestParseable(t *testing.T) {
 		Inner *parseableStruct `@@`
 	}
 
-	parser, err := Build(&grammar{}, nil)
+	parser, err := Build(&grammar{})
 	require.NoError(t, err)
 
 	actual := &grammar{}
@@ -701,7 +697,7 @@ func TestIncrementInt(t *testing.T) {
 		Field int `@"." { @"." }`
 	}
 
-	parser, err := Build(&grammar{}, nil)
+	parser, err := Build(&grammar{})
 	require.NoError(t, err)
 
 	actual := &grammar{}
@@ -716,7 +712,7 @@ func TestIncrementUint(t *testing.T) {
 		Field uint `@"." { @"." }`
 	}
 
-	parser, err := Build(&grammar{}, nil)
+	parser, err := Build(&grammar{})
 	require.NoError(t, err)
 
 	actual := &grammar{}
@@ -731,7 +727,7 @@ func TestIncrementFloat(t *testing.T) {
 		Field float32 `@"." { @"." }`
 	}
 
-	parser, err := Build(&grammar{}, nil)
+	parser, err := Build(&grammar{})
 	require.NoError(t, err)
 
 	actual := &grammar{}
@@ -746,7 +742,7 @@ func TestStringConcat(t *testing.T) {
 		Field string `@"." { @"." }`
 	}
 
-	parser, err := Build(&grammar{}, nil)
+	parser, err := Build(&grammar{})
 	require.NoError(t, err)
 
 	actual := &grammar{}
@@ -770,29 +766,13 @@ func TestParseIntSlice(t *testing.T) {
 	require.Equal(t, expected, actual)
 }
 
-// func TestParseIntPointerSlice(t *testing.T) {
-// 	type grammar struct {
-// 		Field []*int `@Int { @Int }`
-// 	}
-
-// 	parser, err := Build(&grammar{}, nil)
-// 	require.NoError(t, err)
-
-// 	actual := &grammar{}
-// 	i0 := 1
-// 	i1 := 2
-// 	i2 := 3
-// 	i3 := 4
-// 	expected := &grammar{[]*int{&i0, &i1, &i2, &i3}}
-// 	err = parser.ParseString(`1 2 3 4`, actual)
-// 	require.NoError(t, err)
-// 	require.Equal(t, expected, actual)
-// }
-
 func TestEmptyStructErrorsNotPanicsIssue21(t *testing.T) {
 	type grammar struct {
 		Foo struct{} `@@`
 	}
-	_, err := Build(&grammar{}, nil)
+	_, err := Build(&grammar{})
 	require.Error(t, err)
+}
+
+func TestMap(t *testing.T) {
 }

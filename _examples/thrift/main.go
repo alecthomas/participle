@@ -141,7 +141,7 @@ type Thrift struct {
 func main() {
 	kingpin.Parse()
 
-	parser, err := participle.Build(&Thrift{}, nil)
+	parser, err := participle.Build(&Thrift{})
 	kingpin.FatalIfError(err, "")
 
 	for _, file := range *files {

@@ -6,11 +6,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/alecthomas/repr"
-
 	"gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/alecthomas/participle"
+	"github.com/alecthomas/repr"
 )
 
 type Bool bool
@@ -18,11 +17,11 @@ type Bool bool
 func (b *Bool) Capture(v []string) error { *b = v[0] == "true"; return nil }
 
 type Value struct {
-	Boolean    *Bool    `  @('true'|'false')`
+	Boolean    *Bool    `  @("true"|"false")`
 	Identifier *string  `| @Ident { @"." @Ident }`
 	String     *string  `| @(String|Char|RawString)`
 	Number     *float64 `| @(Float|Int)`
-	Array      []*Value `| '[' { @@ [ ',' ] } ']'`
+	Array      []*Value `| "[" { @@ [ "," ] } "]"`
 }
 
 func (l *Value) GoString() string {
@@ -46,14 +45,14 @@ func (l *Value) GoString() string {
 }
 
 type Entry struct {
-	Key   *Value `@@`
-	Value *Value `( '=' @@`
+	Key   string `@Ident`
+	Value *Value `( "=" @@`
 	Block *Block `| @@ )`
 }
 
 type Block struct {
 	Parameters []*Value `{ @@ }`
-	Entries    []*Entry `'{' { @@ } '}'`
+	Entries    []*Entry `"{" { @@ } "}"`
 }
 
 type Config struct {
@@ -63,7 +62,7 @@ type Config struct {
 func main() {
 	kingpin.Parse()
 
-	parser, err := participle.Build(&Config{}, nil)
+	parser, err := participle.Build(&Config{})
 	kingpin.FatalIfError(err, "")
 
 	expr := &Config{}

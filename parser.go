@@ -13,14 +13,15 @@ import (
 
 // A Parser for a particular grammar and lexer.
 type Parser struct {
-	root node
-	lex  lexer.Definition
-	typ  reflect.Type
+	root   node
+	lex    lexer.Definition
+	typ    reflect.Type
+	mapper Mapper
 }
 
-// MustBuild calls Build(grammar, lex) and panics if an error occurs.
-func MustBuild(grammar interface{}, lex lexer.Definition) *Parser {
-	parser, err := Build(grammar, lex)
+// MustBuild calls Build(grammar, options...) and panics if an error occurs.
+func MustBuild(grammar interface{}, options ...Option) *Parser {
+	parser, err := Build(grammar, options...)
 	if err != nil {
 		panic(err)
 	}
@@ -29,20 +30,41 @@ func MustBuild(grammar interface{}, lex lexer.Definition) *Parser {
 
 // Build constructs a parser for the given grammar.
 //
-// If "lex" is nil, the default lexer based on text/scanner will be used. This scans typical Go-
+// If "Lexer()" is not provided as an option, a default lexer based on text/scanner will be used. This scans typical Go-
 // like tokens.
 //
 // See documentation for details
-func Build(grammar interface{}, lex lexer.Definition) (parser *Parser, err error) {
+func Build(grammar interface{}, options ...Option) (parser *Parser, err error) {
 	defer recoverToError(&err)
-	if lex == nil {
-		lex = lexer.TextScannerLexer
+	// Configure Parser struct with defaults + options.
+	p := &Parser{
+		lex:    lexer.TextScannerLexer,
+		mapper: identityMapper,
 	}
-	context := newGeneratorContext(lex)
-	typ := reflect.TypeOf(grammar)
-	root := context.parseType(typ)
-	applyLookahead(root, map[node]bool{})
-	return &Parser{root: root, lex: lex, typ: typ}, nil
+	for _, option := range options {
+		if option == nil {
+			return nil, fmt.Errorf("non-nil Option passed, signature has changed; " +
+				"if you intended to provide a custom Lexer, try participle.Build(grammar, participle.Lexer(lexer))")
+		}
+		option(p)
+	}
+	// If we have any mapping functions, wrap the lexer.
+	if p.mapper != nil {
+		p.lex = &mappingLexerDef{p.lex, p.mapper}
+	}
+
+	context := newGeneratorContext(p.lex)
+	p.typ = reflect.TypeOf(grammar)
+	p.root = context.parseType(p.typ)
+	// TODO: Fix lookahead - see SQL example.
+	// applyLookahead(p.root, map[node]bool{})
+	return p, nil
+}
+
+// Lex uses the parser's lexer to tokenise input.
+func (p *Parser) Lex(r io.Reader) ([]lexer.Token, error) {
+	lex := p.lex.Lex(r)
+	return lexer.ConsumeAll(lex)
 }
 
 // Parse from r into grammar v which must be of the same type as the grammar passed to

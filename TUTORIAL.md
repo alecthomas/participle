@@ -2,14 +2,14 @@
 
 <!-- MarkdownTOC -->
 
-- [Introduction](#introduction)
-- [The complete grammar](#the-complete-grammar)
-- [Root of the .ini AST \(structure, fields\)](#root-of-the-ini-ast-structure-fields)
-- [.ini properties \(named tokens, capturing, literals\)](#ini-properties-named-tokens-capturing-literals)
-- [.ini property values \(alternates, recursive structs, sequences\)](#ini-property-values-alternates-recursive-structs-sequences)
-- [Complete, but limited, .ini grammar \(top-level properties only\)](#complete-but-limited-ini-grammar-top-level-properties-only)
-- [Extending our grammar to support sections](#extending-our-grammar-to-support-sections)
-- [Parsing using our grammar](#parsing-using-our-grammar)
+1. [Introduction](#introduction)
+1. [The complete grammar](#the-complete-grammar)
+1. [Root of the .ini AST \(structure, fields\)](#root-of-the-ini-ast-structure-fields)
+1. [.ini properties \(named tokens, capturing, literals\)](#ini-properties-named-tokens-capturing-literals)
+1. [.ini property values \(alternates, recursive structs, sequences\)](#ini-property-values-alternates-recursive-structs-sequences)
+1. [Complete, but limited, .ini grammar \(top-level properties only\)](#complete-but-limited-ini-grammar-top-level-properties-only)
+1. [Extending our grammar to support sections](#extending-our-grammar-to-support-sections)
+1. [Parsing using our grammar](#parsing-using-our-grammar)
 
 <!-- /MarkdownTOC -->
 
@@ -218,7 +218,7 @@ To parse with this grammar we first construct the parser (we'll use the
 default lexer for now):
 
 ```go
-parser, err := participle.Build(&INI{}, nil)
+parser, err := participle.Build(&INI{})
 ```
 
 Then create a root node and parse into it with `parser.Parse{,String,Bytes}()`:

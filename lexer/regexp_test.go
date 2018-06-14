@@ -16,7 +16,7 @@ func TestRegexp(t *testing.T) {
 		"Number": -4,
 	}, def.Symbols())
 	lexer := def.Lex(strings.NewReader("hello\n123 456\n⌘orld"))
-	tokens, err := ConsumeAll(lexer, false)
+	tokens, err := ConsumeAll(lexer)
 	require.NoError(t, err)
 	require.Equal(t, []Token{
 		{Type: -2, Value: "hello", Pos: Position{Filename: "", Offset: 0, Line: 1, Column: 1}},
@@ -25,7 +25,7 @@ func TestRegexp(t *testing.T) {
 		{Type: -2, Value: "⌘orld", Pos: Position{Filename: "", Offset: 14, Line: 3, Column: 1}},
 		{Type: -1, Value: "<<EOF>>", Pos: Position{Filename: "", Offset: 21, Line: 3, Column: 6}},
 	}, tokens)
-	_, err = ConsumeAll(def.Lex(strings.NewReader("hello ?")), false)
+	_, err = ConsumeAll(def.Lex(strings.NewReader("hello ?")))
 	require.Error(t, err)
 }
 
@@ -35,6 +35,6 @@ func BenchmarkRegexpLexer(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		lex := def.Lex(strings.NewReader("hello world 123 hello world 123"))
-		ConsumeAll(lex, false)
+		ConsumeAll(lex)
 	}
 }

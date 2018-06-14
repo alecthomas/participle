@@ -51,7 +51,7 @@ func TestStructLexer(t *testing.T) {
 		f = append(f, r.Field())
 		s += string(rn.String())
 	}
-	require.Equal(t, `"a"|"b"`, s)
+	require.Equal(t, `a|b`, s)
 	f0 := gt.Field(0)
 	f1 := gt.Field(1)
 	require.Equal(t, []reflect.StructField{f0, f0, f1}, f, cmp.Comparer(func(x, y reflect.Type) bool {
