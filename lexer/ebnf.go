@@ -225,7 +225,7 @@ func EBNF(grammar string) (Definition, error) {
 }
 
 func (e *ebnfLexerDefinition) Lex(r io.Reader) Lexer {
-	return Upgrade(&ebnfLexer{
+	return &ebnfLexer{
 		r:   bufio.NewReader(r),
 		def: e,
 		pos: Position{
@@ -233,7 +233,7 @@ func (e *ebnfLexerDefinition) Lex(r io.Reader) Lexer {
 			Line:     1,
 			Column:   1,
 		},
-	})
+	}
 }
 
 func (e *ebnfLexerDefinition) Symbols() map[string]rune {

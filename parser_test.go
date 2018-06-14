@@ -670,7 +670,7 @@ type parseableStruct struct {
 	Tokens []string
 }
 
-func (p *parseableStruct) Parse(lex lexer.Lexer) error {
+func (p *parseableStruct) Parse(lex lexer.PeekingLexer) error {
 	tokens, err := lexer.ConsumeAll(lex, true)
 	if err != nil {
 		return err

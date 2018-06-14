@@ -23,7 +23,7 @@ var (
 type node interface {
 	// Parse from scanner into value.
 	// Nodes should panic if parsing fails.
-	Parse(lex lexer.Lexer, parent reflect.Value) []reflect.Value
+	Parse(lex lexer.PeekingLexer, parent reflect.Value) []reflect.Value
 }
 
 func decorate(name func() string) {
@@ -57,7 +57,7 @@ type parseable struct {
 	t reflect.Type
 }
 
-func (p *parseable) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
+func (p *parseable) Parse(lex lexer.PeekingLexer, parent reflect.Value) (out []reflect.Value) {
 	rv := reflect.New(p.t)
 	v := rv.Interface().(Parseable)
 	err := v.Parse(lex)
@@ -92,7 +92,7 @@ func (s *strct) maybeInjectPos(pos lexer.Position, v reflect.Value) {
 	}
 }
 
-func (s *strct) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
+func (s *strct) Parse(lex lexer.PeekingLexer, parent reflect.Value) (out []reflect.Value) {
 	sv := reflect.New(s.typ).Elem()
 	s.maybeInjectPos(lex.Peek(0).Pos, sv)
 	if s.expr.Parse(lex, sv) == nil {
@@ -107,7 +107,7 @@ type disjunction struct {
 	lookahead []lookahead
 }
 
-func (e *disjunction) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
+func (e *disjunction) Parse(lex lexer.PeekingLexer, parent reflect.Value) (out []reflect.Value) {
 	for _, look := range e.lookahead {
 		lt := look.token
 
@@ -141,7 +141,7 @@ type sequence struct {
 	next *sequence
 }
 
-func (a *sequence) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
+func (a *sequence) Parse(lex lexer.PeekingLexer, parent reflect.Value) (out []reflect.Value) {
 	for n := a; n != nil; n = n.next {
 		child := n.node.Parse(lex, parent)
 		if child == nil {
@@ -162,7 +162,7 @@ type capture struct {
 	node  node
 }
 
-func (r *capture) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
+func (r *capture) Parse(lex lexer.PeekingLexer, parent reflect.Value) (out []reflect.Value) {
 	pos := lex.Peek(0).Pos
 	v := r.node.Parse(lex, parent)
 	if v == nil {
@@ -178,7 +178,7 @@ type reference struct {
 	identifier string // Used for informational purposes.
 }
 
-func (t *reference) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
+func (t *reference) Parse(lex lexer.PeekingLexer, parent reflect.Value) (out []reflect.Value) {
 	token := lex.Peek(0)
 	if token.Type != t.typ {
 		return nil
@@ -195,7 +195,7 @@ type optional struct {
 	node node
 }
 
-func (o *optional) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
+func (o *optional) Parse(lex lexer.PeekingLexer, parent reflect.Value) (out []reflect.Value) {
 	v := o.node.Parse(lex, parent)
 	if v == nil {
 		return []reflect.Value{}
@@ -210,7 +210,7 @@ type repetition struct {
 
 // Parse a repetition. Once a repetition is encountered it will always match, so grammars
 // should ensure that branches are differentiated prior to the repetition.
-func (r *repetition) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
+func (r *repetition) Parse(lex lexer.PeekingLexer, parent reflect.Value) (out []reflect.Value) {
 	out = []reflect.Value{}
 	for {
 		v := r.node.Parse(lex, parent)
@@ -229,7 +229,7 @@ type literal struct {
 	tt string // Used for display purposes - symbolic name of t.
 }
 
-func (s *literal) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
+func (s *literal) Parse(lex lexer.PeekingLexer, parent reflect.Value) (out []reflect.Value) {
 	token := lex.Peek(0)
 	if token.Value == s.s && (s.t == -1 || s.t == token.Type) {
 		lex.Next()

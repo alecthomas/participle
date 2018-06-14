@@ -45,7 +45,7 @@ func (d *regexpDefinition) Lex(r io.Reader) Lexer {
 		// TODO: Make Lex also return an error.
 		panic(err)
 	}
-	return Upgrade(&regexpLexer{
+	return &regexpLexer{
 		pos: Position{
 			Filename: NameOfReader(r),
 			Line:     1,
@@ -54,7 +54,7 @@ func (d *regexpDefinition) Lex(r io.Reader) Lexer {
 		b:     b,
 		re:    d.re,
 		names: d.re.SubexpNames(),
-	})
+	}
 }
 
 func (d *regexpDefinition) Symbols() map[string]rune {

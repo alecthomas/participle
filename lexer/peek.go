@@ -1,20 +1,23 @@
 package lexer
 
-// Upgrade a SimpleLexer to a full Lexer with arbitrary lookahead.
-func Upgrade(lexer SimpleLexer) Lexer {
+// Upgrade a Lexer to a PeekingLexer with arbitrary lookahead.
+func Upgrade(lexer Lexer) PeekingLexer {
+	if peeking, ok := lexer.(PeekingLexer); ok {
+		return peeking
+	}
 	transform, _ := lexer.(Transform)
-	return &lookaheadLexer{SimpleLexer: lexer, transform: transform}
+	return &lookaheadLexer{Lexer: lexer, transform: transform}
 }
 
 type lookaheadLexer struct {
-	SimpleLexer
+	Lexer
 	peeked    []Token
 	transform Transform
 }
 
 func (l *lookaheadLexer) Peek(n int) Token {
 	for len(l.peeked) <= n {
-		t := l.SimpleLexer.Next()
+		t := l.Lexer.Next()
 		if t.EOF() {
 			return t
 		}
@@ -29,7 +32,7 @@ func (l *lookaheadLexer) Next() Token {
 		l.peeked = l.peeked[1:]
 		return t
 	}
-	return l.SimpleLexer.Next()
+	return l.Lexer.Next()
 }
 
 func (l *lookaheadLexer) Transform(token Token) Token {

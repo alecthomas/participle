@@ -9,7 +9,7 @@ import (
 )
 
 func TestLexer(t *testing.T) {
-	lexer := LexString("hello world")
+	lexer := Upgrade(LexString("hello world"))
 	helloPos := Position{Offset: 0, Line: 1, Column: 1}
 	worldPos := Position{Offset: 6, Line: 1, Column: 7}
 	eofPos := Position{Offset: 11, Line: 1, Column: 12}

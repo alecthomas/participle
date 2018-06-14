@@ -56,14 +56,14 @@ func Lex(r io.Reader) Lexer {
 			Panic(Position(lexer.scanner.Pos()), msg)
 		}
 	}
-	return Upgrade(lexer)
+	return lexer
 }
 
 // LexWithScanner creates a Lexer from a user-provided scanner.Scanner.
 //
 // Useful if you need to customise the Scanner.
 func LexWithScanner(r io.Reader, scan *scanner.Scanner) Lexer {
-	return Upgrade(lexWithScanner(r, scan))
+	return lexWithScanner(r, scan)
 }
 
 func lexWithScanner(r io.Reader, scan *scanner.Scanner) *textScannerLexer {

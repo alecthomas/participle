@@ -10,13 +10,13 @@ import (
 type structLexer struct {
 	s     reflect.Type
 	field int
-	lexer lexer.Lexer
+	lexer lexer.PeekingLexer
 }
 
 func lexStruct(s reflect.Type) *structLexer {
 	return &structLexer{
 		s:     s,
-		lexer: lexer.LexString(fieldLexerTag(s.Field(0))),
+		lexer: lexer.Upgrade(lexer.LexString(fieldLexerTag(s.Field(0)))),
 	}
 }
 
@@ -44,7 +44,7 @@ func (s *structLexer) Peek() lexer.Token {
 			return lexer.EOFToken
 		}
 		tag := fieldLexerTag(s.s.Field(field))
-		lex = lexer.LexString(tag)
+		lex = lexer.Upgrade(lexer.LexString(tag))
 	}
 }
 
@@ -59,7 +59,7 @@ func (s *structLexer) Next() lexer.Token {
 	}
 	s.field++
 	tag := fieldLexerTag(s.s.Field(s.field))
-	s.lexer = lexer.LexString(tag)
+	s.lexer = lexer.Upgrade(lexer.LexString(tag))
 	return s.Next()
 }
 

@@ -25,10 +25,10 @@ type Definition interface {
 	Symbols() map[string]rune
 }
 
-// A SimpleLexer returns tokens from a source.
+// A Lexer returns tokens from a source.
 //
 // Errors are reported via panic, with the panic value being an instance of Error.
-type SimpleLexer interface {
+type Lexer interface {
 	// Next consumes and returns the next token.
 	Next() Token
 }
@@ -41,11 +41,11 @@ type Transform interface {
 	Transform(Token) Token
 }
 
-// A Lexer returns tokens from a source and allows peeking.
+// A PeekingLexer returns tokens from a source and allows peeking.
 //
 // Errors are reported via panic, with the panic value being an instance of Error.
-type Lexer interface {
-	SimpleLexer
+type PeekingLexer interface {
+	Lexer
 	// Peek at the next token.
 	Peek(n int) Token
 }

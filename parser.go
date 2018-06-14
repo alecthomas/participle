@@ -52,7 +52,7 @@ func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
 		return fmt.Errorf("must parse into value of type %s not %T", p.typ, v)
 	}
 	defer recoverToError(&err)
-	lex := p.lex.Lex(r)
+	lex := lexer.Upgrade(p.lex.Lex(r))
 	// If the grammar implements Parseable, use it.
 	if parseable, ok := v.(Parseable); ok {
 		return p.rootParseable(lex, parseable)
@@ -72,7 +72,7 @@ func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
 	return
 }
 
-func (p *Parser) rootParseable(lex lexer.Lexer, parseable Parseable) error {
+func (p *Parser) rootParseable(lex lexer.PeekingLexer, parseable Parseable) error {
 	err := parseable.Parse(lex)
 	peek := lex.Peek(0)
 	if err == NextMatch {
