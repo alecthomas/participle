@@ -110,8 +110,8 @@ func TestBuilder(t *testing.T) {
 			alpha = "a"…"z" | "A"…"Z" | "_" .
 			number = "0"…"9" .
 			`,
-			source: `some id withCase andNumb3rs`,
-			tokens: []string{"some", " ", "id", " ", "withCase", " ", "andNumb3rs"},
+			source: `some id withCase andNumb3rs a`,
+			tokens: []string{"some", " ", "id", " ", "withCase", " ", "andNumb3rs", " ", "a"},
 		},
 	}
 

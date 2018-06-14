@@ -8,21 +8,16 @@ import (
 
 type mapperDef struct {
 	def Definition
-	f   TransformerFunc
+	f   MapperFunc
 }
 
-// A Transformer transforms tokens just prior to assignment to AST struct fields.
-type Transformer interface {
-	Transform(Token) Token
-}
+// MapperFunc is a convenience function implementing the Transform interface.
+type MapperFunc func(Token) Token
 
-// TransformerFunc is a convenience function implementing the Transform interface.
-type TransformerFunc func(Token) Token
-
-func (m TransformerFunc) Transform(t Token) Token { return m(t) }
+func (m MapperFunc) Transform(t Token) Token { return m(t) }
 
 // Map is a Lexer that applies a mapping function to a Lexer's tokens.
-func Map(def Definition, f TransformerFunc) Definition {
+func Map(def Definition, f MapperFunc) Definition {
 	return &mapperDef{def: def, f: f}
 }
 
@@ -36,7 +31,7 @@ func (m *mapperDef) Symbols() map[string]rune {
 
 type mapper struct {
 	Lexer
-	f TransformerFunc
+	f MapperFunc
 }
 
 func (m *mapper) Transform(t Token) Token {

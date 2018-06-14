@@ -1,4 +1,4 @@
-// Package main implements
+// nolint: govet
 package main
 
 import (
@@ -8,15 +8,15 @@ import (
 	"os"
 	"strings"
 
-	"gopkg.in/alecthomas/kingpin.v2"
-
+	"github.com/alecthomas/kong"
 	"github.com/alecthomas/participle"
 )
 
-var (
-	astFlag  = kingpin.Flag("ast", "Print AST for expression.").Bool()
-	exprArgs = kingpin.Arg("expression", "Expression to evaluate.").Required().Strings()
-)
+var cli struct {
+	AST        bool               `help:"Print AST for expression."`
+	Set        map[string]float64 `short:"s" help:"Set variables."`
+	Expression []string           `arg required help:"Expression to evaluate."`
+}
 
 type Operator int
 
@@ -40,7 +40,8 @@ func (o *Operator) Capture(s []string) error {
 // P --> v | "(" E ")" | "-" T
 
 type Value struct {
-	Number        *float64    `@(Float|Int)`
+	Number        *float64    `  @(Float|Int)`
+	Variable      *string     `| @Ident`
 	Subexpression *Expression `| "(" @@ ")"`
 }
 
@@ -88,6 +89,9 @@ func (o Operator) String() string {
 func (v *Value) String() string {
 	if v.Number != nil {
 		return fmt.Sprintf("%g", *v.Number)
+	}
+	if v.Variable != nil {
+		return *v.Variable
 	}
 	return "(" + v.Subexpression.String() + ")"
 }
@@ -140,51 +144,60 @@ func (o Operator) Eval(l, r float64) float64 {
 	panic("unsupported operator")
 }
 
-func (v *Value) Eval() float64 {
-	if v.Number != nil {
+func (v *Value) Eval(ctx Context) float64 {
+	switch {
+	case v.Number != nil:
 		return *v.Number
+	case v.Variable != nil:
+		value, ok := ctx[*v.Variable]
+		if !ok {
+			panic("no such variable " + *v.Variable)
+		}
+		return value
+	default:
+		return v.Subexpression.Eval(ctx)
 	}
-	return v.Subexpression.Eval()
 }
 
-func (f *Factor) Eval() float64 {
-	b := f.Base.Eval()
+func (f *Factor) Eval(ctx Context) float64 {
+	b := f.Base.Eval(ctx)
 	if f.Exponent != nil {
-		return math.Pow(b, f.Exponent.Eval())
+		return math.Pow(b, f.Exponent.Eval(ctx))
 	}
 	return b
 }
 
-func (t *Term) Eval() float64 {
-	n := t.Left.Eval()
+func (t *Term) Eval(ctx Context) float64 {
+	n := t.Left.Eval(ctx)
 	for _, r := range t.Right {
-		n = r.Operator.Eval(n, r.Factor.Eval())
+		n = r.Operator.Eval(n, r.Factor.Eval(ctx))
 	}
 	return n
 }
 
-func (e *Expression) Eval() float64 {
-	l := e.Left.Eval()
+func (e *Expression) Eval(ctx Context) float64 {
+	l := e.Left.Eval(ctx)
 	for _, r := range e.Right {
-		l = r.Operator.Eval(l, r.Term.Eval())
+		l = r.Operator.Eval(l, r.Term.Eval(ctx))
 	}
 	return l
 }
 
+type Context map[string]float64
+
 func main() {
-	kingpin.CommandLine.Help = "A basic expression parser and evaluator."
-	kingpin.Parse()
+	kong.Parse(&cli, kong.Description("A basic expression parser and evaluator."))
 
 	parser, err := participle.Build(&Expression{}, nil)
-	kingpin.FatalIfError(err, "")
+	kong.FatalIfErrorf(err)
 
 	expr := &Expression{}
-	err = parser.ParseString(strings.Join(*exprArgs, " "), expr)
-	kingpin.FatalIfError(err, "")
+	err = parser.ParseString(strings.Join(cli.Expression, " "), expr)
+	kong.FatalIfErrorf(err)
 
-	if *astFlag {
+	if cli.AST {
 		json.NewEncoder(os.Stdout).Encode(expr)
 	} else {
-		fmt.Println(expr, "=", expr.Eval())
+		fmt.Println(expr, "=", expr.Eval(cli.Set))
 	}
 }
