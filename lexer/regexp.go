@@ -68,8 +68,6 @@ type regexpLexer struct {
 	names []string
 }
 
-func (r *regexpLexer) Transform(t Token) Token { return t }
-
 func (r *regexpLexer) Next() Token {
 nextToken:
 	for len(r.b) != 0 {

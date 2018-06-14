@@ -6,11 +6,6 @@ import (
 	"strings"
 )
 
-type mapperDef struct {
-	def Definition
-	f   MapperFunc
-}
-
 // MapperFunc is a convenience function implementing the Transform interface.
 type MapperFunc func(Token) Token
 
@@ -18,11 +13,18 @@ func (m MapperFunc) Transform(t Token) Token { return m(t) }
 
 // Map is a Lexer that applies a mapping function to a Lexer's tokens.
 func Map(def Definition, f MapperFunc) Definition {
-	return &mapperDef{def: def, f: f}
+	next, _ := def.(Transform)
+	return &mapperDef{def: def, f: f, next: next}
+}
+
+type mapperDef struct {
+	def  Definition
+	f    MapperFunc
+	next Transform
 }
 
 func (m *mapperDef) Lex(r io.Reader) Lexer {
-	return Upgrade(&mapper{Lexer: m.def.Lex(r), f: m.f})
+	return &mapper{Lexer: m.def.Lex(r), f: m.f, next: m.next}
 }
 
 func (m *mapperDef) Symbols() map[string]rune {
@@ -31,11 +33,15 @@ func (m *mapperDef) Symbols() map[string]rune {
 
 type mapper struct {
 	Lexer
-	f MapperFunc
+	f    MapperFunc
+	next Transform
 }
 
 func (m *mapper) Transform(t Token) Token {
-	return m.f.Transform(m.Lexer.Transform(t))
+	if m.next != nil {
+		t = m.next.Transform(t)
+	}
+	return m.f.Transform(t)
 }
 
 // MakeSymbolTable is a useful helper function for Definition decorator types.

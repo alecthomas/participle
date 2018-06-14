@@ -183,7 +183,10 @@ func (t *reference) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.
 	if token.Type != t.typ {
 		return nil
 	}
-	token = lex.Transform(lex.Next())
+	lex.Next()
+	if transform, ok := lex.(lexer.Transform); ok {
+		token = transform.Transform(token)
+	}
 	return []reflect.Value{reflect.ValueOf(token.Value)}
 }
 
@@ -229,7 +232,10 @@ type literal struct {
 func (s *literal) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
 	token := lex.Peek(0)
 	if token.Value == s.s && (s.t == -1 || s.t == token.Type) {
-		token = lex.Transform(lex.Next())
+		lex.Next()
+		if transform, ok := lex.(lexer.Transform); ok {
+			token = transform.Transform(token)
+		}
 		return []reflect.Value{reflect.ValueOf(token.Value)}
 	}
 	return nil

@@ -31,6 +31,10 @@ type Definition interface {
 type SimpleLexer interface {
 	// Next consumes and returns the next token.
 	Next() Token
+}
+
+// A Transform can be implemented by a SimpleLexer to transform tokens after parsing but before assignment.
+type Transform interface {
 	// Transform token just prior to field assignment.
 	//
 	// This is useful (for example) for unquoting strings.
@@ -86,10 +90,11 @@ func ConsumeAll(lexer Lexer, transform bool) (tokens []Token, err error) {
 			}
 		}
 	}()
+	transformer, _ := lexer.(Transform)
 	for {
 		token := lexer.Next()
-		if transform {
-			token = lexer.Transform(token)
+		if transform && transformer != nil {
+			token = transformer.Transform(token)
 		}
 		tokens = append(tokens, token)
 		if token.Type == EOF {

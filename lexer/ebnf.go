@@ -35,8 +35,6 @@ func (e *ebnfLexer) Next() Token {
 	return Token{}
 }
 
-func (e *ebnfLexer) Transform(t Token) Token { return t }
-
 func (e *ebnfLexer) match(name string, expr ebnf.Expression) []string { // nolint: gocyclo
 	panicf := func(format string, args ...interface{}) { e.panicf(name+": "+format, args...) }
 
@@ -241,8 +239,6 @@ func (e *ebnfLexerDefinition) Lex(r io.Reader) Lexer {
 func (e *ebnfLexerDefinition) Symbols() map[string]rune {
 	return e.symbols
 }
-
-func (e *ebnfLexerDefinition) Transform(t Token) Token { return t }
 
 type characterSet struct {
 	pos scanner.Position

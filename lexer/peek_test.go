@@ -19,8 +19,6 @@ func (s *staticLexer) Next() Token {
 	return t
 }
 
-func (s *staticLexer) Transform(t Token) Token { return t }
-
 func TestUpgrade(t *testing.T) {
 	t0 := Token{Type: 1, Value: "moo"}
 	t1 := Token{Type: 2, Value: "blah"}
