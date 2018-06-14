@@ -23,7 +23,7 @@ func (e *ebnfLexer) Next() Token {
 	}
 	pos := e.pos
 	for name, production := range e.def.productions {
-		if match := e.match(production.Expr); match != nil {
+		if match := e.match(name, production.Expr); match != nil {
 			return Token{
 				Type:  e.def.symbols[name],
 				Pos:   pos,
@@ -37,24 +37,26 @@ func (e *ebnfLexer) Next() Token {
 
 func (e *ebnfLexer) Transform(t Token) Token { return t }
 
-func (e *ebnfLexer) match(expr ebnf.Expression) []string { // nolint: gocyclo
+func (e *ebnfLexer) match(name string, expr ebnf.Expression) []string { // nolint: gocyclo
+	panicf := func(format string, args ...interface{}) { e.panicf(name+": "+format, args...) }
+
 	switch n := expr.(type) {
 	case ebnf.Alternative:
 		for _, an := range n {
-			if match := e.match(an); match != nil {
+			if match := e.match(name, an); match != nil {
 				return match
 			}
 		}
 		return nil
 
 	case *ebnf.Group:
-		return e.match(n.Body)
+		return e.match(name, n.Body)
 
 	case *ebnf.Name:
-		return e.match(e.def.grammar[n.String].Expr)
+		return e.match(name, e.def.grammar[n.String].Expr)
 
 	case *ebnf.Option:
-		match := e.match(n.Body)
+		match := e.match(name, n.Body)
 		if match == nil {
 			match = []string{}
 		}
@@ -73,9 +75,9 @@ func (e *ebnfLexer) match(expr ebnf.Expression) []string { // nolint: gocyclo
 		return []string{string(rn)}
 
 	case *ebnf.Repetition:
-		var out []string
+		out := []string{}
 		for {
-			match := e.match(n.Body)
+			match := e.match(name, n.Body)
 			if match != nil {
 				out = append(out, match...)
 			} else {
@@ -87,13 +89,13 @@ func (e *ebnfLexer) match(expr ebnf.Expression) []string { // nolint: gocyclo
 	case ebnf.Sequence:
 		var out []string
 		for i, sn := range n {
-			match := e.match(sn)
+			match := e.match(name, sn)
 			if match != nil {
 				out = append(out, match...)
 				continue
 			}
 			if i > 0 {
-				e.panicf("expected %q", sn)
+				panicf("unexpected input %q", e.peek())
 			} else {
 				break
 			}
@@ -107,7 +109,7 @@ func (e *ebnfLexer) match(expr ebnf.Expression) []string { // nolint: gocyclo
 		}
 		for _, rn := range n.String {
 			if rn != e.read() {
-				e.panicf("expected %q", n.String)
+				panicf("unexpected input %q, expected %q", e.peek(), n.String)
 			}
 		}
 		return []string{n.String}
@@ -122,7 +124,7 @@ func (e *ebnfLexer) match(expr ebnf.Expression) []string { // nolint: gocyclo
 		if e.peek() == EOF {
 			return nil
 		}
-		e.panic("expected EOF")
+		panicf("expected EOF")
 	}
 	panic(fmt.Sprintf("unsupported lexer expression type %T", expr))
 }
@@ -251,19 +253,24 @@ func (c *characterSet) Pos() scanner.Position {
 	return c.pos
 }
 
+// TODO: Add a "repeatedCharacterSet" to represent the common case of { set }
+
 // Apply some optimizations to the EBNF.
-//
-// Convert alternate characters into a character set (eg. "a" | "b" | "c" | "true" becomes
-// set("abc") | "true").
 func optimize(expr ebnf.Expression) ebnf.Expression {
 	switch n := expr.(type) {
 	case ebnf.Alternative:
+		// Convert alternate characters into a character set (eg. "a" | "b" | "c" | "true" becomes
+		// set("abc") | "true").
 		out := make(ebnf.Alternative, 0, len(n))
 		set := ""
 		for _, e := range n {
 			if t, ok := e.(*ebnf.Token); ok && utf8.RuneCountInString(t.String) == 1 {
 				set += t.String
 			} else {
+				if set != "" {
+					out = append(out, &characterSet{Set: set})
+					set = ""
+				}
 				out = append(out, optimize(e))
 			}
 		}
