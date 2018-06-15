@@ -7,7 +7,6 @@ import (
   "github.com/stretchr/testify/require"
 
   "github.com/alecthomas/go-thrift/parser"
-
   "github.com/alecthomas/participle"
 )
 

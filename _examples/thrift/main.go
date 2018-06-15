@@ -7,7 +7,9 @@
 package main
 
 import (
+	"fmt"
 	"os"
+	"strings"
 
 	"gopkg.in/alecthomas/kingpin.v2"
 
@@ -96,9 +98,43 @@ type Literal struct {
 	Map       []*MapItem `| "{" { @@ [ "," ] } "}"`
 }
 
+func (l *Literal) GoString() string {
+	switch {
+	case l.Str != nil:
+		return fmt.Sprintf("%q", *l.Str)
+	case l.Float != nil:
+		return fmt.Sprintf("%v", *l.Float)
+	case l.Int != nil:
+		return fmt.Sprintf("%v", *l.Int)
+	case l.Bool != nil:
+		return fmt.Sprintf("%v", *l.Bool)
+	case l.Reference != nil:
+		return fmt.Sprintf("%s", *l.Reference)
+	case l.Minus != nil:
+		return fmt.Sprintf("-%v", l.Minus)
+	case l.List != nil:
+		parts := []string{}
+		for _, e := range l.List {
+			parts = append(parts, e.GoString())
+		}
+		return fmt.Sprintf("[%s]", strings.Join(parts, ", "))
+	case l.Map != nil:
+		parts := []string{}
+		for _, e := range l.Map {
+			parts = append(parts, e.GoString())
+		}
+		return fmt.Sprintf("{%s}", strings.Join(parts, ", "))
+	}
+	panic("unsupported?")
+}
+
 type MapItem struct {
 	Key   *Literal `@@ ":"`
 	Value *Literal `@@`
+}
+
+func (m *MapItem) GoString() string {
+	return fmt.Sprintf("%v: %v", m.Key, m.Value)
 }
 
 type Case struct {
@@ -124,18 +160,22 @@ type Const struct {
 	Value *Literal `"=" @@ [ ";" ]`
 }
 
+type Entry struct {
+	Includes   []string     `  "include" @String`
+	Namespaces []*Namespace `| @@`
+	Structs    []*Struct    `| @@`
+	Exceptions []*Exception `| @@`
+	Services   []*Service   `| @@`
+	Enums      []*Enum      `| @@`
+	Typedefs   []*Typedef   `| @@`
+	Consts     []*Const     `| @@`
+}
+
 // Thrift files consist of a set of top-level directives and definitions.
 //
 // The grammar
 type Thrift struct {
-	Includes   []string     `{ "include" @String`
-	Namespaces []*Namespace `  | @@`
-	Structs    []*Struct    `  | @@`
-	Exceptions []*Exception `  | @@`
-	Services   []*Service   `  | @@`
-	Enums      []*Enum      `  | @@`
-	Typedefs   []*Typedef   `  | @@`
-	Consts     []*Const     `  | @@ }`
+	Entries []*Entry `{ @@ }`
 }
 
 func main() {
