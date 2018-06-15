@@ -1,10 +1,11 @@
 # A dead simple parser package for Go
 
-[![](https://godoc.org/github.com/alecthomas/participle?status.svg)](http://godoc.org/github.com/alecthomas/participle) [![Build Status](https://travis-ci.org/alecthomas/participle.svg?branch=master)](https://travis-ci.org/alecthomas/participle) [![Go Report Card](https://goreportcard.com/badge/github.com/alecthomas/participle)](https://goreportcard.com/report/github.com/alecthomas/participle) [![Gitter chat](https://badges.gitter.im/alecthomas.png)](https://gitter.im/alecthomas/Lobby)
+[![Build status](https://godoc.org/github.com/alecthomas/participle?status.svg)](http://godoc.org/github.com/alecthomas/participle) [![Build Status](https://travis-ci.org/alecthomas/participle.svg?branch=master)](https://travis-ci.org/alecthomas/participle) [![Go Report Card](https://goreportcard.com/badge/github.com/alecthomas/participle)](https://goreportcard.com/report/github.com/alecthomas/participle) [![Gitter chat](https://badges.gitter.im/alecthomas.png)](https://gitter.im/alecthomas/Lobby)
 
 <!-- MarkdownTOC -->
 
 1. [Introduction](#introduction)
+1. [Limitations](#limitations)
 1. [Tutorial](#tutorial)
 1. [Overview](#overview)
 1. [Annotation syntax](#annotation-syntax)
@@ -26,10 +27,20 @@ programmer who has used the `encoding/json` package: struct field tags define
 what and how input is mapped to those same fields. This is not unusual for Go
 encoders, but is unusual for a parser.
 
+## Limitations
+
+Participle parsers are recursive descent with one token of lookahead. This means that they do not support:
+
+1. Left recursion.
+2. Ambiguity.
+
+If your grammar contains either of these they must be eliminated by restructuring your grammar.
+
+Unfortunately neither of these cases are currently detected automatically by Participle. This, however, is a goal.
+
 ## Tutorial
 
-A [tutorial](TUTORIAL.md) is available, walking through the creation of an
-.ini parser.
+A [tutorial](TUTORIAL.md) is available, walking through the creation of an .ini parser.
 
 ## Overview
 
@@ -216,10 +227,8 @@ run time.
 
 You can run the benchmarks yourself, but here's the output on my machine:
 
-```
-BenchmarkParticipleThrift-4        10000      221818 ns/op     48880 B/op     1240 allocs/op
-BenchmarkGoThriftParser-4           2000      804709 ns/op    170301 B/op     3086 allocs/op
-```
+    BenchmarkParticipleThrift-4        10000      221818 ns/op     48880 B/op     1240 allocs/op
+    BenchmarkGoThriftParser-4           2000      804709 ns/op    170301 B/op     3086 allocs/op
 
 On a real life codebase of 47K lines of Thrift, Participle takes 200ms and go-
 thrift takes 630ms, which aligns quite closely with the benchmarks.
