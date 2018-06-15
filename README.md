@@ -10,6 +10,7 @@
 1. [Annotation syntax](#annotation-syntax)
 1. [Capturing](#capturing)
 1. [Lexing](#lexing)
+1. [Options](#options)
 1. [Example](#example)
 1. [Performance](#performance)
 
@@ -37,7 +38,7 @@ and be the AST output by the parser:
 
 ```go
 type Grammar struct {
-  Hello string `@Ident`
+  Hello string `"hello" @Ident`
 }
 ```
 
@@ -53,7 +54,7 @@ Once constructed, the parser is applied to input to produce an AST:
 
 ```go
 ast := &Grammar{}
-err := parser.ParseString("world", ast)
+err := parser.ParseString("hello world", ast)
 // ast == &Grammar{Hello: "world"}
 ```
 
@@ -77,7 +78,6 @@ Notes:
   will be used as the grammar fragment. This allows the grammar syntax to remain
   clear and simple to maintain.
 
-
 ## Capturing
 
 Prefixing any expression in the grammar with `@` will capture matching values
@@ -99,7 +99,6 @@ result == &Grammar{
   Hello: "world",
 }
 ```
-
 
 For slice and string fields, each instance of `@` will accumulate into the
 field (including repeated patterns). Accumulation into other types is not
@@ -127,6 +126,10 @@ lexer (`lexer.Regexp()`). The slowest is currently the EBNF based lexer, but it 
 To use your own Lexer you will need to implement two interfaces:
 [Definition](https://godoc.org/github.com/alecthomas/participle/lexer#Definition)
 and [Lexer](https://godoc.org/github.com/alecthomas/participle/lexer#Lexer).
+
+## Options
+
+The Parser's behaviour can be configured via [Options](https://godoc.org/github.com/alecthomas/participle#Option).
 
 ## Example
 

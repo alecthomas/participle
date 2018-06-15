@@ -9,6 +9,7 @@
 1. [.ini property values \(alternates, recursive structs, sequences\)](#ini-property-values-alternates-recursive-structs-sequences)
 1. [Complete, but limited, .ini grammar \(top-level properties only\)](#complete-but-limited-ini-grammar-top-level-properties-only)
 1. [Extending our grammar to support sections](#extending-our-grammar-to-support-sections)
+1. [\(Optional\) Source positional information](#optional-source-positional-information)
 1. [Parsing using our grammar](#parsing-using-our-grammar)
 
 <!-- /MarkdownTOC -->
@@ -211,6 +212,20 @@ type INI struct {
 ```
 
 And we're done!
+
+## (Optional) Source positional information
+
+If a grammar node includes a field with the name `Pos` and type `lexer.Position`, it will be automatically populated by positional information. eg.
+
+```go
+type Value struct {
+  Pos    lexer.Position
+  String *string  `  @String`
+  Number *float64 `| @Float`
+}
+```
+
+This is useful for error reporting.
 
 ## Parsing using our grammar
 

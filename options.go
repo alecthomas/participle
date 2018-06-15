@@ -12,24 +12,12 @@ type Mapper func(token lexer.Token) lexer.Token
 //
 // This can be useful to eg. upper-case all tokens of a certain type, or dequote strings.
 func Map(mappers ...Mapper) Option {
-	var mapper Mapper
-	for _, m := range mappers {
-		apply := m
-		next := mapper
-		mapper = func(token lexer.Token) lexer.Token {
-			if next != nil {
-				token = next(token)
-			}
-			return apply(token)
-		}
-	}
 	return func(p *Parser) error {
-		next := p.mapper
-		p.mapper = func(token lexer.Token) lexer.Token {
-			if next != nil {
-				token = next(token)
+		for _, mapper := range mappers {
+			next := p.mapper
+			p.mapper = func(token lexer.Token) lexer.Token {
+				return mapper(next(token))
 			}
-			return mapper(token)
 		}
 		return nil
 	}
