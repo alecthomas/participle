@@ -10,10 +10,10 @@ const (
 	EOF rune = -(iota + 1)
 )
 
-var (
-	// EOFToken is a Token representing EOF.
-	EOFToken = Token{Type: EOF, Value: "<<EOF>>"}
-)
+// EOFToken creates a new EOF token at the given position.
+func EOFToken(pos Position) Token {
+	return Token{Type: EOF, Pos: pos}
+}
 
 // Definition provides the parser with metadata for a lexer.
 //
@@ -133,6 +133,9 @@ func (t Token) EOF() bool {
 }
 
 func (t Token) String() string {
+	if t.EOF() {
+		return "<EOF>"
+	}
 	return t.Value
 }
 

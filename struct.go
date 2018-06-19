@@ -41,7 +41,7 @@ func (s *structLexer) Peek() lexer.Token {
 		}
 		field++
 		if field >= s.s.NumField() {
-			return lexer.EOFToken
+			return lexer.EOFToken(token.Pos)
 		}
 		tag := fieldLexerTag(s.s.Field(field))
 		lex = lexer.Upgrade(lexer.LexString(tag))
@@ -55,7 +55,7 @@ func (s *structLexer) Next() lexer.Token {
 		return token
 	}
 	if s.field+1 >= s.s.NumField() {
-		return lexer.EOFToken
+		return lexer.EOFToken(token.Pos)
 	}
 	s.field++
 	tag := fieldLexerTag(s.s.Field(s.field))

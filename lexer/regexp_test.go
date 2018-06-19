@@ -23,7 +23,7 @@ func TestRegexp(t *testing.T) {
 		{Type: -4, Value: "123", Pos: Position{Filename: "", Offset: 6, Line: 2, Column: 1}},
 		{Type: -4, Value: "456", Pos: Position{Filename: "", Offset: 10, Line: 2, Column: 5}},
 		{Type: -2, Value: "⌘orld", Pos: Position{Filename: "", Offset: 14, Line: 3, Column: 1}},
-		{Type: -1, Value: "<<EOF>>", Pos: Position{Filename: "", Offset: 21, Line: 3, Column: 6}},
+		{Type: EOF, Value: "", Pos: Position{Filename: "", Offset: 21, Line: 3, Column: 6}},
 	}, tokens)
 	_, err = ConsumeAll(def.Lex(strings.NewReader("hello ?")))
 	require.Error(t, err)

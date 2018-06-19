@@ -109,7 +109,5 @@ nextToken:
 		return token
 	}
 
-	eof := EOFToken
-	eof.Pos = r.pos
-	return eof
+	return EOFToken(r.pos)
 }

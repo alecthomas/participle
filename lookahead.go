@@ -92,7 +92,7 @@ func (l *lookaheadWalker) push(root, depth int, node node) {
 		lookahead: lookahead{
 			root:  root,
 			depth: depth,
-			token: lexer.EOFToken,
+			token: lexer.EOFToken(lexer.Position{}),
 		},
 	}
 	l.cursors = append(l.cursors, cursor)

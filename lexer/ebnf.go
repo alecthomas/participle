@@ -19,7 +19,7 @@ type ebnfLexer struct {
 
 func (e *ebnfLexer) Next() Token {
 	if e.peek() == EOF {
-		return EOFToken
+		return EOFToken(e.pos)
 	}
 	pos := e.pos
 	for name, production := range e.def.productions {

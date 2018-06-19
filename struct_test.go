@@ -29,7 +29,7 @@ func TestStructLexerTokens(t *testing.T) {
 	require.Equal(t, t34, scan.Next())
 	require.Equal(t, 1, scan.field)
 
-	require.Equal(t, lexer.EOFToken, scan.Next())
+	require.True(t, scan.Next().EOF())
 }
 
 func TestStructLexer(t *testing.T) {

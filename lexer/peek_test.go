@@ -12,7 +12,7 @@ type staticLexer struct {
 
 func (s *staticLexer) Next() Token {
 	if len(s.tokens) == 0 {
-		return EOFToken
+		return EOFToken(Position{})
 	}
 	t := s.tokens[0]
 	s.tokens = s.tokens[1:]
@@ -27,6 +27,6 @@ func TestUpgrade(t *testing.T) {
 	require.Equal(t, t0, l.Peek(0))
 	require.Equal(t, t1, l.Peek(1))
 	require.Equal(t, t1, l.Peek(1))
-	require.Equal(t, EOFToken, l.Peek(2))
-	require.Equal(t, EOFToken, l.Peek(3))
+	require.True(t, l.Peek(2).EOF())
+	require.True(t, l.Peek(3).EOF())
 }
