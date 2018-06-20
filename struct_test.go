@@ -5,7 +5,6 @@ import (
 	"testing"
 	"text/scanner"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/require"
 
 	"github.com/alecthomas/participle/lexer"
@@ -40,7 +39,7 @@ func TestStructLexer(t *testing.T) {
 
 	gt := reflect.TypeOf(g)
 	r := lexStruct(gt)
-	f := []reflect.StructField{}
+	f := []structLexerField{}
 	s := ""
 	for {
 		r.Peek()
@@ -52,9 +51,22 @@ func TestStructLexer(t *testing.T) {
 		s += string(rn.String())
 	}
 	require.Equal(t, `a|b`, s)
-	f0 := gt.Field(0)
-	f1 := gt.Field(1)
-	require.Equal(t, []reflect.StructField{f0, f0, f1}, f, cmp.Comparer(func(x, y reflect.Type) bool {
-		return x == y
-	}))
+	f0 := r.GetField(0)
+	f1 := r.GetField(1)
+	require.Equal(t, []structLexerField{f0, f0, f1}, f)
+}
+
+type testEmbeddedIndexes struct {
+	A string `@String`
+	B string `@String`
+}
+
+func TestCollectFieldIndexes(t *testing.T) {
+	var grammar struct {
+		testEmbeddedIndexes
+		C string `@String`
+	}
+	typ := reflect.TypeOf(grammar)
+	indexes := collectFieldIndexes(typ)
+	require.Equal(t, [][]int{{0, 0}, {0, 1}, {1}}, indexes)
 }

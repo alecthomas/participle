@@ -16,8 +16,6 @@ func EOFToken(pos Position) Token {
 }
 
 // Definition provides the parser with metadata for a lexer.
-//
-// If it implements the Transform interface, that will be used as the default Transform.
 type Definition interface {
 	// Lex an io.Reader.
 	Lex(io.Reader) Lexer

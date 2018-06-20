@@ -784,3 +784,40 @@ func TestMultipleTokensIntoScalar(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, -10, grammar.Field)
 }
+
+type posMixin struct {
+	Pos lexer.Position
+}
+
+func TestMixinPosIsPopulated(t *testing.T) {
+	var grammar struct {
+		posMixin
+
+		Int int `@Int`
+	}
+
+	p := mustTestParser(t, &grammar)
+	err := p.ParseString("10", &grammar)
+	require.NoError(t, err)
+	require.Equal(t, 10, grammar.Int)
+	require.Equal(t, 1, grammar.Pos.Column)
+	require.Equal(t, 1, grammar.Pos.Line)
+}
+
+type testParserMixin struct {
+	A string `@Ident`
+	B string `@Ident`
+}
+
+func TestMixinFieldsAreParsed(t *testing.T) {
+	var grammar struct {
+		testParserMixin
+		C string `@Ident`
+	}
+	p := mustTestParser(t, &grammar)
+	err := p.ParseString("one two three", &grammar)
+	require.NoError(t, err)
+	require.Equal(t, "one", grammar.A)
+	require.Equal(t, "two", grammar.B)
+	require.Equal(t, "three", grammar.C)
+}

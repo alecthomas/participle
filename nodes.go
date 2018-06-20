@@ -77,19 +77,8 @@ type strct struct {
 }
 
 func (s *strct) maybeInjectPos(pos lexer.Position, v reflect.Value) {
-	// Fast path
 	if f := v.FieldByName("Pos"); f.IsValid() && f.Type() == positionType {
 		f.Set(reflect.ValueOf(pos))
-		return
-	}
-
-	// Iterate over fields.
-	for i := 0; i < v.NumField(); i++ {
-		f := v.Field(i)
-		if f.Type() == positionType {
-			f.Set(reflect.ValueOf(pos))
-			break
-		}
 	}
 }
 
@@ -161,7 +150,7 @@ func (a *sequence) Parse(lex lexer.PeekingLexer, parent reflect.Value) (out []re
 
 // @<expr>
 type capture struct {
-	field reflect.StructField
+	field structLexerField
 	node  node
 }
 
@@ -283,7 +272,7 @@ func conform(t reflect.Type, values []reflect.Value) (out []reflect.Value) {
 //
 // For all other types, an attempt will be made to convert the string to the corresponding
 // type (int, float32, etc.).
-func setField(pos lexer.Position, strct reflect.Value, field reflect.StructField, fieldValue []reflect.Value) { // nolint: gocyclo
+func setField(pos lexer.Position, strct reflect.Value, field structLexerField, fieldValue []reflect.Value) { // nolint: gocyclo
 	defer decorate(func() string { return strct.Type().String() + "." + field.Name })
 
 	f := strct.FieldByIndex(field.Index)

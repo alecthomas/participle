@@ -44,12 +44,12 @@ func (g *generatorContext) parseType(t reflect.Type) node {
 		fallthrough
 
 	case reflect.Struct:
+		slexer := lexStruct(t)
 		out := &strct{typ: t}
 		g.typeNodes[t] = out // Ensure we avoid infinite recursion.
-		if t.NumField() == 0 {
+		if slexer.NumField() == 0 {
 			panicf("can not parse into empty struct %s", t)
 		}
-		slexer := lexStruct(t)
 		defer decorate(func() string { return slexer.Field().Name })
 		e := g.parseDisjunction(slexer)
 		if e == nil {
