@@ -774,5 +774,13 @@ func TestEmptyStructErrorsNotPanicsIssue21(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestMap(t *testing.T) {
+func TestMultipleTokensIntoScalar(t *testing.T) {
+	var grammar struct {
+		Field int `@("-" Int)`
+	}
+	p, err := Build(&grammar)
+	require.NoError(t, err)
+	err = p.ParseString(`- 10`, &grammar)
+	require.NoError(t, err)
+	require.Equal(t, -10, grammar.Field)
 }

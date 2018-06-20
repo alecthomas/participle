@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/alecthomas/participle/lexer"
 )
@@ -316,24 +317,26 @@ func setField(pos lexer.Position, strct reflect.Value, field reflect.StructField
 		}
 	}
 
-	fieldValue = conform(f.Type(), fieldValue)
-
 	// Strings concatenate all captured tokens.
 	if f.Kind() == reflect.String {
+		fieldValue = conform(f.Type(), fieldValue)
 		for _, v := range fieldValue {
 			f.Set(reflect.ValueOf(f.String() + v.String()).Convert(f.Type()))
 		}
 		return
 	}
 
-	// All other types are treated as scalar.
-	if len(fieldValue) != 1 {
-		values := []interface{}{}
+	// Coalesce multiple tokens into one. This allow eg. ["-", "10"] to be captured as separate tokens but
+	// parsed as a single string "-10".
+	if len(fieldValue) > 1 {
+		out := []string{}
 		for _, v := range fieldValue {
-			values = append(values, v.Interface())
+			out = append(out, v.String())
 		}
-		panicf("a single value must be assigned to a field of type %s but have %#v", f.Type(), values)
+		fieldValue = []reflect.Value{reflect.ValueOf(strings.Join(out, ""))}
 	}
+
+	fieldValue = conform(f.Type(), fieldValue)
 
 	fv := fieldValue[0]
 
