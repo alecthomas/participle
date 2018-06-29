@@ -37,12 +37,6 @@ func TestLexSingleString(t *testing.T) {
 	require.Equal(t, Token{Type: scanner.Char, Value: "\U00008a9e", Pos: Position{Line: 1, Column: 1}}, token)
 }
 
-func TestLexBacktickString(t *testing.T) {
-	lexer := LexString("`hello\\nworld`")
-	token := lexer.Next()
-	require.Equal(t, Token{Type: scanner.String, Value: "hello\\nworld", Pos: Position{Line: 1, Column: 1}}, token)
-}
-
 func BenchmarkTextScannerLexer(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		lex := TextScannerLexer.Lex(strings.NewReader("hello world 123 hello world 123"))
