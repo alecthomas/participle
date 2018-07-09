@@ -30,6 +30,7 @@ func TestRegexp(t *testing.T) {
 }
 
 func BenchmarkRegexpLexer(b *testing.B) {
+	b.ReportAllocs()
 	def, err := Regexp(`(?P<Ident>[a-z]+)|(?P<Whitespace>\s+)|(?P<Number>\d+)`)
 	require.NoError(b, err)
 	b.ResetTimer()

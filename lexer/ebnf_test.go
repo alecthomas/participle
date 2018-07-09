@@ -161,6 +161,7 @@ func readAllTokens(lex Lexer) (out []string, err error) {
 }
 
 func BenchmarkEBNFLexer(b *testing.B) {
+	b.ReportAllocs()
 	def, err := EBNF(`
 Identifier = alpha { alpha | digit } .
 Whitespace = "\n" | "\r" | "\t" | " " .
