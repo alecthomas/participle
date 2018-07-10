@@ -2,6 +2,7 @@ package lexer
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"strings"
@@ -20,6 +21,7 @@ type ebnfLexer struct {
 	def    *ebnfLexerDefinition
 	pos    Position
 	ranges map[*ebnf.Range]ebnfRange
+	buf    *bytes.Buffer
 }
 
 func (e *ebnfLexer) Next() Token {
@@ -27,12 +29,13 @@ func (e *ebnfLexer) Next() Token {
 		return EOFToken(e.pos)
 	}
 	pos := e.pos
+	e.buf.Reset()
 	for name, production := range e.def.productions {
-		if match := e.match(name, production.Expr); match != nil {
+		if e.match(name, production.Expr, e.buf) {
 			return Token{
 				Type:  e.def.symbols[name],
 				Pos:   pos,
-				Value: strings.Join(match, ""),
+				Value: e.buf.String(),
 			}
 		}
 	}
@@ -40,89 +43,79 @@ func (e *ebnfLexer) Next() Token {
 	return Token{}
 }
 
-func (e *ebnfLexer) match(name string, expr ebnf.Expression) []string { // nolint: gocyclo
+func (e *ebnfLexer) match(name string, expr ebnf.Expression, out *bytes.Buffer) bool { // nolint: gocyclo
 	panicf := func(format string, args ...interface{}) { e.panicf(name+": "+format, args...) }
 
 	switch n := expr.(type) {
 	case ebnf.Alternative:
 		for _, an := range n {
-			if match := e.match(name, an); match != nil {
-				return match
+			if e.match(name, an, out) {
+				return true
 			}
 		}
-		return nil
+		return false
 
 	case *ebnf.Group:
-		return e.match(name, n.Body)
+		return e.match(name, n.Body, out)
 
 	case *ebnf.Name:
-		return e.match(name, e.def.grammar[n.String].Expr)
+		return e.match(name, e.def.grammar[n.String].Expr, out)
 
 	case *ebnf.Option:
-		match := e.match(name, n.Body)
-		if match == nil {
-			match = []string{}
-		}
-		return match
+		e.match(name, n.Body, out)
+		return true
 
 	case *ebnf.Range:
 		erange := e.ranges[n]
 		rn := e.peek()
 		if rn < erange.start || rn > erange.end {
-			return nil
+			return false
 		}
 		e.read()
-		return []string{string(rn)}
+		out.WriteRune(rn)
+		return true
 
 	case *ebnf.Repetition:
-		out := []string{}
-		for {
-			match := e.match(name, n.Body)
-			if match != nil {
-				out = append(out, match...)
-			} else {
-				break
-			}
+		for e.match(name, n.Body, out) {
 		}
-		return out
+		return true
 
 	case ebnf.Sequence:
-		var out []string
 		for i, sn := range n {
-			match := e.match(name, sn)
-			if match != nil {
-				out = append(out, match...)
+			if e.match(name, sn, out) {
 				continue
 			}
 			if i > 0 {
 				panicf("unexpected input %q", e.peek())
 			} else {
-				return nil
+				return false
 			}
 		}
-		return out
+		return true
 
 	case *ebnf.Token:
 		// If first rune doesn't match, we didn't match.
 		if rn, _ := utf8.DecodeRuneInString(n.String); rn != e.peek() {
-			return nil
+			return false
 		}
 		for _, rn := range n.String {
 			if rn != e.read() {
 				panicf("unexpected input %q, expected %q", e.peek(), n.String)
 			}
 		}
-		return []string{n.String}
+		out.WriteString(n.String)
+		return true
 
 	case *characterSet:
 		if strings.ContainsRune(n.Set, e.peek()) {
-			return []string{string(e.read())}
+			out.WriteRune(e.read())
+			return true
 		}
-		return nil
+		return false
 
 	case nil:
 		if e.peek() == EOF {
-			return nil
+			return false
 		}
 		panicf("expected EOF")
 	}
@@ -235,6 +228,7 @@ func (e *ebnfLexerDefinition) Lex(r io.Reader) Lexer {
 		r:      bufio.NewReader(r),
 		def:    e,
 		ranges: e.ranges,
+		buf:    bytes.NewBuffer(make([]byte, 0, 128)),
 		pos: Position{
 			Filename: NameOfReader(r),
 			Line:     1,
