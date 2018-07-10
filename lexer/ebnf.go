@@ -12,16 +12,11 @@ import (
 	"golang.org/x/exp/ebnf"
 )
 
-type ebnfRange struct {
-	start, end rune
-}
-
 type ebnfLexer struct {
-	r      *bufio.Reader
-	def    *ebnfLexerDefinition
-	pos    Position
-	ranges map[*ebnf.Range]ebnfRange
-	buf    *bytes.Buffer
+	r   *bufio.Reader
+	def *ebnfLexerDefinition
+	pos Position
+	buf *bytes.Buffer
 }
 
 func (e *ebnfLexer) Next() Token {
@@ -66,9 +61,11 @@ func (e *ebnfLexer) match(name string, expr ebnf.Expression, out *bytes.Buffer) 
 		return true
 
 	case *ebnf.Range:
-		erange := e.ranges[n]
+		panic("should not occur")
+
+	case *ebnfRange:
 		rn := e.peek()
-		if rn < erange.start || rn > erange.end {
+		if rn < n.start || rn > n.end {
 			return false
 		}
 		e.read()
@@ -94,16 +91,19 @@ func (e *ebnfLexer) match(name string, expr ebnf.Expression, out *bytes.Buffer) 
 		return true
 
 	case *ebnf.Token:
+		panic("should not occur")
+
+	case *ebnfToken:
 		// If first rune doesn't match, we didn't match.
-		if rn, _ := utf8.DecodeRuneInString(n.String); rn != e.peek() {
+		if n.runes[0] != e.peek() {
 			return false
 		}
-		for _, rn := range n.String {
+		for _, rn := range n.runes {
 			if rn != e.read() {
-				panicf("unexpected input %q, expected %q", e.peek(), n.String)
+				panicf("unexpected input %q, expected %q", e.peek(), n.runes)
 			}
+			out.WriteRune(rn)
 		}
-		out.WriteString(n.String)
 		return true
 
 	case *characterSet:
@@ -167,7 +167,6 @@ type ebnfLexerDefinition struct {
 	grammar     ebnf.Grammar
 	symbols     map[string]rune
 	productions ebnf.Grammar
-	ranges      map[*ebnf.Range]ebnfRange
 }
 
 // EBNF creates a Lexer from an EBNF grammar.
@@ -215,7 +214,6 @@ func EBNF(grammar string) (Definition, error) {
 		grammar:     ast,
 		symbols:     symbols,
 		productions: productions,
-		ranges:      map[*ebnf.Range]ebnfRange{},
 	}
 	for _, production := range ast {
 		production.Expr = def.optimize(production.Expr)
@@ -225,10 +223,9 @@ func EBNF(grammar string) (Definition, error) {
 
 func (e *ebnfLexerDefinition) Lex(r io.Reader) Lexer {
 	return &ebnfLexer{
-		r:      bufio.NewReader(r),
-		def:    e,
-		ranges: e.ranges,
-		buf:    bytes.NewBuffer(make([]byte, 0, 128)),
+		r:   bufio.NewReader(r),
+		def: e,
+		buf: bytes.NewBuffer(make([]byte, 0, 128)),
 		pos: Position{
 			Filename: NameOfReader(r),
 			Line:     1,
@@ -250,6 +247,24 @@ func (c *characterSet) Pos() scanner.Position {
 	return c.pos
 }
 
+type ebnfRange struct {
+	pos        scanner.Position
+	start, end rune
+}
+
+func (e *ebnfRange) Pos() scanner.Position {
+	return e.pos
+}
+
+type ebnfToken struct {
+	pos   scanner.Position
+	runes []rune
+}
+
+func (e *ebnfToken) Pos() scanner.Position {
+	return e.pos
+}
+
 // TODO: Add a "repeatedCharacterSet" to represent the common case of { set }
 
 // Apply some optimizations to the EBNF.
@@ -263,13 +278,14 @@ func (e *ebnfLexerDefinition) optimize(expr ebnf.Expression) ebnf.Expression {
 		for _, expr := range n {
 			if t, ok := expr.(*ebnf.Token); ok && utf8.RuneCountInString(t.String) == 1 {
 				set += t.String
-			} else {
-				if set != "" {
-					out = append(out, &characterSet{Set: set})
-					set = ""
-				}
-				out = append(out, e.optimize(expr))
+				continue
 			}
+			// Flush set?
+			if set != "" {
+				out = append(out, &characterSet{Set: set})
+				set = ""
+			}
+			out = append(out, e.optimize(expr))
 		}
 		if set != "" {
 			out = append(out, &characterSet{Set: set})
@@ -293,7 +309,10 @@ func (e *ebnfLexerDefinition) optimize(expr ebnf.Expression) ebnf.Expression {
 	case *ebnf.Range:
 		start, _ := utf8.DecodeRuneInString(n.Begin.String)
 		end, _ := utf8.DecodeRuneInString(n.End.String)
-		e.ranges[n] = ebnfRange{start: start, end: end}
+		return &ebnfRange{pos: n.Pos(), start: start, end: end}
+
+	case *ebnf.Token:
+		return &ebnfToken{pos: n.Pos(), runes: []rune(n.String)}
 	}
 	return expr
 }
