@@ -205,3 +205,59 @@ func TestLookaheadTerm(t *testing.T) {
 	}{}
 	mustTestParser(t, g, UseLookahead())
 }
+
+// Term holds the different possible terms
+type issue28Term struct {
+	KV   *issue28KV ` @@ `
+	Text *string    `| @String `
+}
+
+// KV represents a json kv
+type issue28KV struct {
+	Key   *issue28Key   `@@`
+	Value *issue28Value `@@`
+}
+
+// Key holds the possible key types for a kv
+type issue28Key struct {
+	Ident *string `@Ident ":"`
+	Str   *string `| @String ":"`
+}
+
+// Value holds the possible values for a kv
+type issue28Value struct {
+	Bool  *bool    `(@"true" | "false")`
+	Str   *string  `| @String`
+	Ident *string  `| @Ident`
+	Int   *int64   `| @Int`
+	Float *float64 `| @Float`
+}
+
+func TestIssue28(t *testing.T) {
+	p := mustTestParser(t, &issue28Term{}, UseLookahead())
+
+	actual := &issue28Term{}
+	err := p.ParseString(`"key": "value"`, actual)
+	require.NoError(t, err)
+	key := "key"
+	value := "value"
+	expected := &issue28Term{
+		KV: &issue28KV{
+			Key: &issue28Key{
+				Str: &key,
+			},
+			Value: &issue28Value{
+				Str: &value,
+			},
+		},
+	}
+	require.Equal(t, expected, actual)
+
+	err = p.ParseString(`"some text string"`, actual)
+	require.NoError(t, err)
+	text := "some text string"
+	expected = &issue28Term{
+		Text: &text,
+	}
+	require.Equal(t, expected, actual)
+}
