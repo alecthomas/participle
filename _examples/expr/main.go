@@ -186,14 +186,17 @@ func (e *Expression) Eval(ctx Context) float64 {
 type Context map[string]float64
 
 func main() {
-	kong.Parse(&cli, kong.Description("A basic expression parser and evaluator."))
+	ctx := kong.Parse(&cli,
+		kong.Description("A basic expression parser and evaluator."),
+		kong.UsageOnError(),
+	)
 
 	parser, err := participle.Build(&Expression{})
-	kong.FatalIfErrorf(err)
+	ctx.FatalIfErrorf(err)
 
 	expr := &Expression{}
 	err = parser.ParseString(strings.Join(cli.Expression, " "), expr)
-	kong.FatalIfErrorf(err)
+	ctx.FatalIfErrorf(err)
 
 	if cli.AST {
 		json.NewEncoder(os.Stdout).Encode(expr)
