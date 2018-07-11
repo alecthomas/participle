@@ -1,5 +1,3 @@
-// +build lookahead
-
 package participle
 
 import (
@@ -20,7 +18,7 @@ type LAT1Decl struct {
 
 func TestIssue3Example1(t *testing.T) {
 	g := &LAT1Module{}
-	p := mustTestParser(t, g)
+	p := mustTestParser(t, g, UseLookahead())
 	err := p.ParseString(`
 		source_filename = "foo.c"
 		target datalayout = "bar"
@@ -59,7 +57,7 @@ type LAT2Group struct {
 
 func TestIssue3Example2(t *testing.T) {
 	g := &LAT2Config{}
-	p := mustTestParser(t, g)
+	p := mustTestParser(t, g, UseLookahead())
 	err := p.ParseString(`
 		key = "value"
 		block {
@@ -101,7 +99,7 @@ type LAT3Value struct {
 
 func TestIssue11(t *testing.T) {
 	g := &LAT3Grammar{}
-	p := mustTestParser(t, g)
+	p := mustTestParser(t, g, UseLookahead())
 	err := p.ParseString(`
 		A paid $30.80 for snacks.
 		B paid $70 for housecleaning.
@@ -125,7 +123,7 @@ func TestIssue11(t *testing.T) {
 // 		A string `[ @String "=" ]`
 // 		B string `@String`
 // 	}{}
-// 	p := mustTestParser(t, g)
+// 	p := mustTestParser(t, g, UseLookahead())
 // 	// repr.Println(p.root)
 // 	err := p.ParseString(`"value"`, g)
 // 	require.NoError(t, err)
@@ -139,7 +137,7 @@ func TestIssue11(t *testing.T) {
 // 		A string `( @String @"." )`
 // 		B string `@String`
 // 	}{}
-// 	p := mustTestParser(t, g)
+// 	p := mustTestParser(t, g, UseLookahead())
 // 	// repr.Println(p.root)
 // 	err := p.ParseString(`"value"`, g)
 // 	require.NoError(t, err)
@@ -154,7 +152,7 @@ func TestLookaheadDisjunction(t *testing.T) {
 		B string `| "hello" @Ident "world"`
 		C string `| "hello" "world" @Ident`
 	}{}
-	p := mustTestParser(t, g)
+	p := mustTestParser(t, g, UseLookahead())
 	err := p.ParseString(`hello moo`, g)
 	require.NoError(t, err)
 	require.Equal(t, g.A, "moo")
@@ -168,7 +166,7 @@ func TestLookaheadChooseLiteralOverType(t *testing.T) {
 		A string `  "hello" @Ident`
 		B string `| "hello" @"world"`
 	}{}
-	p := mustTestParser(t, g)
+	p := mustTestParser(t, g, UseLookahead())
 	err := p.ParseString(`hello ONE`, g)
 	require.NoError(t, err)
 	require.Equal(t, g.A, "ONE")
@@ -182,7 +180,7 @@ func TestLookaheadNestedDisjunctions(t *testing.T) {
 		A string `  "hello" ( "foo" @Ident | "bar" "waz" @Ident)`
 		B string `| "hello" @"world"`
 	}{}
-	p := mustTestParser(t, g)
+	p := mustTestParser(t, g, UseLookahead())
 	err := p.ParseString(`hello foo FOO`, g)
 	require.NoError(t, err)
 	require.Equal(t, g.A, "FOO")
@@ -205,5 +203,5 @@ func TestLookaheadTerm(t *testing.T) {
 			A string `"(" @Ident ")"`
 		} `| @@`
 	}{}
-	mustTestParser(t, g)
+	mustTestParser(t, g, UseLookahead())
 }
