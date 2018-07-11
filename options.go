@@ -38,3 +38,13 @@ func Lexer(def lexer.Definition) Option {
 		return nil
 	}
 }
+
+// UseLookahead builds lookahead tables for disambiguating branches.
+//
+// NOTE: This is an incomplete, slightly buggy feature, but can be useful already.
+func UseLookahead() Option {
+	return func(p *Parser) error {
+		p.useLookahead = true
+		return nil
+	}
+}

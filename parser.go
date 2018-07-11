@@ -13,10 +13,11 @@ import (
 
 // A Parser for a particular grammar and lexer.
 type Parser struct {
-	root   node
-	lex    lexer.Definition
-	typ    reflect.Type
-	mapper Mapper
+	root         node
+	lex          lexer.Definition
+	typ          reflect.Type
+	mapper       Mapper
+	useLookahead bool
 }
 
 // MustBuild calls Build(grammar, options...) and panics if an error occurs.
@@ -57,7 +58,9 @@ func Build(grammar interface{}, options ...Option) (parser *Parser, err error) {
 	p.typ = reflect.TypeOf(grammar)
 	p.root = context.parseType(p.typ)
 	// TODO: Fix lookahead - see SQL example.
-	// applyLookahead(p.root, map[node]bool{})
+	if p.useLookahead {
+		applyLookahead(p.root, map[node]bool{})
+	}
 	return p, nil
 }
 
