@@ -261,3 +261,50 @@ func TestIssue28(t *testing.T) {
 	}
 	require.Equal(t, expected, actual)
 }
+
+// This test used to fail because the lookahead table only tracks (root, depth, token) for each root. In this case there
+// are two roots that have the same second token (0, 1, "=") and (2, 1, "="). As (depth, token) is the uniqueness
+// constraint, this never disambiguates.
+//
+// To solve this, each ambiguous group will need to track the history of tokens.
+//
+// eg.
+//
+// 		0.	groups = [
+//   			{history: [">"] roots: [0, 1]},
+// 				{history: ["<"], roots: [2, 3]},
+//     		]
+//      1.	groups = [
+//      		{history: [">", "="], roots: [0]},
+//         		{history: [">"], roots: [1]},
+//         		{history: ["<", "="], roots: [2]},
+//         		{history: ["<"], roots: [3]},
+//           ]
+func TestLookaheadWithConvergingTokens(t *testing.T) {
+	type grammar struct {
+		Left string   `@Ident`
+		Op   string   `[ @( ">" "=" | ">" | "<" "=" | "<" )`
+		Next *grammar `  @@ ]`
+	}
+	p := mustTestParser(t, &grammar{}, UseLookahead())
+	actual := &grammar{}
+	err := p.ParseString("a >= b", actual)
+	require.NoError(t, err)
+}
+
+// type leftRecursionType struct {
+// 	Type     string                 `  @("int" | "float" | "string")`
+// 	Function *leftRecursionFuncType `| @@`
+// }
+
+// type leftRecursionFuncType struct {
+// 	Return *leftRecursionType   `@@`
+// 	Args   []*leftRecursionType `"(" @@ { "," @@ } ")"`
+// }
+
+// func TestLeftRecursion(t *testing.T) {
+// 	p := mustTestParser(t, &leftRecursionType{}, UseLookahead())
+// 	actual := &leftRecursionType{}
+// 	err := p.ParseString(`int f()`, actual)
+// 	require.NoError(t, err)
+// }

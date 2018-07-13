@@ -23,7 +23,9 @@ var (
 		&Expression{},
 		participle.Lexer(sqlLexer),
 		participle.Unquote(sqlLexer, "String"),
-		participle.Upper(sqlLexer, "Keyword"))
+		participle.Upper(sqlLexer, "Keyword"),
+		participle.UseLookahead(),
+	)
 )
 
 type Boolean bool

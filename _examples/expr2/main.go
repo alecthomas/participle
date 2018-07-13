@@ -33,7 +33,7 @@ type Equality struct {
 
 type Comparison struct {
 	Addition *Addition   `@@`
-	Op       string      `[ @( ">" [ "=" ] | "<" [ "=" ] )`
+	Op       string      `[ @( ">" | ">" "=" | "<" | "<" "=" )`
 	Next     *Comparison `  @@ ]`
 }
 
@@ -68,7 +68,7 @@ func main() {
 		Expr []string `arg required help:"Expression to parse."`
 	}
 	ctx := kong.Parse(&cli)
-	p := participle.MustBuild(&Expression{})
+	p := participle.MustBuild(&Expression{}, participle.UseLookahead())
 
 	expr := &Expression{}
 	err := p.ParseString(strings.Join(cli.Expr, " "), expr)

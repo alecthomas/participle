@@ -2,6 +2,7 @@ package participle
 
 import (
 	"fmt"
+	"hash/fnv"
 	"sort"
 
 	"github.com/alecthomas/participle/lexer"
@@ -10,13 +11,21 @@ import (
 type lroot int
 
 type lookahead struct {
-	root  int
-	depth int
-	token lexer.Token
+	root   int
+	depth  int
+	tokens []lexer.Token
 }
 
 func (l lookahead) String() string {
-	return fmt.Sprintf("lookahead{root: %d, depth: %d, token: %#v}", l.root, l.depth, l.token)
+	return fmt.Sprintf("lookahead{root: %d, depth: %d, token: %#v}", l.root, l.depth, l.tokens)
+}
+
+func (l *lookahead) hash() uint64 {
+	w := fnv.New64a()
+	for _, t := range l.tokens {
+		fmt.Fprintf(w, "%d:%s\n", t.Type, t.Value)
+	}
+	return w.Sum64()
 }
 
 func buildLookahead(nodes ...node) (table []lookahead, err error) {
@@ -24,23 +33,28 @@ func buildLookahead(nodes ...node) (table []lookahead, err error) {
 	for root, node := range nodes {
 		l.push(root, 0, node)
 	}
-	for depth := 0; depth < 16; depth++ {
+	depth := 0
+	for ; depth < 16; depth++ {
 		ambiguous := l.ambiguous()
 		if len(ambiguous) == 0 {
 			return l.collect(), nil
 		}
-		// Randomly step one of each ambiguous group.
+		stepped := false
 		for _, group := range ambiguous {
 			for _, c := range group {
-				// for _, c := range ambiguous {
 				// fmt.Printf("root=%d, depth=%d: %T %#v\n", c.root, c.depth, c.branch, c.token)
-				l.step(c.branch, c)
+				if l.step(c.branch, c) {
+					stepped = true
+				}
 			}
+			// fmt.Println()
 		}
-		// }
-		// fmt.Println()
+		if !stepped {
+			break
+		}
 	}
-	return nil, fmt.Errorf("could not disambiguate lookahead up to 16 tokens ahead")
+	// TODO: We should never fail to build lookahead.
+	return nil, fmt.Errorf("possible left recursion: could not disambiguate after %d tokens of lookahead", depth)
 }
 
 type lookaheadCursor struct {
@@ -65,16 +79,21 @@ func (l *lookaheadWalker) collect() []lookahead {
 		out = append(out, cursor.lookahead)
 	}
 	sort.Slice(out, func(i, j int) bool {
-		return out[i].depth > out[j].depth || len(out[i].token.Value) > len(out[j].token.Value)
+		n := len(out[i].tokens)
+		m := len(out[j].tokens)
+		if n > m {
+			return true
+		}
+		return (n == m && len(out[i].tokens[n-1].Value) > len(out[j].tokens[m-1].Value)) || out[i].root < out[j].root
 	})
 	return out
 }
 
 // Find cursors that are still ambiguous.
 func (l *lookaheadWalker) ambiguous() [][]*lookaheadCursor {
-	grouped := map[lookaheadGroup][]*lookaheadCursor{}
+	grouped := map[uint64][]*lookaheadCursor{}
 	for _, cursor := range l.cursors {
-		key := lookaheadGroup{cursor.depth, cursor.token}
+		key := cursor.hash()
 		grouped[key] = append(grouped[key], cursor)
 	}
 	out := [][]*lookaheadCursor{}
@@ -92,7 +111,6 @@ func (l *lookaheadWalker) push(root, depth int, node node) {
 		lookahead: lookahead{
 			root:  root,
 			depth: depth,
-			token: lexer.EOFToken(lexer.Position{}),
 		},
 	}
 	l.cursors = append(l.cursors, cursor)
@@ -107,10 +125,10 @@ func (l *lookaheadWalker) remove(cursor *lookaheadCursor) {
 	}
 }
 
-func (l *lookaheadWalker) step(node node, cursor *lookaheadCursor) {
+func (l *lookaheadWalker) step(node node, cursor *lookaheadCursor) bool {
 	l.seen[node]++
-	if l.seen[node] > 32 {
-		return
+	if cursor.branch == nil || l.seen[node] > 32 {
+		return false
 	}
 	switch n := node.(type) {
 	case *disjunction:
@@ -121,11 +139,11 @@ func (l *lookaheadWalker) step(node node, cursor *lookaheadCursor) {
 
 	case *sequence:
 		if n != nil {
-			cursor.branch = n.next
 			if !n.head {
 				cursor.depth++
 			}
 			l.step(n.node, cursor)
+			cursor.branch = n.next
 		}
 
 	case *capture:
@@ -143,14 +161,18 @@ func (l *lookaheadWalker) step(node node, cursor *lookaheadCursor) {
 	case *parseable:
 
 	case *literal:
-		cursor.token = lexer.Token{Type: n.t, Value: n.s}
+		cursor.tokens = append(cursor.tokens, lexer.Token{Type: n.t, Value: n.s})
+		cursor.branch = nil
 
 	case *reference:
-		cursor.token = lexer.Token{Type: n.typ}
+		cursor.tokens = append(cursor.tokens, lexer.Token{Type: n.typ})
+		cursor.branch = nil
 
 	default:
 		panic(fmt.Sprintf("unsupported node type %T", n))
 	}
+
+	return true
 }
 
 func applyLookahead(m node, seen map[node]bool) {
@@ -161,10 +183,11 @@ func applyLookahead(m node, seen map[node]bool) {
 	switch n := m.(type) {
 	case *disjunction:
 		lookahead, err := buildLookahead(n.nodes...)
-		if err != nil {
+		if err == nil {
+			n.lookahead = lookahead
+		} else {
 			panic(Error(err.Error() + ": " + stringer(n, 1)))
 		}
-		n.lookahead = lookahead
 		for _, c := range n.nodes {
 			applyLookahead(c, seen)
 		}

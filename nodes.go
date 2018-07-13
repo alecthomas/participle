@@ -98,23 +98,23 @@ type disjunction struct {
 }
 
 func (e *disjunction) Parse(lex lexer.PeekingLexer, parent reflect.Value) (out []reflect.Value) {
+next:
 	for _, look := range e.lookahead {
-		lt := look.token
-
 		// This will occur with Parseable interfaces.
-		if look.depth == 0 && lt.EOF() {
+		if look.depth == 0 && lex.Peek(len(look.tokens)-1).EOF() {
 			if out = e.nodes[look.root].Parse(lex, parent); out != nil {
 				return out
 			}
 			continue
 		}
 
-		t := lex.Peek(look.depth)
-		if (lt.Value == "" || lt.Value == t.Value) && (lt.Type == lexer.EOF || lt.Type == t.Type) {
-			// repr.Println(lt, t)
-			// fmt.Println(stringer(e.nodes[look.root], 1))
-			return e.nodes[look.root].Parse(lex, parent)
+		for depth, lt := range look.tokens {
+			t := lex.Peek(depth)
+			if !((lt.Value == "" || lt.Value == t.Value) && (lt.Type == lexer.EOF || lt.Type == t.Type)) {
+				continue next
+			}
 		}
+		return e.nodes[look.root].Parse(lex, parent)
 	}
 
 	// Same logic without lookahead.
