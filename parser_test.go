@@ -809,3 +809,19 @@ func TestMixinFieldsAreParsed(t *testing.T) {
 	require.Equal(t, "two", grammar.B)
 	require.Equal(t, "three", grammar.C)
 }
+
+func TestNestedOptional(t *testing.T) {
+	type grammar struct {
+		Args []string `"(" [ @Ident { "," @Ident } ] ")"`
+	}
+	p := mustTestParser(t, &grammar{})
+	actual := &grammar{}
+	err := p.ParseString(`()`, actual)
+	require.NoError(t, err)
+	err = p.ParseString(`(a)`, actual)
+	require.NoError(t, err)
+	err = p.ParseString(`(a, b, c)`, actual)
+	require.NoError(t, err)
+	err = p.ParseString(`(1)`, actual)
+	require.Error(t, err)
+}

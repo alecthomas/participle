@@ -200,7 +200,11 @@ func (o *optional) Parse(lex lexer.PeekingLexer, parent reflect.Value) (out []re
 		fallthrough
 	case 1:
 		if o.next != nil {
-			out = append(out, o.next.Parse(lex, parent)...)
+			next := o.next.Parse(lex, parent)
+			if next == nil {
+				return nil
+			}
+			out = append(out, next...)
 		}
 		return out
 	case -1:
@@ -243,13 +247,17 @@ func (r *repetition) Parse(lex lexer.PeekingLexer, parent reflect.Value) (out []
 		fallthrough
 	case 1:
 		if r.next != nil {
-			out = append(out, r.next.Parse(lex, parent)...)
+			next := r.next.Parse(lex, parent)
+			if next == nil {
+				return nil
+			}
+			out = append(out, next...)
 		}
 		return out
 	case -1:
 		// We have a next node but neither it or the optional matched the lookahead, so it's a complete mismatch.
 		if r.next != nil {
-			panicf("expected %s", r.next)
+			return nil
 		}
 		return []reflect.Value{}
 	default:
