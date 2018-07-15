@@ -42,6 +42,9 @@ func nodePrinter(seen map[node]bool, v node) string {
 		return fmt.Sprintf("%s", n.identifier)
 
 	case *optional:
+		if n.next != nil {
+			return fmt.Sprintf("[%s] %s", nodePrinter(seen, n.node), nodePrinter(seen, n.next))
+		}
 		return fmt.Sprintf("[%s]", nodePrinter(seen, n.node))
 
 	case *repetition:

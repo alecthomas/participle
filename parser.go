@@ -88,7 +88,7 @@ func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
 	}
 	pv := p.root.Parse(lex, rv.Elem())
 	if !lex.Peek(0).EOF() {
-		lexer.Panicf(lex.Peek(0).Pos, "expected %s but got %q", stringer(p.root, 1), lex.Peek(0))
+		lexer.Panicf(lex.Peek(0).Pos, "expected %s but got %q", stringer(p.root), lex.Peek(0))
 	}
 	if pv == nil {
 		lexer.Panic(lex.Peek(0).Pos, "invalid syntax")

@@ -3,6 +3,7 @@ package participle
 import (
 	"fmt"
 	"hash/fnv"
+	"reflect"
 	"sort"
 
 	"github.com/alecthomas/participle/lexer"
@@ -12,12 +13,11 @@ type lroot int
 
 type lookahead struct {
 	root   int
-	depth  int
 	tokens []lexer.Token
 }
 
 func (l lookahead) String() string {
-	return fmt.Sprintf("lookahead{root: %d, depth: %d, token: %#v}", l.root, l.depth, l.tokens)
+	return fmt.Sprintf("lookahead{root: %d, token: %#v}", l.root, l.tokens)
 }
 
 func (l *lookahead) hash() uint64 {
@@ -31,7 +31,9 @@ func (l *lookahead) hash() uint64 {
 func buildLookahead(nodes ...node) (table []lookahead, err error) {
 	l := &lookaheadWalker{limit: 16, seen: map[node]int{}}
 	for root, node := range nodes {
-		l.push(root, 0, node)
+		if node != nil {
+			l.push(root, node, nil)
+		}
 	}
 	depth := 0
 	for ; depth < 16; depth++ {
@@ -60,11 +62,6 @@ func buildLookahead(nodes ...node) (table []lookahead, err error) {
 type lookaheadCursor struct {
 	branch node // Branch leaf was stepped from.
 	lookahead
-}
-
-type lookaheadGroup struct {
-	depth int
-	token lexer.Token
 }
 
 type lookaheadWalker struct {
@@ -105,12 +102,12 @@ func (l *lookaheadWalker) ambiguous() [][]*lookaheadCursor {
 	return out
 }
 
-func (l *lookaheadWalker) push(root, depth int, node node) {
+func (l *lookaheadWalker) push(root int, node node, tokens []lexer.Token) {
 	cursor := &lookaheadCursor{
 		branch: node,
 		lookahead: lookahead{
-			root:  root,
-			depth: depth,
+			root:   root,
+			tokens: append([]lexer.Token{}, tokens...),
 		},
 	}
 	l.cursors = append(l.cursors, cursor)
@@ -125,6 +122,7 @@ func (l *lookaheadWalker) remove(cursor *lookaheadCursor) {
 	}
 }
 
+// Returns true if a step occurred or false if the cursor has already terminated.
 func (l *lookaheadWalker) step(node node, cursor *lookaheadCursor) bool {
 	l.seen[node]++
 	if cursor.branch == nil || l.seen[node] > 32 {
@@ -133,15 +131,12 @@ func (l *lookaheadWalker) step(node node, cursor *lookaheadCursor) bool {
 	switch n := node.(type) {
 	case *disjunction:
 		for _, c := range n.nodes {
-			l.push(cursor.root, cursor.depth, c)
+			l.push(cursor.root, c, cursor.tokens)
 		}
 		l.remove(cursor)
 
 	case *sequence:
 		if n != nil {
-			if !n.head {
-				cursor.depth++
-			}
 			l.step(n.node, cursor)
 			cursor.branch = n.next
 		}
@@ -153,16 +148,25 @@ func (l *lookaheadWalker) step(node node, cursor *lookaheadCursor) bool {
 		l.step(n.expr, cursor)
 
 	case *optional:
-		l.step(n.node, cursor)
+		l.push(cursor.root, n.node, cursor.tokens)
+		if n.next != nil {
+			l.push(cursor.root, n.next, cursor.tokens)
+		}
+		l.remove(cursor)
 
 	case *repetition:
-		l.step(n.node, cursor)
+		l.push(cursor.root, n.node, cursor.tokens)
+		if n.next != nil {
+			l.push(cursor.root, n.next, cursor.tokens)
+		}
+		l.remove(cursor)
 
 	case *parseable:
 
 	case *literal:
 		cursor.tokens = append(cursor.tokens, lexer.Token{Type: n.t, Value: n.s})
 		cursor.branch = nil
+		return true
 
 	case *reference:
 		cursor.tokens = append(cursor.tokens, lexer.Token{Type: n.typ})
@@ -186,7 +190,7 @@ func applyLookahead(m node, seen map[node]bool) {
 		if err == nil {
 			n.lookahead = lookahead
 		} else {
-			panic(Error(err.Error() + ": " + stringer(n, 1)))
+			panic(Error(err.Error() + ": " + stringer(n)))
 		}
 		for _, c := range n.nodes {
 			applyLookahead(c, seen)
@@ -202,11 +206,51 @@ func applyLookahead(m node, seen map[node]bool) {
 	case *strct:
 		applyLookahead(n.expr, seen)
 	case *optional:
+		lookahead, err := buildLookahead(n.node, n.next)
+		if err == nil {
+			n.lookahead = lookahead
+		} else {
+			panic(Error(err.Error() + ": " + stringer(n)))
+		}
 		applyLookahead(n.node, seen)
+		if n.next != nil {
+			applyLookahead(n.next, seen)
+		}
 	case *repetition:
+		lookahead, err := buildLookahead(n.node, n.next)
+		if err == nil {
+			n.lookahead = lookahead
+		} else {
+			panic(Error(err.Error() + ": " + stringer(n)))
+		}
 		applyLookahead(n.node, seen)
+		if n.next != nil {
+			applyLookahead(n.next, seen)
+		}
 	case *parseable:
 	default:
 		panic(fmt.Sprintf("unsupported node type %T", m))
 	}
+}
+
+type lookaheadTable []lookahead
+
+// Select node to use.
+//
+// Will return -2 if lookahead table is missing, -1 for no match, or index of selected node.
+func (l lookaheadTable) Select(lex lexer.PeekingLexer, parent reflect.Value) (selected int) {
+	if l == nil {
+		return -2
+	}
+next:
+	for _, look := range l {
+		for depth, lt := range look.tokens {
+			t := lex.Peek(depth)
+			if !((lt.Value == "" || lt.Value == t.Value) && (lt.Type == lexer.EOF || lt.Type == t.Type)) {
+				continue next
+			}
+		}
+		return look.root
+	}
+	return -1
 }

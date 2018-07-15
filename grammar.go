@@ -99,6 +99,16 @@ loop:
 			cursor.next = &sequence{node: term}
 			cursor = cursor.next
 		}
+
+		// An optional or repetition result in some magic.
+		switch node := term.(type) {
+		case *optional:
+			node.next = g.parseSequence(slexer)
+			break loop
+		case *repetition:
+			node.next = g.parseSequence(slexer)
+			break loop
+		}
 	}
 	if head.node == nil {
 		return nil
@@ -163,7 +173,7 @@ func (g *generatorContext) parseReference(slexer *structLexer) node {
 // [ <expression> ] optionally matches <expression>.
 func (g *generatorContext) parseOptional(slexer *structLexer) node {
 	slexer.Next() // [
-	optional := &optional{g.parseDisjunction(slexer)}
+	optional := &optional{node: g.parseDisjunction(slexer)}
 	next := slexer.Peek()
 	if next.Type != ']' {
 		panicf("expected ] but got %q", next)

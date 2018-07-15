@@ -13,9 +13,9 @@ type stringerVisitor struct {
 	seen map[node]bool
 }
 
-func stringer(n node, depth int) string {
+func stringer(n node) string {
 	v := &stringerVisitor{seen: map[node]bool{}}
-	v.visit(n, depth, false)
+	v.visit(n, 1, false)
 	return v.String()
 }
 
@@ -73,6 +73,10 @@ func (s *stringerVisitor) visit(n node, depth int, disjunctions bool) {
 		fmt.Fprint(s, "[ ")
 		s.visit(n.node, depth, disjunctions)
 		fmt.Fprint(s, " ]")
+		if n.next != nil {
+			fmt.Fprint(s, " ")
+			s.visit(n.next, depth, disjunctions)
+		}
 
 	case *repetition:
 		fmt.Fprint(s, "( ")

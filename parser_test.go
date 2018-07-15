@@ -481,9 +481,6 @@ func TestParseExpression(t *testing.T) {
 	require.Equal(t, expected, actual)
 }
 
-func TestParseTokenCapture(t *testing.T) {
-}
-
 func TestParseOptional(t *testing.T) {
 	type testOptional struct {
 		A string `[ @"a" @"b" ]`
@@ -497,15 +494,6 @@ func TestParseOptional(t *testing.T) {
 	err := parser.ParseString(`c`, actual)
 	require.NoError(t, err)
 	require.Equal(t, expected, actual)
-}
-
-func TestParseRepitition(t *testing.T) {
-}
-
-func TestParseQuotedStringOrRange(t *testing.T) {
-}
-
-func TestParseQuotedString(t *testing.T) {
 }
 
 func TestHello(t *testing.T) {

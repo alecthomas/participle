@@ -118,19 +118,31 @@ func TestIssue11(t *testing.T) {
 	)
 }
 
-// func TestLookaheadOptional(t *testing.T) {
-// 	g := &struct {
-// 		A string `[ @String "=" ]`
-// 		B string `@String`
-// 	}{}
-// 	p := mustTestParser(t, g, UseLookahead())
-// 	// repr.Println(p.root)
-// 	err := p.ParseString(`"value"`, g)
-// 	require.NoError(t, err)
-// 	// repr.Println(g)
-// 	err = p.ParseString(`"key0"."value"`, g)
-// 	require.NoError(t, err)
-// }
+func TestLookaheadOptional(t *testing.T) {
+	type grammar struct {
+		Key   string `[ @Ident "=" ]`
+		Value string `@Ident`
+	}
+	p := mustTestParser(t, &grammar{}, UseLookahead())
+	actual := &grammar{}
+	err := p.ParseString(`value`, actual)
+	require.NoError(t, err)
+	require.Equal(t, &grammar{Value: "value"}, actual)
+	err = p.ParseString(`key = value`, actual)
+	require.NoError(t, err)
+	require.Equal(t, &grammar{Key: "key", Value: "value"}, actual)
+}
+
+func TestLookaheadOptionalNoTail(t *testing.T) {
+	type grammar struct {
+		Key   string `@Ident`
+		Value string `[ "=" @Int ]`
+	}
+	p := mustTestParser(t, &grammar{}, UseLookahead())
+	actual := &grammar{}
+	err := p.ParseString(`key`, actual)
+	require.NoError(t, err)
+}
 
 // func TestLookaheadRepitition(t *testing.T) {
 // 	g := &struct {
@@ -308,3 +320,20 @@ func TestLookaheadWithConvergingTokens(t *testing.T) {
 // 	err := p.ParseString(`int f()`, actual)
 // 	require.NoError(t, err)
 // }
+
+func TestIssue27(t *testing.T) {
+	type grammar struct {
+		Number int    `  @(["-"] Int)`
+		String string `| @String`
+	}
+	p := mustTestParser(t, &grammar{})
+	actual := &grammar{}
+
+	err := p.ParseString(`- 100`, actual)
+	require.NoError(t, err)
+	require.Equal(t, &grammar{Number: -100}, actual)
+
+	err = p.ParseString(`100`, actual)
+	require.NoError(t, err)
+	require.Equal(t, &grammar{Number: 100}, actual)
+}

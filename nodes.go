@@ -94,27 +94,15 @@ func (s *strct) Parse(lex lexer.PeekingLexer, parent reflect.Value) (out []refle
 // <expr> {"|" <expr>}
 type disjunction struct {
 	nodes     []node
-	lookahead []lookahead
+	lookahead lookaheadTable
 }
 
 func (e *disjunction) Parse(lex lexer.PeekingLexer, parent reflect.Value) (out []reflect.Value) {
-next:
-	for _, look := range e.lookahead {
-		// This will occur with Parseable interfaces.
-		if look.depth == 0 && lex.Peek(len(look.tokens)-1).EOF() {
-			if out = e.nodes[look.root].Parse(lex, parent); out != nil {
-				return out
-			}
-			continue
+	if selected := e.lookahead.Select(lex, parent); selected != -2 {
+		if selected == -1 {
+			return nil
 		}
-
-		for depth, lt := range look.tokens {
-			t := lex.Peek(depth)
-			if !((lt.Value == "" || lt.Value == t.Value) && (lt.Type == lexer.EOF || lt.Type == t.Type)) {
-				continue next
-			}
-		}
-		return e.nodes[look.root].Parse(lex, parent)
+		return e.nodes[selected].Parse(lex, parent)
 	}
 
 	// Same logic without lookahead.
@@ -141,7 +129,7 @@ func (a *sequence) Parse(lex lexer.PeekingLexer, parent reflect.Value) (out []re
 			if n == a {
 				return nil
 			}
-			lexer.Panicf(lex.Peek(0).Pos, "unexpected %q (expected %s)", lex.Peek(0), stringer(n, 1))
+			lexer.Panicf(lex.Peek(0).Pos, "unexpected %q (expected %s)", lex.Peek(0), stringer(n))
 		}
 		out = append(out, child...)
 	}
@@ -178,36 +166,78 @@ func (t *reference) Parse(lex lexer.PeekingLexer, parent reflect.Value) (out []r
 	return []reflect.Value{reflect.ValueOf(lex.Next().Value)}
 }
 
-// [ <expr> ]
+// [ <expr> ] <sequence>
 type optional struct {
-	node node
+	node      node
+	next      node
+	lookahead lookaheadTable
 }
 
 func (o *optional) Parse(lex lexer.PeekingLexer, parent reflect.Value) (out []reflect.Value) {
-	v := o.node.Parse(lex, parent)
-	if v == nil {
+	switch o.lookahead.Select(lex, parent) {
+	case -2: // No lookahead table
+		fallthrough
+	case 0:
+		out = o.node.Parse(lex, parent)
+		if out == nil {
+			out = []reflect.Value{}
+		}
+		fallthrough
+	case 1:
+		if o.next != nil {
+			out = append(out, o.next.Parse(lex, parent)...)
+		}
+		return out
+	case -1:
+		// We have a next node but neither it or the optional matched the lookahead, so it's a complete mismatch.
+		if o.next != nil {
+			return nil
+		}
 		return []reflect.Value{}
+	default:
+		panic("unexpected selection")
 	}
-	return v
 }
 
-// { <expr> }
+// { <expr> } <sequence>
 type repetition struct {
-	node node
+	node      node
+	next      node
+	lookahead lookaheadTable
 }
 
 // Parse a repetition. Once a repetition is encountered it will always match, so grammars
 // should ensure that branches are differentiated prior to the repetition.
 func (r *repetition) Parse(lex lexer.PeekingLexer, parent reflect.Value) (out []reflect.Value) {
-	out = []reflect.Value{}
-	for {
-		v := r.node.Parse(lex, parent)
-		if v == nil {
-			break
+	switch r.lookahead.Select(lex, parent) {
+	case -2: // No lookahead table
+		fallthrough
+	case 0:
+		for {
+			v := r.node.Parse(lex, parent)
+			if v == nil {
+				break
+			}
+			out = append(out, v...)
 		}
-		out = append(out, v...)
+		if out == nil {
+			out = []reflect.Value{}
+		}
+		fallthrough
+	case 1:
+		if r.next != nil {
+			out = append(out, r.next.Parse(lex, parent)...)
+		}
+		return out
+	case -1:
+		// We have a next node but neither it or the optional matched the lookahead, so it's a complete mismatch.
+		if r.next != nil {
+			panicf("expected %s", stringer(r.next))
+		}
+		return []reflect.Value{}
+	default:
+		panic("unexpected selection")
 	}
-	return out
 }
 
 // Match a token literal exactly "..."[:<type>].
