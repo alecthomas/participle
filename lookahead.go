@@ -190,44 +190,53 @@ func applyLookahead(m node, seen map[node]bool) {
 		if err == nil {
 			n.lookahead = lookahead
 		} else {
-			panic(Error(err.Error() + ": " + stringer(n)))
+			panic(Error(err.Error() + ": " + n.String()))
 		}
 		for _, c := range n.nodes {
 			applyLookahead(c, seen)
 		}
+
 	case *sequence:
 		for c := n; c != nil; c = c.next {
 			applyLookahead(c.node, seen)
 		}
+
 	case *literal:
+
 	case *capture:
 		applyLookahead(n.node, seen)
+
 	case *reference:
+
 	case *strct:
 		applyLookahead(n.expr, seen)
+
 	case *optional:
 		lookahead, err := buildLookahead(n.node, n.next)
 		if err == nil {
 			n.lookahead = lookahead
 		} else {
-			panic(Error(err.Error() + ": " + stringer(n)))
+			panic(Error(err.Error() + ": " + n.String()))
 		}
 		applyLookahead(n.node, seen)
 		if n.next != nil {
 			applyLookahead(n.next, seen)
 		}
+
 	case *repetition:
 		lookahead, err := buildLookahead(n.node, n.next)
 		if err == nil {
 			n.lookahead = lookahead
 		} else {
-			panic(Error(err.Error() + ": " + stringer(n)))
+			panic(Error(err.Error() + ": " + n.String()))
 		}
 		applyLookahead(n.node, seen)
 		if n.next != nil {
 			applyLookahead(n.next, seen)
 		}
+
 	case *parseable:
+
 	default:
 		panic(fmt.Sprintf("unsupported node type %T", m))
 	}
