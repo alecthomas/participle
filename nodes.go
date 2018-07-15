@@ -104,16 +104,16 @@ type disjunction struct {
 
 func (d *disjunction) String() string { return stringer(d) }
 
-func (e *disjunction) Parse(lex lexer.PeekingLexer, parent reflect.Value) (out []reflect.Value) {
-	if selected := e.lookahead.Select(lex, parent); selected != -2 {
+func (d *disjunction) Parse(lex lexer.PeekingLexer, parent reflect.Value) (out []reflect.Value) {
+	if selected := d.lookahead.Select(lex, parent); selected != -2 {
 		if selected == -1 {
 			return nil
 		}
-		return e.nodes[selected].Parse(lex, parent)
+		return d.nodes[selected].Parse(lex, parent)
 	}
 
 	// Same logic without lookahead.
-	for _, a := range e.nodes {
+	for _, a := range d.nodes {
 		if value := a.Parse(lex, parent); value != nil {
 			return value
 		}
