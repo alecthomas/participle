@@ -29,14 +29,13 @@ encoders, but is unusual for a parser.
 
 ## Limitations
 
-Participle parsers are recursive descent with one token of lookahead. This means that they do not support:
+Participle parsers are recursive descent. This means that they do not support left recursion.
 
-1. Left recursion.
-2. Ambiguity.
+There is an experimental lookahead option for using precomputed lookahead
+tables for disambiguation. You can enable this with the parser option
+`participle.UseLookahead()`.
 
-If your grammar contains either of these they must be eliminated by restructuring your grammar.
-
-Unfortunately neither of these cases are currently detected automatically by Participle. This, however, is a goal.
+Left recursion must be eliminated by restructuring your grammar.
 
 ## Tutorial
 
@@ -45,28 +44,49 @@ A [tutorial](TUTORIAL.md) is available, walking through the creation of an .ini 
 ## Overview
 
 A grammar is an annotated Go structure used to both define the parser grammar,
-and be the AST output by the parser:
+and be the AST output by the parser. As an example, following is the final INI
+parser from the tutorial.
 
-```go
-type Grammar struct {
-  Hello string `"hello" @Ident`
-}
-```
+ ```go
+ type INI struct {
+   Properties []*Property `{ @@ }`
+   Sections   []*Section  `{ @@ }`
+ }
+
+ type Section struct {
+   Identifier string      `"[" @Ident "]"`
+   Properties []*Property `{ @@ }`
+ }
+
+ type Property struct {
+   Key   string `@Ident "="`
+   Value *Value `@@`
+ }
+
+ type Value struct {
+   String *string  `  @String`
+   Number *float64 `| @Float`
+ }
+ ```
 
 > **Note:** Participle also supports named struct tags (eg. <code>Hello string &#96;parser:"@Ident"&#96;</code>).
 
 A parser is constructed from a grammar and a lexer:
 
 ```go
-parser, err := participle.Build(&Grammar{})
+parser, err := participle.Build(&INI{})
 ```
 
 Once constructed, the parser is applied to input to produce an AST:
 
 ```go
-ast := &Grammar{}
-err := parser.ParseString("hello world", ast)
-// ast == &Grammar{Hello: "world"}
+ast := &INI{}
+err := parser.ParseString("size = 10", ast)
+// ast == &INI{
+//   Properties: []*Property{
+//     {Key: "size", Value: &Value{Number: &10}},
+//   },
+// }
 ```
 
 ## Annotation syntax

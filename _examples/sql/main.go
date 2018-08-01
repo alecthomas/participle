@@ -24,7 +24,8 @@ var (
 		participle.Lexer(sqlLexer),
 		participle.Unquote(sqlLexer, "String"),
 		participle.Upper(sqlLexer, "Keyword"),
-		participle.UseLookahead(),
+		// Need to solve left recursion detection first, if possible.
+		// participle.UseLookahead(),
 	)
 )
 
