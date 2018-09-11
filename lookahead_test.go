@@ -337,3 +337,21 @@ func TestIssue27(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, &grammar{Number: 100}, actual)
 }
+
+func TestLookaheadDisambiguateByType(t *testing.T) {
+	type grammar struct {
+		Int   int     `  @(["-"] Int)`
+		Float float64 `| @(["-"] Float)`
+	}
+
+	p := mustTestParser(t, &grammar{}, UseLookahead())
+	actual := &grammar{}
+
+	err := p.ParseString(`- 100`, actual)
+	require.NoError(t, err)
+	require.Equal(t, &grammar{Int: -100}, actual)
+
+	err = p.ParseString(`- 100.5`, actual)
+	require.NoError(t, err)
+	require.Equal(t, &grammar{Float: -100.5}, actual)
+}

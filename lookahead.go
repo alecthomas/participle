@@ -56,7 +56,7 @@ func buildLookahead(nodes ...node) (table []lookahead, err error) {
 		}
 	}
 	// TODO: We should never fail to build lookahead.
-	return nil, fmt.Errorf("possible left recursion: could not disambiguate after %d tokens of lookahead", depth)
+	return nil, fmt.Errorf("could not disambiguate after %d tokens of lookahead", depth)
 }
 
 type lookaheadCursor struct {
@@ -148,11 +148,10 @@ func (l *lookaheadWalker) step(node node, cursor *lookaheadCursor) bool {
 		l.step(n.expr, cursor)
 
 	case *optional:
-		l.push(cursor.root, n.node, cursor.tokens)
+		l.step(n.node, cursor)
 		if n.next != nil {
-			l.push(cursor.root, n.next, cursor.tokens)
+			cursor.branch = n.next
 		}
-		l.remove(cursor)
 
 	case *repetition:
 		l.push(cursor.root, n.node, cursor.tokens)
