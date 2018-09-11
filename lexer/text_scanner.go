@@ -45,7 +45,7 @@ type textScannerLexer struct {
 
 // Lex an io.Reader with text/scanner.Scanner.
 //
-// This provides very fast lexing of source code compatibile with Go tokens.
+// This provides very fast lexing of source code compatible with Go tokens.
 //
 // Note that this differs from text/scanner.Scanner in that string tokens will be unquoted.
 func Lex(r io.Reader) Lexer {

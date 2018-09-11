@@ -430,6 +430,7 @@ func panicf(f string, args ...interface{}) {
 	panic(Error(fmt.Sprintf(f, args...)))
 }
 
+// Error is an error returned by the parser internally to differentiate from non-Participle errors.
 type Error string
 
 func (e Error) Error() string { return string(e) }

@@ -48,7 +48,7 @@ func TestStructLexer(t *testing.T) {
 			break
 		}
 		f = append(f, r.Field())
-		s += string(rn.String())
+		s += rn.String()
 	}
 	require.Equal(t, `a|b`, s)
 	f0 := r.GetField(0)

@@ -524,7 +524,7 @@ func BenchmarkEBNFParser(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		actual := &EBNF{}
-		parser.ParseString(strings.TrimSpace(`
+		_ = parser.ParseString(strings.TrimSpace(`
 Production  = name "=" [ Expression ] "." .
 Expression  = Alternative { "|" Alternative } .
 Alternative = Term { Term } .

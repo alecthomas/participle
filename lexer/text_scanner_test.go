@@ -41,6 +41,6 @@ func BenchmarkTextScannerLexer(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		lex := TextScannerLexer.Lex(strings.NewReader("hello world 123 hello world 123"))
-		ConsumeAll(lex)
+		ConsumeAll(lex) // nolint: errcheck
 	}
 }

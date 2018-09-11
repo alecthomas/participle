@@ -9,8 +9,6 @@ import (
 	"github.com/alecthomas/participle/lexer"
 )
 
-type lroot int
-
 type lookahead struct {
 	root   int
 	tokens []lexer.Token

@@ -158,7 +158,7 @@ func (g *generatorContext) parseCapture(slexer *structLexer) node {
 }
 
 // A reference in the form <identifier> refers to a named token from the lexer.
-func (g *generatorContext) parseReference(slexer *structLexer) node {
+func (g *generatorContext) parseReference(slexer *structLexer) node { // nolint: interfacer
 	token := slexer.Next()
 	if token.Type != scanner.Ident {
 		panicf("expected identifier")

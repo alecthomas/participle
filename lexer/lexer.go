@@ -42,6 +42,7 @@ type PeekingLexer interface {
 	Peek(n int) Token
 }
 
+// SymbolsByRune returns a map of lexer symbol names keyed by rune.
 func SymbolsByRune(def Definition) map[rune]string {
 	out := map[rune]string{}
 	for s, r := range def.Symbols() {

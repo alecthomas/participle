@@ -47,7 +47,9 @@ func Build(grammar interface{}, options ...Option) (parser *Parser, err error) {
 			return nil, fmt.Errorf("non-nil Option passed, signature has changed; " +
 				"if you intended to provide a custom Lexer, try participle.Build(grammar, participle.Lexer(lexer))")
 		}
-		option(p)
+		if err = option(p); err != nil {
+			return nil, err
+		}
 	}
 	// If we have any mapping functions, wrap the lexer.
 	if p.mapper != nil {
