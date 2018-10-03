@@ -89,12 +89,12 @@ type LAT3Grammar struct {
 
 type LAT3Expense struct {
 	Name   string     `@Ident "paid"`
-	Amount *LAT3Value `@@`
+	Amount *LAT3Value `@@ { Ident } "."`
 }
 
 type LAT3Value struct {
-	Float   float64 `  "$" @Float {@Ident} "."`
-	Integer int     `| "$" @Int {@Ident} "."`
+	Float   float64 `  "$" @Float`
+	Integer int     `| "$" @Int`
 }
 
 func TestIssue11(t *testing.T) {
@@ -110,9 +110,9 @@ func TestIssue11(t *testing.T) {
 		g,
 		&LAT3Grammar{
 			Expenses: []*LAT3Expense{
-				{Name: "A", Amount: &LAT3Value{Float: 32.8}},
-				{Name: "B", Amount: &LAT3Value{Integer: 72}},
-				{Name: "C", Amount: &LAT3Value{Float: 65.5}},
+				{Name: "A", Amount: &LAT3Value{Float: 30.8}},
+				{Name: "B", Amount: &LAT3Value{Integer: 70}},
+				{Name: "C", Amount: &LAT3Value{Float: 63.5}},
 			},
 		},
 	)

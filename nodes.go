@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"unsafe"
 
 	"github.com/alecthomas/participle/lexer"
 )
@@ -291,35 +292,57 @@ func conform(t reflect.Type, values []reflect.Value) (out []reflect.Value) {
 			v = v.Addr()
 		}
 
-		switch t.Kind() {
+		kind := t.Kind()
+		switch kind {
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			n, err := strconv.ParseInt(v.String(), 0, 64)
-			if err == nil {
-				v = reflect.New(t).Elem()
-				v.SetInt(n)
+			n, err := strconv.ParseInt(v.String(), 0, sizeOfKind(kind))
+			if err != nil {
+				panicf("invalid integer %q: %s", v.String(), err)
 			}
+			v = reflect.New(t).Elem()
+			v.SetInt(n)
 
 		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			n, err := strconv.ParseUint(v.String(), 0, 64)
-			if err == nil {
-				v = reflect.New(t).Elem()
-				v.SetUint(n)
+			n, err := strconv.ParseUint(v.String(), 0, sizeOfKind(kind))
+			if err != nil {
+				panicf("invalid integer %q: %s", v.String(), err)
 			}
+			v = reflect.New(t).Elem()
+			v.SetUint(n)
 
 		case reflect.Bool:
 			v = reflect.ValueOf(true)
 
 		case reflect.Float32, reflect.Float64:
-			n, err := strconv.ParseFloat(v.String(), 64)
-			if err == nil {
-				v = reflect.New(t).Elem()
-				v.SetFloat(n)
+			n, err := strconv.ParseFloat(v.String(), sizeOfKind(kind))
+			if err != nil {
+				panicf("invalid integer %q: %s", v.String(), err)
 			}
+			v = reflect.New(t).Elem()
+			v.SetFloat(n)
 		}
 
 		out = append(out, v)
 	}
 	return out
+}
+
+const sizeOfInt = int(unsafe.Sizeof(int(0)))
+
+func sizeOfKind(kind reflect.Kind) int {
+	switch kind {
+	case reflect.Int8, reflect.Uint8:
+		return 8
+	case reflect.Int16, reflect.Uint16:
+		return 16
+	case reflect.Int32, reflect.Uint32, reflect.Float32:
+		return 32
+	case reflect.Int64, reflect.Uint64, reflect.Float64:
+		return 64
+	case reflect.Int, reflect.Uint:
+		return sizeOfInt
+	}
+	panic("unsupported kind " + kind.String())
 }
 
 // Set field.
@@ -349,6 +372,12 @@ func setField(pos lexer.Position, strct reflect.Value, field structLexerField, f
 		}
 	}
 
+	if f.Kind() == reflect.Struct {
+		if pf := f.FieldByName("Pos"); pf.IsValid() && pf.Type() == positionType {
+			pf.Set(reflect.ValueOf(pos))
+		}
+	}
+
 	if f.CanAddr() {
 		if d, ok := f.Addr().Interface().(Capture); ok {
 			ifv := []string{}
@@ -372,7 +401,7 @@ func setField(pos lexer.Position, strct reflect.Value, field structLexerField, f
 		return
 	}
 
-	// Coalesce multiple tokens into one. This allow eg. ["-", "10"] to be captured as separate tokens but
+	// Coalesce multiple tokens into one. This allows eg. ["-", "10"] to be captured as separate tokens but
 	// parsed as a single string "-10".
 	if len(fieldValue) > 1 {
 		out := []string{}

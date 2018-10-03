@@ -1,6 +1,8 @@
 package participle
 
 import (
+	"fmt"
+	"math"
 	"strings"
 	"testing"
 
@@ -680,51 +682,6 @@ func TestParseable(t *testing.T) {
 	require.Equal(t, expected, actual)
 }
 
-func TestIncrementInt(t *testing.T) {
-	type grammar struct {
-		Field int `@"." { @"." }`
-	}
-
-	parser, err := Build(&grammar{})
-	require.NoError(t, err)
-
-	actual := &grammar{}
-	expected := &grammar{4}
-	err = parser.ParseString(`. . . .`, actual)
-	require.NoError(t, err)
-	require.Equal(t, expected, actual)
-}
-
-func TestIncrementUint(t *testing.T) {
-	type grammar struct {
-		Field uint `@"." { @"." }`
-	}
-
-	parser, err := Build(&grammar{})
-	require.NoError(t, err)
-
-	actual := &grammar{}
-	expected := &grammar{4}
-	err = parser.ParseString(`. . . .`, actual)
-	require.NoError(t, err)
-	require.Equal(t, expected, actual)
-}
-
-func TestIncrementFloat(t *testing.T) {
-	type grammar struct {
-		Field float32 `@"." { @"." }`
-	}
-
-	parser, err := Build(&grammar{})
-	require.NoError(t, err)
-
-	actual := &grammar{}
-	expected := &grammar{4}
-	err = parser.ParseString(`. . . .`, actual)
-	require.NoError(t, err)
-	require.Equal(t, expected, actual)
-}
-
 func TestStringConcat(t *testing.T) {
 	type grammar struct {
 		Field string `@"." { @"." }`
@@ -824,4 +781,76 @@ func TestNestedOptional(t *testing.T) {
 	require.NoError(t, err)
 	err = p.ParseString(`(1)`, actual)
 	require.Error(t, err)
+}
+
+type captureableWithPosition struct {
+	Pos   lexer.Position
+	Value string
+}
+
+func (c *captureableWithPosition) Capture(values []string) error {
+	c.Value = strings.Join(values, " ")
+	return nil
+}
+
+func TestIssue35(t *testing.T) {
+	type grammar struct {
+		Value *captureableWithPosition `@Ident`
+	}
+	p := mustTestParser(t, &grammar{})
+	actual := &grammar{}
+	err := p.ParseString(`hello`, actual)
+	require.NoError(t, err)
+	expected := &grammar{Value: &captureableWithPosition{
+		Pos:   lexer.Position{Column: 1, Offset: 0, Line: 1},
+		Value: "hello",
+	}}
+	require.Equal(t, expected, actual)
+}
+
+func TestInvalidNumbers(t *testing.T) {
+	type grammar struct {
+		Int8    int8    `  "int8" @Int`
+		Int16   int16   `| "int16" @Int`
+		Int32   int32   `| "int32" @Int`
+		Int64   int64   `| "int64" @Int`
+		Uint8   uint8   `| "uint8" @Int`
+		Uint16  uint16  `| "uint16" @Int`
+		Uint32  uint32  `| "uint32" @Int`
+		Uint64  uint64  `| "uint64" @Int`
+		Float32 float32 `| "float32" @Float`
+		Float64 float64 `| "float64" @Float`
+	}
+
+	p := mustTestParser(t, &grammar{})
+
+	tests := []struct {
+		name     string
+		input    string
+		expected *grammar
+		err      bool
+	}{
+		{name: "ValidInt8", input: "int8 127", expected: &grammar{Int8: 127}},
+		{name: "InvalidInt8", input: "int8 129", err: true},
+		{name: "ValidInt16", input: "int16 32767", expected: &grammar{Int16: 32767}},
+		{name: "InvalidInt16", input: "int16 32768", err: true},
+		{name: "ValidInt32", input: fmt.Sprintf("int32 %d", math.MaxInt32), expected: &grammar{Int32: math.MaxInt32}},
+		{name: "InvalidInt32", input: fmt.Sprintf("int32 %d", math.MaxInt32+1), err: true},
+		{name: "ValidInt64", input: fmt.Sprintf("int64 %d", math.MaxInt64), expected: &grammar{Int64: math.MaxInt64}},
+		{name: "InvalidInt64", input: "int64 9223372036854775808", err: true},
+		{name: "ValidFloat64", input: "float64 1234.5", expected: &grammar{Float64: 1234.5}},
+		{name: "InvalidFloat64", input: "float64 asdf", err: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			actual := &grammar{}
+			err := p.ParseString(test.input, actual)
+			if test.err {
+				require.Error(t, err, fmt.Sprintf("%#v", actual))
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, test.expected, actual)
+			}
+		})
+	}
 }

@@ -1,4 +1,4 @@
-// nolint: govet
+// nolint: govet, golint
 package main
 
 import (
