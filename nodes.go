@@ -327,7 +327,7 @@ func conform(t reflect.Type, values []reflect.Value) (out []reflect.Value) {
 	return out
 }
 
-const sizeOfInt = int(unsafe.Sizeof(int(0)))
+const sizeOfInt = int(unsafe.Sizeof(int(0))) // nolint: gosec
 
 func sizeOfKind(kind reflect.Kind) int {
 	switch kind {
