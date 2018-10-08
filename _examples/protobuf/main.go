@@ -4,16 +4,11 @@ package main
 import (
 	"os"
 
-	"gopkg.in/alecthomas/kingpin.v3-unstable"
-
+	"github.com/alecthomas/kong"
 	"github.com/alecthomas/repr"
 
 	"github.com/alecthomas/participle"
 	"github.com/alecthomas/participle/lexer"
-)
-
-var (
-	files = kingpin.Arg("source", "Protobuf files.").Required().Strings()
 )
 
 type Proto struct {
@@ -233,11 +228,15 @@ var stringToScalar = map[string]Scalar{
 }
 
 func (s *Scalar) Parse(lex lexer.PeekingLexer) error {
-	v, ok := stringToScalar[lex.Peek(0).Value]
+	token, err := lex.Peek(0)
+	if err != nil {
+		return err
+	}
+	v, ok := stringToScalar[token.Value]
 	if !ok {
 		return participle.NextMatch
 	}
-	lex.Next()
+	_, _ = lex.Next()
 	*s = v
 	return nil
 }
@@ -257,18 +256,22 @@ type MapType struct {
 	Value *Type `"," @@ ">"`
 }
 
+var cli struct {
+	Files []string `required existingfile arg help:"Protobuf files."`
+}
+
 func main() {
-	kingpin.Parse()
+	ctx := kong.Parse(&cli)
 
-	parser, err := participle.Build(&Proto{}, participle.UseLookahead())
-	kingpin.FatalIfError(err, "")
+	parser, err := participle.Build(&Proto{})
+	ctx.FatalIfErrorf(err)
 
-	for _, file := range *files {
+	for _, file := range cli.Files {
 		proto := &Proto{}
 		r, err := os.Open(file)
-		kingpin.FatalIfError(err, "")
+		ctx.FatalIfErrorf(err, "")
 		err = parser.Parse(r, proto)
-		kingpin.FatalIfError(err, "")
+		ctx.FatalIfErrorf(err, "")
 		repr.Println(proto, repr.Hide(&lexer.Position{}))
 	}
 }

@@ -19,36 +19,39 @@ type ebnfLexer struct {
 	buf *bytes.Buffer
 }
 
-func (e *ebnfLexer) Next() Token {
-	if e.peek() == EOF {
-		return EOFToken(e.pos)
+func (e *ebnfLexer) Next() (Token, error) {
+	if rn, err := e.peek(); err != nil {
+		return Token{}, err
+	} else if rn == EOF {
+		return EOFToken(e.pos), nil
 	}
 	pos := e.pos
 	e.buf.Reset()
 	for name, production := range e.def.productions {
-		if e.match(name, production.Expr, e.buf) {
+		if ok, err := e.match(name, production.Expr, e.buf); err != nil {
+			return Token{}, err
+		} else if ok {
 			return Token{
 				Type:  e.def.symbols[name],
 				Pos:   pos,
 				Value: e.buf.String(),
-			}
+			}, nil
 		}
 	}
-	e.panic("no match found")
-	return Token{}
+	return Token{}, Errorf(pos, "no match found")
 }
 
-func (e *ebnfLexer) match(name string, expr ebnf.Expression, out *bytes.Buffer) bool { // nolint: gocyclo
-	panicf := func(format string, args ...interface{}) { e.panicf(name+": "+format, args...) }
-
+func (e *ebnfLexer) match(name string, expr ebnf.Expression, out *bytes.Buffer) (bool, error) { // nolint: gocyclo
 	switch n := expr.(type) {
 	case ebnf.Alternative:
 		for _, an := range n {
-			if e.match(name, an, out) {
-				return true
+			if ok, err := e.match(name, an, out); err != nil {
+				return false, err
+			} else if ok {
+				return true, nil
 			}
 		}
-		return false
+		return false, nil
 
 	case *ebnf.Group:
 		return e.match(name, n.Body, out)
@@ -57,93 +60,120 @@ func (e *ebnfLexer) match(name string, expr ebnf.Expression, out *bytes.Buffer) 
 		return e.match(name, e.def.grammar[n.String].Expr, out)
 
 	case *ebnf.Option:
-		e.match(name, n.Body, out)
-		return true
+		_, err := e.match(name, n.Body, out)
+		if err != nil {
+			return false, err
+		}
+		return true, nil
 
 	case *ebnf.Range:
-		panic("should not occur")
+		return false, fmt.Errorf("ebnf.Range should not occur here")
 
 	case *ebnfRange:
-		rn := e.peek()
-		if rn < n.start || rn > n.end {
-			return false
+		rn, err := e.peek()
+		if err != nil {
+			return false, err
 		}
-		e.read()
+		if rn < n.start || rn > n.end {
+			return false, nil
+		}
+		_, _ = e.read()
 		out.WriteRune(rn)
-		return true
+		return true, nil
 
 	case *ebnf.Repetition:
-		for e.match(name, n.Body, out) {
+		for {
+			ok, err := e.match(name, n.Body, out)
+			if err != nil {
+				return false, err
+			}
+			if !ok {
+				return true, nil
+			}
 		}
-		return true
 
 	case ebnf.Sequence:
 		for i, sn := range n {
-			if e.match(name, sn, out) {
+			if ok, err := e.match(name, sn, out); err != nil {
+				return false, err
+			} else if ok {
 				continue
 			}
 			if i > 0 {
-				panicf("unexpected input %q", e.peek())
+				rn, _ := e.peek()
+				return false, fmt.Errorf("unexpected input %q", rn)
 			} else {
-				return false
+				return false, nil
 			}
+			return false, nil
 		}
-		return true
+		return true, nil
 
 	case *ebnf.Token:
-		panic("should not occur")
+		return true, fmt.Errorf("ebnf.Token should not occur")
 
 	case *ebnfToken:
 		// If first rune doesn't match, we didn't match.
-		if n.runes[0] != e.peek() {
-			return false
+		if rn, err := e.peek(); err != nil {
+			return false, err
+		} else if n.runes[0] != rn {
+			return false, nil
 		}
 		for _, rn := range n.runes {
-			if rn != e.read() {
-				panicf("unexpected input %q, expected %q", e.peek(), n.runes)
+			if r, err := e.read(); err != nil {
+				return false, err
+			} else if r != rn {
+				return false, fmt.Errorf("unexpected input %q, expected %q", r, n.runes)
 			}
 			out.WriteRune(rn)
 		}
-		return true
+		return true, nil
 
 	case *characterSet:
-		if strings.ContainsRune(n.Set, e.peek()) {
-			out.WriteRune(e.read())
-			return true
+		rn, err := e.peek()
+		if err != nil {
+			return false, err
 		}
-		return false
+		if strings.ContainsRune(n.Set, rn) {
+			_, err = e.read()
+			out.WriteRune(rn)
+			return true, nil
+		}
+		return false, nil
 
 	case nil:
-		if e.peek() == EOF {
-			return false
+		if rn, err := e.peek(); err != nil {
+			return false, err
+		} else if rn == EOF {
+			return false, nil
 		}
-		panicf("expected EOF")
+		return false, fmt.Errorf("expected EOF")
 	}
-	panic(fmt.Sprintf("unsupported lexer expression type %T", expr))
+	return false, fmt.Errorf("unsupported lexer expression type %T", expr)
 }
 
-func (e *ebnfLexer) peek() rune {
+func (e *ebnfLexer) peek() (rune, error) {
 	// This is a bit more involved than I would like.
 	rn, _, err := e.r.ReadRune()
 	if err == io.EOF {
-		return EOF
+		return EOF, nil
 	}
 	if err != nil {
-		e.panicf("failed to read rune: %s", err)
+		return 0, fmt.Errorf("failed to read rune: %s", err)
 	}
 	if err = e.r.UnreadRune(); err != nil {
-		e.panicf("failed to unread rune: %s", err)
+		return 0, fmt.Errorf("failed to unread rune: %s", err)
 	}
-	return rn
+	return rn, nil
 }
 
-func (e *ebnfLexer) read() rune {
+func (e *ebnfLexer) read() (rune, error) {
 	rn, n, err := e.r.ReadRune()
 	if err == io.EOF {
-		return EOF
+		return EOF, nil
 	}
 	if err != nil {
-		e.panicf("failed to read rune: %s", err)
+		return 0, fmt.Errorf("failed to read rune: %s", err)
 	}
 	e.pos.Offset += n
 	if rn == '\n' {
@@ -152,15 +182,7 @@ func (e *ebnfLexer) read() rune {
 	} else {
 		e.pos.Column++
 	}
-	return rn
-}
-
-func (e *ebnfLexer) panic(msg string) {
-	Panic(e.pos, msg)
-}
-
-func (e *ebnfLexer) panicf(msg string, args ...interface{}) {
-	Panicf(e.pos, msg, args...)
+	return rn, nil
 }
 
 type ebnfLexerDefinition struct {

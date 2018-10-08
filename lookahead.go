@@ -176,9 +176,9 @@ func (l *lookaheadWalker) step(node node, cursor *lookaheadCursor) bool {
 	return true
 }
 
-func applyLookahead(m node, seen map[node]bool) {
+func applyLookahead(m node, seen map[node]bool) error {
 	if seen[m] {
-		return
+		return nil
 	}
 	seen[m] = true
 	switch n := m.(type) {
@@ -187,37 +187,55 @@ func applyLookahead(m node, seen map[node]bool) {
 		if err == nil {
 			n.lookahead = lookahead
 		} else {
-			panic(Error(err.Error() + ": " + n.String()))
+			return Error(err.Error() + ": " + n.String())
 		}
 		for _, c := range n.nodes {
-			applyLookahead(c, seen)
+			err := applyLookahead(c, seen)
+			if err != nil {
+				return err
+			}
 		}
 
 	case *sequence:
 		for c := n; c != nil; c = c.next {
-			applyLookahead(c.node, seen)
+			err := applyLookahead(c.node, seen)
+			if err != nil {
+				return err
+			}
 		}
 
 	case *literal:
 
 	case *capture:
-		applyLookahead(n.node, seen)
+		err := applyLookahead(n.node, seen)
+		if err != nil {
+			return err
+		}
 
 	case *reference:
 
 	case *strct:
-		applyLookahead(n.expr, seen)
+		err := applyLookahead(n.expr, seen)
+		if err != nil {
+			return err
+		}
 
 	case *optional:
 		lookahead, err := buildLookahead(n.node, n.next)
 		if err == nil {
 			n.lookahead = lookahead
 		} else {
-			panic(Error(err.Error() + ": " + n.String()))
+			return Error(err.Error() + ": " + n.String())
 		}
-		applyLookahead(n.node, seen)
+		err = applyLookahead(n.node, seen)
+		if err != nil {
+			return err
+		}
 		if n.next != nil {
-			applyLookahead(n.next, seen)
+			err = applyLookahead(n.next, seen)
+			if err != nil {
+				return err
+			}
 		}
 
 	case *repetition:
@@ -225,11 +243,17 @@ func applyLookahead(m node, seen map[node]bool) {
 		if err == nil {
 			n.lookahead = lookahead
 		} else {
-			panic(Error(err.Error() + ": " + n.String()))
+			return Error(err.Error() + ": " + n.String())
 		}
-		applyLookahead(n.node, seen)
+		err = applyLookahead(n.node, seen)
+		if err != nil {
+			return err
+		}
 		if n.next != nil {
-			applyLookahead(n.next, seen)
+			err = applyLookahead(n.next, seen)
+			if err != nil {
+				return err
+			}
 		}
 
 	case *parseable:
@@ -237,6 +261,8 @@ func applyLookahead(m node, seen map[node]bool) {
 	default:
 		panic(fmt.Sprintf("unsupported node type %T", m))
 	}
+
+	return nil
 }
 
 type lookaheadTable []lookahead
@@ -244,19 +270,22 @@ type lookaheadTable []lookahead
 // Select node to use.
 //
 // Will return -2 if lookahead table is missing, -1 for no match, or index of selected node.
-func (l lookaheadTable) Select(lex lexer.PeekingLexer, parent reflect.Value) (selected int) {
+func (l lookaheadTable) Select(lex lexer.PeekingLexer, parent reflect.Value) (selected int, err error) {
 	if l == nil {
-		return -2
+		return -2, nil
 	}
 next:
 	for _, look := range l {
 		for depth, lt := range look.tokens {
-			t := lex.Peek(depth)
+			t, err := lex.Peek(depth)
+			if err != nil {
+				return 0, err
+			}
 			if !((lt.Value == "" || lt.Value == t.Value) && (lt.Type == lexer.EOF || lt.Type == t.Type)) {
 				continue next
 			}
 		}
-		return look.root
+		return look.root, nil
 	}
-	return -1
+	return -1, nil
 }

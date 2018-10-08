@@ -32,7 +32,6 @@ func TestBuilder(t *testing.T) {
 			name:    "ExtraInputErrors",
 			grammar: `Extra = "b" .`,
 			source:  "ba",
-			tokens:  []string{"b"},
 			fail:    true,
 		},
 		{
@@ -146,15 +145,13 @@ func TestBuilder(t *testing.T) {
 }
 
 func readAllTokens(lex Lexer) (out []string, err error) {
-	defer func() {
-		if msg, ok := recover().(error); ok {
-			err = msg
-		}
-	}()
 	for {
-		token := lex.Next()
+		token, err := lex.Next()
+		if err != nil {
+			return nil, err
+		}
 		if token.EOF() {
-			return
+			return out, nil
 		}
 		out = append(out, token.Value)
 	}

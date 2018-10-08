@@ -1,6 +1,7 @@
 package participle
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/alecthomas/participle/lexer"
@@ -14,16 +15,20 @@ type structLexer struct {
 	lexer   lexer.PeekingLexer
 }
 
-func lexStruct(s reflect.Type) *structLexer {
+func lexStruct(s reflect.Type) (*structLexer, error) {
+	indexes, err := collectFieldIndexes(s)
+	if err != nil {
+		return nil, err
+	}
 	slex := &structLexer{
 		s:       s,
-		indexes: collectFieldIndexes(s),
+		indexes: indexes,
 	}
 	if len(slex.indexes) > 0 {
 		tag := fieldLexerTag(slex.Field().StructField)
 		slex.lexer = lexer.Upgrade(lexer.LexString(tag))
 	}
-	return slex
+	return slex, nil
 }
 
 // NumField returns the number of fields in the struct associated with this structLexer.
@@ -51,32 +56,38 @@ func (s *structLexer) GetField(field int) structLexerField {
 	}
 }
 
-func (s *structLexer) Peek() lexer.Token {
+func (s *structLexer) Peek() (lexer.Token, error) {
 	field := s.field
 	lex := s.lexer
 	for {
-		token := lex.Peek(0)
+		token, err := lex.Peek(0)
+		if err != nil {
+			return token, err
+		}
 		if !token.EOF() {
 			token.Pos.Line = field + 1
-			return token
+			return token, nil
 		}
 		field++
 		if field >= s.NumField() {
-			return lexer.EOFToken(token.Pos)
+			return lexer.EOFToken(token.Pos), nil
 		}
 		tag := fieldLexerTag(s.GetField(field).StructField)
 		lex = lexer.Upgrade(lexer.LexString(tag))
 	}
 }
 
-func (s *structLexer) Next() lexer.Token {
-	token := s.lexer.Next()
+func (s *structLexer) Next() (lexer.Token, error) {
+	token, err := s.lexer.Next()
+	if err != nil {
+		return token, err
+	}
 	if !token.EOF() {
 		token.Pos.Line = s.field + 1
-		return token
+		return token, nil
 	}
 	if s.field+1 >= s.NumField() {
-		return lexer.EOFToken(token.Pos)
+		return lexer.EOFToken(token.Pos), nil
 	}
 	s.field++
 	tag := fieldLexerTag(s.Field().StructField)
@@ -92,15 +103,19 @@ func fieldLexerTag(field reflect.StructField) string {
 }
 
 // Recursively collect flattened indices for top-level fields and embedded fields.
-func collectFieldIndexes(s reflect.Type) (out [][]int) {
+func collectFieldIndexes(s reflect.Type) (out [][]int, err error) {
 	if s.Kind() != reflect.Struct {
-		panicf("expected a struct but got %q", s)
+		return nil, fmt.Errorf("expected a struct but got %q", s)
 	}
-	defer decorate(s.String)
+	defer decorate(&err, s.String)
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
 		if f.Anonymous {
-			for _, idx := range collectFieldIndexes(f.Type) {
+			children, err := collectFieldIndexes(f.Type)
+			if err != nil {
+				return nil, err
+			}
+			for _, idx := range children {
 				out = append(out, append(f.Index, idx...))
 			}
 		} else if fieldLexerTag(f) != "" {

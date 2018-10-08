@@ -8,16 +8,6 @@ type Error struct {
 	Pos     Position
 }
 
-// Panic throws a lexer error. Lexers should use this to report errors.
-func Panic(pos Position, message string) {
-	panic(&Error{Message: message, Pos: pos})
-}
-
-// Panicf throws an *Error while parsing.
-func Panicf(pos Position, format string, args ...interface{}) {
-	panic(Errorf(pos, format, args...))
-}
-
 // Errorf creats a new Error at the given position.
 func Errorf(pos Position, format string, args ...interface{}) *Error {
 	return &Error{

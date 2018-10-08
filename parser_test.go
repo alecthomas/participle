@@ -854,3 +854,42 @@ func TestInvalidNumbers(t *testing.T) {
 		})
 	}
 }
+
+// We'd like this to work, but it can wait.
+
+//func TestPartialAST(t *testing.T) {
+//	type grammar struct {
+//		Success string `@Ident`
+//		Fail    string `@"foo"`
+//	}
+//	p := mustTestParser(t, &grammar{})
+//	actual := &grammar{}
+//	err := p.ParseString(`foo bar`, actual)
+//	require.Error(t, err)
+//	expected := &grammar{Success: "foo"}
+//	require.Equal(t, expected, actual)
+//}
+
+func TestCaseInsensitive(t *testing.T) {
+	type grammar struct {
+		Select string `"select":Keyword @Ident`
+	}
+
+	lex := lexer.Must(lexer.Regexp(
+		`(?i)(?P<Keyword>SELECT)` +
+			`|(?P<Ident>\w+)` +
+			`|(\s+)`,
+	))
+
+	p := mustTestParser(t, &grammar{}, Lexer(lex), CaseInsensitive("Keyword"))
+	actual := &grammar{}
+	err := p.ParseString(`SELECT foo`, actual)
+	expected := &grammar{"foo"}
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
+
+	actual = &grammar{}
+	err = p.ParseString(`select foo`, actual)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
+}

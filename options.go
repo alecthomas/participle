@@ -6,7 +6,7 @@ import "github.com/alecthomas/participle/lexer"
 type Option func(p *Parser) error
 
 // Mapper function for mutating tokens before being applied to the AST.
-type Mapper func(token lexer.Token) lexer.Token
+type Mapper func(token lexer.Token) (lexer.Token, error)
 
 // Map is an Option that configures the Parser to apply a mapping function to each Token from the lexer.
 //
@@ -15,8 +15,12 @@ func Map(mappers ...Mapper) Option {
 	return func(p *Parser) error {
 		for _, mapper := range mappers {
 			next := p.mapper
-			p.mapper = func(token lexer.Token) lexer.Token {
-				return mapper(next(token))
+			p.mapper = func(token lexer.Token) (lexer.Token, error) {
+				t, err := next(token)
+				if err != nil {
+					return t, err
+				}
+				return mapper(t)
 			}
 		}
 		return nil
@@ -45,6 +49,16 @@ func Lexer(def lexer.Definition) Option {
 func UseLookahead() Option {
 	return func(p *Parser) error {
 		p.useLookahead = true
+		return nil
+	}
+}
+
+// CaseInsensitive allows the specified token types to be matched case-insensitively.
+func CaseInsensitive(tokens ...string) Option {
+	return func(p *Parser) error {
+		for _, token := range tokens {
+			p.caseInsensitive[token] = true
+		}
 		return nil
 	}
 }

@@ -16,19 +16,20 @@ func TestStructLexerTokens(t *testing.T) {
 		B string `34`
 	}
 
-	scan := lexStruct(reflect.TypeOf(testScanner{}))
+	scan, err := lexStruct(reflect.TypeOf(testScanner{}))
+	require.NoError(t, err)
 	t12 := lexer.Token{Type: scanner.Int, Value: "12", Pos: lexer.Position{Line: 1, Column: 1}}
 	t34 := lexer.Token{Type: scanner.Int, Value: "34", Pos: lexer.Position{Line: 2, Column: 1}}
-	require.Equal(t, t12, scan.Peek())
+	require.Equal(t, t12, mustPeek(scan))
 	require.Equal(t, 0, scan.field)
-	require.Equal(t, t12, scan.Next())
+	require.Equal(t, t12, mustNext(scan))
 
-	require.Equal(t, t34, scan.Peek())
+	require.Equal(t, t34, mustPeek(scan))
 	require.Equal(t, 0, scan.field)
-	require.Equal(t, t34, scan.Next())
+	require.Equal(t, t34, mustNext(scan))
 	require.Equal(t, 1, scan.field)
 
-	require.True(t, scan.Next().EOF())
+	require.True(t, mustNext(scan).EOF())
 }
 
 func TestStructLexer(t *testing.T) {
@@ -38,12 +39,15 @@ func TestStructLexer(t *testing.T) {
 	}{}
 
 	gt := reflect.TypeOf(g)
-	r := lexStruct(gt)
+	r, err := lexStruct(gt)
+	require.NoError(t, err)
 	f := []structLexerField{}
 	s := ""
 	for {
-		r.Peek()
-		rn := r.Next()
+		_, err := r.Peek()
+		require.NoError(t, err)
+		rn, err := r.Next()
+		require.NoError(t, err)
 		if rn.EOF() {
 			break
 		}
@@ -67,6 +71,23 @@ func TestCollectFieldIndexes(t *testing.T) {
 		C string `@String`
 	}
 	typ := reflect.TypeOf(grammar)
-	indexes := collectFieldIndexes(typ)
+	indexes, err := collectFieldIndexes(typ)
+	require.NoError(t, err)
 	require.Equal(t, [][]int{{0, 0}, {0, 1}, {1}}, indexes)
+}
+
+func mustPeek(scan *structLexer) lexer.Token {
+	token, err := scan.Peek()
+	if err != nil {
+		panic(err)
+	}
+	return token
+}
+
+func mustNext(scan *structLexer) lexer.Token {
+	token, err := scan.Next()
+	if err != nil {
+		panic(err)
+	}
+	return token
 }

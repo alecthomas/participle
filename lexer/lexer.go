@@ -26,20 +26,16 @@ type Definition interface {
 }
 
 // A Lexer returns tokens from a source.
-//
-// Errors are reported via panic, with the panic value being an instance of Error.
 type Lexer interface {
 	// Next consumes and returns the next token.
-	Next() Token
+	Next() (Token, error)
 }
 
 // A PeekingLexer returns tokens from a source and allows peeking.
-//
-// Errors are reported via panic, with the panic value being an instance of Error.
 type PeekingLexer interface {
 	Lexer
 	// Peek at the next token.
-	Peek(n int) Token
+	Peek(n int) (Token, error)
 }
 
 // SymbolsByRune returns a map of lexer symbol names keyed by rune.
@@ -73,21 +69,16 @@ func Must(def Definition, err error) Definition {
 }
 
 // ConsumeAll reads all tokens from a Lexer.
-func ConsumeAll(lexer Lexer) (tokens []Token, err error) {
-	defer func() {
-		if msg := recover(); msg != nil {
-			if msgErr, ok := msg.(*Error); ok {
-				err = msgErr
-			} else {
-				panic(msg)
-			}
-		}
-	}()
+func ConsumeAll(lexer Lexer) ([]Token, error) {
+	tokens := []Token{}
 	for {
-		token := lexer.Next()
+		token, err := lexer.Next()
+		if err != nil {
+			return nil, err
+		}
 		tokens = append(tokens, token)
 		if token.Type == EOF {
-			return
+			return tokens, nil
 		}
 	}
 }

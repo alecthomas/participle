@@ -21,37 +21,32 @@ var (
 	NextMatch = errors.New("no match") // nolint: golint
 )
 
+// Context for a single parse.
+type parseContext struct {
+	lexer.PeekingLexer
+	caseInsensitive map[rune]bool
+}
+
 // A node in the grammar.
 type node interface {
 	// Parse from scanner into value.
-	// Nodes should panic if parsing fails.
-	Parse(lex lexer.PeekingLexer, parent reflect.Value) []reflect.Value
+	//
+	// Returned slice will be nil if the node does not match.
+	Parse(lex parseContext, parent reflect.Value) ([]reflect.Value, error)
+
+	// Return a decent string representation of the Node.
 	String() string
 }
 
-func decorate(name func() string) {
-	if msg := recover(); msg != nil {
-		switch msg := msg.(type) {
-		case Error:
-			panicf("%s: %s", name(), msg)
-		case *lexer.Error:
-			panic(&lexer.Error{Message: name() + ": " + msg.Message, Pos: msg.Pos})
-		default:
-			panic(msg)
-		}
+func decorate(err *error, name func() string) {
+	if *err == nil {
+		return
 	}
-}
-
-func recoverToError(err *error) {
-	if msg := recover(); msg != nil {
-		switch msg := msg.(type) {
-		case Error:
-			*err = msg
-		case *lexer.Error:
-			*err = msg
-		default:
-			panic(msg)
-		}
+	switch realError := (*err).(type) {
+	case Error:
+		*err = fmt.Errorf("%s: %s", name(), realError)
+	case *lexer.Error:
+		*err = &lexer.Error{Message: name() + ": " + realError.Message, Pos: realError.Pos}
 	}
 }
 
@@ -62,17 +57,17 @@ type parseable struct {
 
 func (p *parseable) String() string { return stringer(p) }
 
-func (p *parseable) Parse(lex lexer.PeekingLexer, parent reflect.Value) (out []reflect.Value) {
+func (p *parseable) Parse(lex parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	rv := reflect.New(p.t)
 	v := rv.Interface().(Parseable)
-	err := v.Parse(lex)
+	err = v.Parse(lex)
 	if err != nil {
 		if err == NextMatch {
-			return nil
+			return nil, nil
 		}
-		panic(err)
+		return nil, err
 	}
-	return []reflect.Value{rv.Elem()}
+	return []reflect.Value{rv.Elem()}, nil
 }
 
 type strct struct {
@@ -88,13 +83,19 @@ func (s *strct) maybeInjectPos(pos lexer.Position, v reflect.Value) {
 	}
 }
 
-func (s *strct) Parse(lex lexer.PeekingLexer, parent reflect.Value) (out []reflect.Value) {
+func (s *strct) Parse(lex parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	sv := reflect.New(s.typ).Elem()
-	s.maybeInjectPos(lex.Peek(0).Pos, sv)
-	if s.expr.Parse(lex, sv) == nil {
-		return nil
+	t, err := lex.Peek(0)
+	if err != nil {
+		return nil, err
 	}
-	return []reflect.Value{sv}
+	s.maybeInjectPos(t.Pos, sv)
+	if out, err = s.expr.Parse(lex, sv); err != nil {
+		return nil, err
+	} else if out == nil {
+		return nil, nil
+	}
+	return []reflect.Value{sv}, nil
 }
 
 // <expr> {"|" <expr>}
@@ -105,21 +106,25 @@ type disjunction struct {
 
 func (d *disjunction) String() string { return stringer(d) }
 
-func (d *disjunction) Parse(lex lexer.PeekingLexer, parent reflect.Value) (out []reflect.Value) {
-	if selected := d.lookahead.Select(lex, parent); selected != -2 {
+func (d *disjunction) Parse(lex parseContext, parent reflect.Value) (out []reflect.Value, err error) {
+	if selected, err := d.lookahead.Select(lex, parent); err != nil {
+		return nil, err
+	} else if selected != -2 {
 		if selected == -1 {
-			return nil
+			return nil, nil
 		}
 		return d.nodes[selected].Parse(lex, parent)
 	}
 
 	// Same logic without lookahead.
 	for _, a := range d.nodes {
-		if value := a.Parse(lex, parent); value != nil {
-			return value
+		if value, err := a.Parse(lex, parent); err != nil {
+			return nil, err
+		} else if value != nil {
+			return value, nil
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 // <node> ...
@@ -131,19 +136,26 @@ type sequence struct {
 
 func (s *sequence) String() string { return stringer(s) }
 
-func (s *sequence) Parse(lex lexer.PeekingLexer, parent reflect.Value) (out []reflect.Value) {
+func (s *sequence) Parse(lex parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	for n := s; n != nil; n = n.next {
-		child := n.node.Parse(lex, parent)
+		child, err := n.node.Parse(lex, parent)
+		if err != nil {
+			return nil, err
+		}
 		if child == nil {
 			// Early exit if first value doesn't match, otherwise all values must match.
 			if n == s {
-				return nil
+				return nil, nil
 			}
-			lexer.Panicf(lex.Peek(0).Pos, "unexpected %q (expected %s)", lex.Peek(0), n)
+			token, err := lex.Peek(0)
+			if err != nil {
+				return nil, err
+			}
+			return nil, lexer.Errorf(token.Pos, "unexpected %q (expected %s)", token, n)
 		}
 		out = append(out, child...)
 	}
-	return out
+	return out, nil
 }
 
 // @<expr>
@@ -154,14 +166,20 @@ type capture struct {
 
 func (c *capture) String() string { return stringer(c) }
 
-func (c *capture) Parse(lex lexer.PeekingLexer, parent reflect.Value) (out []reflect.Value) {
-	pos := lex.Peek(0).Pos
-	v := c.node.Parse(lex, parent)
-	if v == nil {
-		return nil
+func (c *capture) Parse(lex parseContext, parent reflect.Value) (out []reflect.Value, err error) {
+	token, err := lex.Peek(0)
+	if err != nil {
+		return nil, err
 	}
-	setField(pos, parent, c.field, v)
-	return []reflect.Value{parent}
+	pos := token.Pos
+	v, err := c.node.Parse(lex, parent)
+	if err != nil {
+		return nil, err
+	}
+	if v == nil {
+		return nil, nil
+	}
+	return []reflect.Value{parent}, setField(pos, parent, c.field, v)
 }
 
 // <identifier> - named lexer token reference
@@ -172,12 +190,16 @@ type reference struct {
 
 func (r *reference) String() string { return stringer(r) }
 
-func (r *reference) Parse(lex lexer.PeekingLexer, parent reflect.Value) (out []reflect.Value) {
-	token := lex.Peek(0)
-	if token.Type != r.typ {
-		return nil
+func (r *reference) Parse(lex parseContext, parent reflect.Value) (out []reflect.Value, err error) {
+	token, err := lex.Peek(0)
+	if err != nil {
+		return nil, err
 	}
-	return []reflect.Value{reflect.ValueOf(lex.Next().Value)}
+	if token.Type != r.typ {
+		return nil, nil
+	}
+	_, _ = lex.Next()
+	return []reflect.Value{reflect.ValueOf(token.Value)}, nil
 }
 
 // [ <expr> ] <sequence>
@@ -189,31 +211,41 @@ type optional struct {
 
 func (o *optional) String() string { return stringer(o) }
 
-func (o *optional) Parse(lex lexer.PeekingLexer, parent reflect.Value) (out []reflect.Value) {
-	switch o.lookahead.Select(lex, parent) {
+func (o *optional) Parse(lex parseContext, parent reflect.Value) (out []reflect.Value, err error) {
+	result, err := o.lookahead.Select(lex, parent)
+	if err != nil {
+		return nil, err
+	}
+	switch result {
 	case -2: // No lookahead table
 		fallthrough
 	case 0:
-		out = o.node.Parse(lex, parent)
+		out, err = o.node.Parse(lex, parent)
+		if err != nil {
+			return nil, err
+		}
 		if out == nil {
 			out = []reflect.Value{}
 		}
 		fallthrough
 	case 1:
 		if o.next != nil {
-			next := o.next.Parse(lex, parent)
+			next, err := o.next.Parse(lex, parent)
+			if err != nil {
+				return nil, err
+			}
 			if next == nil {
-				return nil
+				return nil, nil
 			}
 			out = append(out, next...)
 		}
-		return out
+		return out, nil
 	case -1:
 		// We have a next node but neither it or the optional matched the lookahead, so it's a complete mismatch.
 		if o.next != nil {
-			return nil
+			return nil, nil
 		}
-		return []reflect.Value{}
+		return []reflect.Value{}, nil
 	default:
 		panic("unexpected selection")
 	}
@@ -230,13 +262,20 @@ func (r *repetition) String() string { return stringer(r) }
 
 // Parse a repetition. Once a repetition is encountered it will always match, so grammars
 // should ensure that branches are differentiated prior to the repetition.
-func (r *repetition) Parse(lex lexer.PeekingLexer, parent reflect.Value) (out []reflect.Value) {
-	switch r.lookahead.Select(lex, parent) {
+func (r *repetition) Parse(lex parseContext, parent reflect.Value) (out []reflect.Value, err error) {
+	result, err := r.lookahead.Select(lex, parent)
+	if err != nil {
+		return nil, err
+	}
+	switch result {
 	case -2: // No lookahead table
 		fallthrough
 	case 0:
 		for {
-			v := r.node.Parse(lex, parent)
+			v, err := r.node.Parse(lex, parent)
+			if err != nil {
+				return nil, err
+			}
 			if v == nil {
 				break
 			}
@@ -248,19 +287,22 @@ func (r *repetition) Parse(lex lexer.PeekingLexer, parent reflect.Value) (out []
 		fallthrough
 	case 1:
 		if r.next != nil {
-			next := r.next.Parse(lex, parent)
+			next, err := r.next.Parse(lex, parent)
+			if err != nil {
+				return nil, err
+			}
 			if next == nil {
-				return nil
+				return nil, nil
 			}
 			out = append(out, next...)
 		}
-		return out
+		return out, nil
 	case -1:
 		// We have a next node but neither it or the optional matched the lookahead, so it's a complete mismatch.
 		if r.next != nil {
-			return nil
+			return nil, nil
 		}
-		return []reflect.Value{}
+		return []reflect.Value{}, nil
 	default:
 		panic("unexpected selection")
 	}
@@ -275,18 +317,31 @@ type literal struct {
 
 func (l *literal) String() string { return stringer(l) }
 
-func (l *literal) Parse(lex lexer.PeekingLexer, parent reflect.Value) (out []reflect.Value) {
-	token := lex.Peek(0)
-	if token.Value == l.s && (l.t == -1 || l.t == token.Type) {
-		return []reflect.Value{reflect.ValueOf(lex.Next().Value)}
+func (l *literal) Parse(lex parseContext, parent reflect.Value) (out []reflect.Value, err error) {
+	token, err := lex.Peek(0)
+	if err != nil {
+		return nil, err
 	}
-	return nil
+	equal := false
+	if lex.caseInsensitive[token.Type] {
+		equal = strings.EqualFold(token.Value, l.s)
+	} else {
+		equal = token.Value == l.s
+	}
+	if equal && (l.t == -1 || l.t == token.Type) {
+		next, err := lex.Next()
+		if err != nil {
+			return nil, err
+		}
+		return []reflect.Value{reflect.ValueOf(next.Value)}, nil
+	}
+	return nil, nil
 }
 
 // Attempt to transform values to given type.
 //
 // This will dereference pointers, and attempt to parse strings into integer values, floats, etc.
-func conform(t reflect.Type, values []reflect.Value) (out []reflect.Value) {
+func conform(t reflect.Type, values []reflect.Value) (out []reflect.Value, err error) {
 	for _, v := range values {
 		for t != v.Type() && t.Kind() == reflect.Ptr && v.Kind() != reflect.Ptr {
 			v = v.Addr()
@@ -297,7 +352,7 @@ func conform(t reflect.Type, values []reflect.Value) (out []reflect.Value) {
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 			n, err := strconv.ParseInt(v.String(), 0, sizeOfKind(kind))
 			if err != nil {
-				panicf("invalid integer %q: %s", v.String(), err)
+				return nil, fmt.Errorf("invalid integer %q: %s", v.String(), err)
 			}
 			v = reflect.New(t).Elem()
 			v.SetInt(n)
@@ -305,7 +360,7 @@ func conform(t reflect.Type, values []reflect.Value) (out []reflect.Value) {
 		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 			n, err := strconv.ParseUint(v.String(), 0, sizeOfKind(kind))
 			if err != nil {
-				panicf("invalid integer %q: %s", v.String(), err)
+				return nil, fmt.Errorf("invalid integer %q: %s", v.String(), err)
 			}
 			v = reflect.New(t).Elem()
 			v.SetUint(n)
@@ -316,7 +371,7 @@ func conform(t reflect.Type, values []reflect.Value) (out []reflect.Value) {
 		case reflect.Float32, reflect.Float64:
 			n, err := strconv.ParseFloat(v.String(), sizeOfKind(kind))
 			if err != nil {
-				panicf("invalid integer %q: %s", v.String(), err)
+				return nil, fmt.Errorf("invalid integer %q: %s", v.String(), err)
 			}
 			v = reflect.New(t).Elem()
 			v.SetFloat(n)
@@ -324,7 +379,7 @@ func conform(t reflect.Type, values []reflect.Value) (out []reflect.Value) {
 
 		out = append(out, v)
 	}
-	return out
+	return out, nil
 }
 
 const sizeOfInt = int(unsafe.Sizeof(int(0))) // nolint: gosec
@@ -352,15 +407,18 @@ func sizeOfKind(kind reflect.Kind) int {
 //
 // For all other types, an attempt will be made to convert the string to the corresponding
 // type (int, float32, etc.).
-func setField(pos lexer.Position, strct reflect.Value, field structLexerField, fieldValue []reflect.Value) { // nolint: gocyclo
-	defer decorate(func() string { return strct.Type().String() + "." + field.Name })
+func setField(pos lexer.Position, strct reflect.Value, field structLexerField, fieldValue []reflect.Value) (err error) { // nolint: gocyclo
+	defer decorate(&err, func() string { return strct.Type().String() + "." + field.Name })
 
 	f := strct.FieldByIndex(field.Index)
 	switch f.Kind() {
 	case reflect.Slice:
-		fieldValue = conform(f.Type().Elem(), fieldValue)
+		fieldValue, err = conform(f.Type().Elem(), fieldValue)
+		if err != nil {
+			return err
+		}
 		f.Set(reflect.Append(f, fieldValue...))
-		return
+		return nil
 
 	case reflect.Ptr:
 		if f.IsNil() {
@@ -386,19 +444,22 @@ func setField(pos lexer.Position, strct reflect.Value, field structLexerField, f
 			}
 			err := d.Capture(ifv)
 			if err != nil {
-				lexer.Panic(pos, err.Error())
+				return lexer.Errorf(pos, err.Error())
 			}
-			return
+			return nil
 		}
 	}
 
 	// Strings concatenate all captured tokens.
 	if f.Kind() == reflect.String {
-		fieldValue = conform(f.Type(), fieldValue)
+		fieldValue, err = conform(f.Type(), fieldValue)
+		if err != nil {
+			return err
+		}
 		for _, v := range fieldValue {
 			f.Set(reflect.ValueOf(f.String() + v.String()).Convert(f.Type()))
 		}
-		return
+		return nil
 	}
 
 	// Coalesce multiple tokens into one. This allows eg. ["-", "10"] to be captured as separate tokens but
@@ -411,7 +472,10 @@ func setField(pos lexer.Position, strct reflect.Value, field structLexerField, f
 		fieldValue = []reflect.Value{reflect.ValueOf(strings.Join(out, ""))}
 	}
 
-	fieldValue = conform(f.Type(), fieldValue)
+	fieldValue, err = conform(f.Type(), fieldValue)
+	if err != nil {
+		return err
+	}
 
 	fv := fieldValue[0]
 
@@ -439,13 +503,14 @@ func setField(pos lexer.Position, strct reflect.Value, field structLexerField, f
 
 	case reflect.Bool, reflect.Struct:
 		if fv.Type() != f.Type() {
-			panicf("value %q is not correct type %s", fv, f.Type())
+			return fmt.Errorf("value %q is not correct type %s", fv, f.Type())
 		}
 		f.Set(fv)
 
 	default:
-		panicf("unsupported field type %s for field %s", f.Type(), field.Name)
+		return fmt.Errorf("unsupported field type %s for field %s", f.Type(), field.Name)
 	}
+	return nil
 }
 
 func indirectType(t reflect.Type) reflect.Type {

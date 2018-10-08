@@ -8,7 +8,7 @@ import (
 	"github.com/alecthomas/participle/lexer"
 )
 
-func identityMapper(token lexer.Token) lexer.Token { return token }
+func identityMapper(token lexer.Token) (lexer.Token, error) { return token, nil }
 
 // Unquote applies strconv.Unquote() to tokens of the given types.
 //
@@ -21,15 +21,15 @@ func Unquote(def lexer.Definition, types ...string) Option {
 	if err != nil {
 		panic(err)
 	}
-	return Map(func(t lexer.Token) lexer.Token {
+	return Map(func(t lexer.Token) (lexer.Token, error) {
 		if table[t.Type] {
 			value, err := unquote(t.Value)
 			if err != nil {
-				lexer.Panicf(t.Pos, "invalid quoted string %q: %s", t.Value, err.Error())
+				return t, lexer.Errorf(t.Pos, "invalid quoted string %q: %s", t.Value, err.Error())
 			}
 			t.Value = value
 		}
-		return t
+		return t, nil
 	})
 }
 
@@ -54,11 +54,11 @@ func Upper(def lexer.Definition, types ...string) Option {
 	if err != nil {
 		panic(err)
 	}
-	return Map(func(token lexer.Token) lexer.Token {
+	return Map(func(token lexer.Token) (lexer.Token, error) {
 		if table[token.Type] {
 			token.Value = strings.ToUpper(token.Value)
 		}
-		return token
+		return token, nil
 	})
 }
 
@@ -77,6 +77,10 @@ type mappingLexer struct {
 	mapper Mapper
 }
 
-func (m *mappingLexer) Next() lexer.Token {
-	return m.mapper(m.Lexer.Next())
+func (m *mappingLexer) Next() (lexer.Token, error) {
+	t, err := m.Lexer.Next()
+	if err != nil {
+		return t, err
+	}
+	return m.mapper(t)
 }

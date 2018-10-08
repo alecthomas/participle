@@ -10,23 +10,35 @@ type staticLexer struct {
 	tokens []Token
 }
 
-func (s *staticLexer) Next() Token {
+func (s *staticLexer) Next() (Token, error) {
 	if len(s.tokens) == 0 {
-		return EOFToken(Position{})
+		return EOFToken(Position{}), nil
 	}
 	t := s.tokens[0]
 	s.tokens = s.tokens[1:]
-	return t
+	return t, nil
 }
 
 func TestUpgrade(t *testing.T) {
 	t0 := Token{Type: 1, Value: "moo"}
 	t1 := Token{Type: 2, Value: "blah"}
 	l := Upgrade(&staticLexer{tokens: []Token{t0, t1}})
-	require.Equal(t, t0, l.Peek(0))
-	require.Equal(t, t0, l.Peek(0))
-	require.Equal(t, t1, l.Peek(1))
-	require.Equal(t, t1, l.Peek(1))
-	require.True(t, l.Peek(2).EOF())
-	require.True(t, l.Peek(3).EOF())
+	require.Equal(t, t0, mustPeek(t, l, 0))
+	require.Equal(t, t0, mustPeek(t, l, 0))
+	require.Equal(t, t1, mustPeek(t, l, 1))
+	require.Equal(t, t1, mustPeek(t, l, 1))
+	require.True(t, mustPeek(t, l, 2).EOF())
+	require.True(t, mustPeek(t, l, 3).EOF())
+}
+
+func mustPeek(t *testing.T, lexer PeekingLexer, n int) Token {
+	token, err := lexer.Peek(n)
+	require.NoError(t, err)
+	return token
+}
+
+func mustNext(t *testing.T, lexer Lexer) Token {
+	token, err := lexer.Next()
+	require.NoError(t, err)
+	return token
 }

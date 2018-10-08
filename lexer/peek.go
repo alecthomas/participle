@@ -13,22 +13,25 @@ type lookaheadLexer struct {
 	peeked []Token
 }
 
-func (l *lookaheadLexer) Peek(n int) Token {
+func (l *lookaheadLexer) Peek(n int) (Token, error) {
 	for len(l.peeked) <= n {
-		t := l.Lexer.Next()
+		t, err := l.Lexer.Next()
+		if err != nil {
+			return Token{}, err
+		}
 		if t.EOF() {
-			return t
+			return t, nil
 		}
 		l.peeked = append(l.peeked, t)
 	}
-	return l.peeked[n]
+	return l.peeked[n], nil
 }
 
-func (l *lookaheadLexer) Next() Token {
+func (l *lookaheadLexer) Next() (Token, error) {
 	if len(l.peeked) > 0 {
 		t := l.peeked[0]
 		l.peeked = l.peeked[1:]
-		return t
+		return t, nil
 	}
 	return l.Lexer.Next()
 }

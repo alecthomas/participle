@@ -53,7 +53,7 @@ func Lex(r io.Reader) Lexer {
 	lexer.scanner.Error = func(s *scanner.Scanner, msg string) {
 		// This is to support single quoted strings. Hacky.
 		if msg != "illegal char literal" {
-			Panic(Position(lexer.scanner.Pos()), msg)
+			panic(Errorf(Position(lexer.scanner.Pos()), msg))
 		}
 	}
 	return lexer
@@ -85,7 +85,7 @@ func LexString(s string) Lexer {
 	return Lex(strings.NewReader(s))
 }
 
-func (t *textScannerLexer) Next() Token {
+func (t *textScannerLexer) Next() (Token, error) {
 	typ := t.scanner.Scan()
 	text := t.scanner.TokenText()
 	pos := Position(t.scanner.Position)
@@ -97,7 +97,7 @@ func (t *textScannerLexer) Next() Token {
 	})
 }
 
-func textScannerTransform(token Token) Token {
+func textScannerTransform(token Token) (Token, error) {
 	// Unquote strings.
 	switch token.Type {
 	case scanner.Char:
@@ -108,7 +108,7 @@ func textScannerTransform(token Token) Token {
 	case scanner.String:
 		s, err := strconv.Unquote(token.Value)
 		if err != nil {
-			Panicf(token.Pos, "%s: %q", err.Error(), token.Value)
+			return Token{}, Errorf(token.Pos, "%s: %q", err.Error(), token.Value)
 		}
 		token.Value = s
 		if token.Type == scanner.Char && utf8.RuneCountInString(s) > 1 {
@@ -117,5 +117,5 @@ func textScannerTransform(token Token) Token {
 	case scanner.RawString:
 		token.Value = token.Value[1 : len(token.Value)-1]
 	}
-	return token
+	return token, nil
 }

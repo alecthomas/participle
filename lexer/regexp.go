@@ -68,13 +68,13 @@ type regexpLexer struct {
 	names []string
 }
 
-func (r *regexpLexer) Next() Token {
+func (r *regexpLexer) Next() (Token, error) {
 nextToken:
 	for len(r.b) != 0 {
 		matches := r.re.FindSubmatchIndex(r.b)
 		if matches == nil || matches[0] != 0 {
 			rn, _ := utf8.DecodeRune(r.b)
-			Panicf(r.pos, "invalid token %q", rn)
+			return Token{}, Errorf(r.pos, "invalid token %q", rn)
 		}
 		match := r.b[:matches[1]]
 		token := Token{
@@ -106,8 +106,8 @@ nextToken:
 			}
 		}
 
-		return token
+		return token, nil
 	}
 
-	return EOFToken(r.pos)
+	return EOFToken(r.pos), nil
 }

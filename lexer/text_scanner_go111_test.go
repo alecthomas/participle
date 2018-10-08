@@ -11,6 +11,7 @@ import (
 
 func TestLexBacktickString(t *testing.T) {
 	lexer := LexString("`hello\\nworld`")
-	token := lexer.Next()
+	token, err := lexer.Next()
+	require.NoError(t, err)
 	require.Equal(t, Token{Type: scanner.RawString, Value: "hello\\nworld", Pos: Position{Line: 1, Column: 1}}, token)
 }
