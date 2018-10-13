@@ -62,18 +62,19 @@ func Build(grammar interface{}, options ...Option) (parser *Parser, err error) {
 				for _, symbol := range mapper.symbols {
 					if rn, ok := symbols[symbol]; !ok {
 						return nil, fmt.Errorf("mapper %#v uses unknown token %q", mapper, symbol)
-					} else {
+					} else { // nolint: golint
 						mappers[rn] = append(mappers[rn], mapper.mapper)
 					}
 				}
 			}
 		}
 		p.lex = &mappingLexerDef{p.lex, func(t lexer.Token) (lexer.Token, error) {
-			var err error
 			combined := make([]Mapper, 0, len(mappers[t.Type])+len(mappers[lexer.EOF]))
 			combined = append(combined, mappers[lexer.EOF]...)
 			combined = append(combined, mappers[t.Type]...)
-			for _, m := range mappers[t.Type] {
+
+			var err error
+			for _, m := range combined {
 				t, err = m(t)
 				if err != nil {
 					return t, err

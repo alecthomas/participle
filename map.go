@@ -8,8 +8,6 @@ import (
 	"github.com/alecthomas/participle/lexer"
 )
 
-func identityMapper(token lexer.Token) (lexer.Token, error) { return token, nil }
-
 type mapperByToken struct {
 	symbols []string
 	mapper  Mapper
