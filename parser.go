@@ -16,9 +16,9 @@ type Parser struct {
 	root            node
 	lex             lexer.Definition
 	typ             reflect.Type
-	mapper          Mapper
 	useLookahead    bool
 	caseInsensitive map[string]bool
+	mappers         []mapperByToken
 }
 
 // MustBuild calls Build(grammar, options...) and panics if an error occurs.
@@ -40,7 +40,6 @@ func Build(grammar interface{}, options ...Option) (parser *Parser, err error) {
 	// Configure Parser struct with defaults + options.
 	p := &Parser{
 		lex:             lexer.TextScannerLexer,
-		mapper:          identityMapper,
 		caseInsensitive: map[string]bool{},
 	}
 	for _, option := range options {
@@ -52,9 +51,36 @@ func Build(grammar interface{}, options ...Option) (parser *Parser, err error) {
 			return nil, err
 		}
 	}
-	// If we have any mapping functions, wrap the lexer.
-	if p.mapper != nil {
-		p.lex = &mappingLexerDef{p.lex, p.mapper}
+
+	if len(p.mappers) > 0 {
+		mappers := map[rune][]Mapper{}
+		symbols := p.lex.Symbols()
+		for _, mapper := range p.mappers {
+			if len(mapper.symbols) == 0 {
+				mappers[lexer.EOF] = append(mappers[lexer.EOF], mapper.mapper)
+			} else {
+				for _, symbol := range mapper.symbols {
+					if rn, ok := symbols[symbol]; !ok {
+						return nil, fmt.Errorf("mapper %#v uses unknown token %q", mapper, symbol)
+					} else {
+						mappers[rn] = append(mappers[rn], mapper.mapper)
+					}
+				}
+			}
+		}
+		p.lex = &mappingLexerDef{p.lex, func(t lexer.Token) (lexer.Token, error) {
+			var err error
+			combined := make([]Mapper, 0, len(mappers[t.Type])+len(mappers[lexer.EOF]))
+			combined = append(combined, mappers[lexer.EOF]...)
+			combined = append(combined, mappers[t.Type]...)
+			for _, m := range mappers[t.Type] {
+				t, err = m(t)
+				if err != nil {
+					return t, err
+				}
+			}
+			return t, nil
+		}}
 	}
 
 	context := newGeneratorContext(p.lex)

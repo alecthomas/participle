@@ -10,27 +10,44 @@ import (
 
 func identityMapper(token lexer.Token) (lexer.Token, error) { return token, nil }
 
+type mapperByToken struct {
+	symbols []string
+	mapper  Mapper
+}
+
+// Mapper function for mutating tokens before being applied to the AST.
+type Mapper func(token lexer.Token) (lexer.Token, error)
+
+// Map is an Option that configures the Parser to apply a mapping function to each Token from the lexer.
+//
+// This can be useful to eg. upper-case all tokens of a certain type, or dequote strings.
+//
+// "symbols" specifies the token symbols that the Mapper will be applied to. If empty, all tokens will be mapped.
+func Map(mapper Mapper, symbols ...string) Option {
+	return func(p *Parser) error {
+		p.mappers = append(p.mappers, mapperByToken{
+			mapper:  mapper,
+			symbols: symbols,
+		})
+		return nil
+	}
+}
+
 // Unquote applies strconv.Unquote() to tokens of the given types.
 //
 // Tokens of type "String" will be unquoted if no other types are provided.
-func Unquote(def lexer.Definition, types ...string) Option {
+func Unquote(types ...string) Option {
 	if len(types) == 0 {
 		types = []string{"String"}
 	}
-	table, err := lexer.MakeSymbolTable(def, types...)
-	if err != nil {
-		panic(err)
-	}
 	return Map(func(t lexer.Token) (lexer.Token, error) {
-		if table[t.Type] {
-			value, err := unquote(t.Value)
-			if err != nil {
-				return t, lexer.Errorf(t.Pos, "invalid quoted string %q: %s", t.Value, err.Error())
-			}
-			t.Value = value
+		value, err := unquote(t.Value)
+		if err != nil {
+			return t, lexer.Errorf(t.Pos, "invalid quoted string %q: %s", t.Value, err.Error())
 		}
+		t.Value = value
 		return t, nil
-	})
+	}, types...)
 }
 
 func unquote(s string) (string, error) {
@@ -49,17 +66,11 @@ func unquote(s string) (string, error) {
 }
 
 // Upper is an Option that upper-cases all tokens of the given type. Useful for case normalisation.
-func Upper(def lexer.Definition, types ...string) Option {
-	table, err := lexer.MakeSymbolTable(def, types...)
-	if err != nil {
-		panic(err)
-	}
+func Upper(types ...string) Option {
 	return Map(func(token lexer.Token) (lexer.Token, error) {
-		if table[token.Type] {
-			token.Value = strings.ToUpper(token.Value)
-		}
+		token.Value = strings.ToUpper(token.Value)
 		return token, nil
-	})
+	}, types...)
 }
 
 // Apply a Mapping to all tokens coming out of a Lexer.

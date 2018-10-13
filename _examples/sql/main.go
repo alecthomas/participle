@@ -2,8 +2,7 @@
 package main
 
 import (
-	"gopkg.in/alecthomas/kingpin.v2"
-
+	"github.com/alecthomas/kingpin"
 	"github.com/alecthomas/participle"
 	"github.com/alecthomas/participle/lexer"
 	"github.com/alecthomas/repr"
@@ -24,6 +23,7 @@ var (
 		participle.Lexer(sqlLexer),
 		participle.Unquote(sqlLexer, "String"),
 		participle.Upper(sqlLexer, "Keyword"),
+		participle.CaseInsensitive("Keyword"),
 		// Need to solve left recursion detection first, if possible.
 		// participle.UseLookahead(),
 	)

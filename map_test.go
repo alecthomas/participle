@@ -14,7 +14,7 @@ func TestUpper(t *testing.T) {
 		Text string `@Ident`
 	}
 	def := lexer.Must(lexer.Regexp(`(?P<Whitespace>\s+)|(?P<Ident>\w+)`))
-	parser := mustTestParser(t, &grammar, Lexer(def), Upper(def, "Ident"))
+	parser := mustTestParser(t, &grammar, Lexer(def), Upper("Ident"))
 	actual, err := parser.Lex(strings.NewReader("hello world"))
 	require.NoError(t, err)
 
@@ -33,7 +33,7 @@ func TestUnquote(t *testing.T) {
 		Text string `@Ident`
 	}
 	lex := lexer.Must(lexer.Regexp("(\\s+)|(?P<Ident>\\w+)|(?P<String>\"(?:[^\"]|\\.)*\")|(?P<RawString>`[^`]*`)"))
-	parser := mustTestParser(t, &grammar, Lexer(lex), Unquote(lex, "String", "RawString"))
+	parser := mustTestParser(t, &grammar, Lexer(lex), Unquote("String", "RawString"))
 	actual, err := parser.Lex(strings.NewReader("hello world \"quoted\\tstring\" `backtick quotes`"))
 	require.NoError(t, err)
 	expected := []lexer.Token{
