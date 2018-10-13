@@ -73,11 +73,11 @@ func (g *generatorContext) parseType(t reflect.Type) (_ node, returnedError erro
 func (g *generatorContext) parseDisjunction(slexer *structLexer) (node, error) {
 	out := &disjunction{}
 	for {
-		node, err := g.parseSequence(slexer)
+		n, err := g.parseSequence(slexer)
 		if err != nil {
 			return nil, err
 		}
-		out.nodes = append(out.nodes, node)
+		out.nodes = append(out.nodes, n)
 		if token, _ := slexer.Peek(); token.Type != '|' {
 			break
 		}
@@ -118,15 +118,15 @@ loop:
 		}
 
 		// An optional or repetition result in some magic.
-		switch node := term.(type) {
+		switch n := term.(type) {
 		case *optional:
-			node.next, err = g.parseSequence(slexer)
+			n.next, err = g.parseSequence(slexer)
 			if err != nil {
 				return nil, err
 			}
 			break loop
 		case *repetition:
-			node.next, err = g.parseSequence(slexer)
+			n.next, err = g.parseSequence(slexer)
 			if err != nil {
 				return nil, err
 			}
@@ -161,7 +161,7 @@ func (g *generatorContext) parseTerm(slexer *structLexer) (node, error) {
 	case scanner.Ident:
 		return g.parseReference(slexer)
 	case lexer.EOF:
-		slexer.Next()
+		_, _ = slexer.Next()
 		return nil, nil
 	default:
 		return nil, nil
@@ -178,20 +178,20 @@ func (g *generatorContext) parseCapture(slexer *structLexer) (node, error) {
 	field := slexer.Field()
 	if token.Type == '@' {
 		_, _ = slexer.Next()
-		node, err := g.parseType(field.Type)
+		n, err := g.parseType(field.Type)
 		if err != nil {
 			return nil, err
 		}
-		return &capture{field, node}, nil
+		return &capture{field, n}, nil
 	}
 	if indirectType(field.Type).Kind() == reflect.Struct && !field.Type.Implements(captureType) {
 		return nil, fmt.Errorf("structs can only be parsed with @@ or by implementing the Capture interface")
 	}
-	node, err := g.parseTerm(slexer)
+	n, err := g.parseTerm(slexer)
 	if err != nil {
 		return nil, err
 	}
-	return &capture{field, node}, nil
+	return &capture{field, n}, nil
 }
 
 // A reference in the form <identifier> refers to a named token from the lexer.
@@ -213,11 +213,11 @@ func (g *generatorContext) parseReference(slexer *structLexer) (node, error) { /
 // [ <expression> ] optionally matches <expression>.
 func (g *generatorContext) parseOptional(slexer *structLexer) (node, error) {
 	_, _ = slexer.Next() // [
-	node, err := g.parseDisjunction(slexer)
+	disj, err := g.parseDisjunction(slexer)
 	if err != nil {
 		return nil, err
 	}
-	optional := &optional{node: node}
+	optional := &optional{node: disj}
 	next, err := slexer.Next()
 	if err != nil {
 		return nil, err
@@ -231,12 +231,12 @@ func (g *generatorContext) parseOptional(slexer *structLexer) (node, error) {
 // { <expression> } matches 0 or more repititions of <expression>
 func (g *generatorContext) parseRepetition(slexer *structLexer) (node, error) {
 	_, _ = slexer.Next() // {
-	node, err := g.parseDisjunction(slexer)
+	disj, err := g.parseDisjunction(slexer)
 	if err != nil {
 		return nil, err
 	}
 	n := &repetition{
-		node: node,
+		node: disj,
 	}
 	next, err := slexer.Next()
 	if err != nil {
@@ -251,7 +251,7 @@ func (g *generatorContext) parseRepetition(slexer *structLexer) (node, error) {
 // ( <expression> ) groups a sub-expression
 func (g *generatorContext) parseGroup(slexer *structLexer) (node, error) {
 	_, _ = slexer.Next() // (
-	n, err := g.parseDisjunction(slexer)
+	disj, err := g.parseDisjunction(slexer)
 	if err != nil {
 		return nil, err
 	}
@@ -262,7 +262,7 @@ func (g *generatorContext) parseGroup(slexer *structLexer) (node, error) {
 	if next.Type != ')' {
 		return nil, fmt.Errorf("expected ) but got %q", next)
 	}
-	return n, nil
+	return disj, nil
 }
 
 // A literal string.

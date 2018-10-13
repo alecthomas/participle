@@ -102,8 +102,6 @@ func (e *ebnfLexer) match(name string, expr ebnf.Expression, out *bytes.Buffer) 
 			if i > 0 {
 				rn, _ := e.peek()
 				return false, fmt.Errorf("unexpected input %q", rn)
-			} else {
-				return false, nil
 			}
 			return false, nil
 		}
@@ -137,7 +135,7 @@ func (e *ebnfLexer) match(name string, expr ebnf.Expression, out *bytes.Buffer) 
 		if strings.ContainsRune(n.Set, rn) {
 			_, err = e.read()
 			out.WriteRune(rn)
-			return true, nil
+			return true, err
 		}
 		return false, nil
 

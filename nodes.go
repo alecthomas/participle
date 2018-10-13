@@ -322,7 +322,7 @@ func (l *literal) Parse(lex parseContext, parent reflect.Value) (out []reflect.V
 	if err != nil {
 		return nil, err
 	}
-	equal := false
+	equal := false // nolint: ineffassign
 	if lex.caseInsensitive[token.Type] {
 		equal = strings.EqualFold(token.Value, l.s)
 	} else {

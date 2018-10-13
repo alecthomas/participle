@@ -84,7 +84,7 @@ func mustPeek(scan *structLexer) lexer.Token {
 	return token
 }
 
-func mustNext(scan *structLexer) lexer.Token {
+func mustNext(scan *structLexer) lexer.Token { // nolint: interfacer
 	token, err := scan.Next()
 	if err != nil {
 		panic(err)
