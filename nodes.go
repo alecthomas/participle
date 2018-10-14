@@ -32,7 +32,7 @@ type node interface {
 	// Parse from scanner into value.
 	//
 	// Returned slice will be nil if the node does not match.
-	Parse(lex parseContext, parent reflect.Value) ([]reflect.Value, error)
+	Parse(ctx parseContext, parent reflect.Value) ([]reflect.Value, error)
 
 	// Return a decent string representation of the Node.
 	String() string
@@ -57,10 +57,10 @@ type parseable struct {
 
 func (p *parseable) String() string { return stringer(p) }
 
-func (p *parseable) Parse(lex parseContext, parent reflect.Value) (out []reflect.Value, err error) {
+func (p *parseable) Parse(ctx parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	rv := reflect.New(p.t)
 	v := rv.Interface().(Parseable)
-	err = v.Parse(lex)
+	err = v.Parse(ctx)
 	if err != nil {
 		if err == NextMatch {
 			return nil, nil
@@ -83,14 +83,14 @@ func (s *strct) maybeInjectPos(pos lexer.Position, v reflect.Value) {
 	}
 }
 
-func (s *strct) Parse(lex parseContext, parent reflect.Value) (out []reflect.Value, err error) {
+func (s *strct) Parse(ctx parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	sv := reflect.New(s.typ).Elem()
-	t, err := lex.Peek(0)
+	t, err := ctx.Peek(0)
 	if err != nil {
 		return nil, err
 	}
 	s.maybeInjectPos(t.Pos, sv)
-	if out, err = s.expr.Parse(lex, sv); err != nil {
+	if out, err = s.expr.Parse(ctx, sv); err != nil {
 		return nil, err
 	} else if out == nil {
 		return nil, nil
@@ -106,19 +106,19 @@ type disjunction struct {
 
 func (d *disjunction) String() string { return stringer(d) }
 
-func (d *disjunction) Parse(lex parseContext, parent reflect.Value) (out []reflect.Value, err error) {
-	if selected, err := d.lookahead.Select(lex, parent); err != nil {
+func (d *disjunction) Parse(ctx parseContext, parent reflect.Value) (out []reflect.Value, err error) {
+	if selected, err := d.lookahead.Select(ctx, parent); err != nil {
 		return nil, err
 	} else if selected != -2 {
 		if selected == -1 {
 			return nil, nil
 		}
-		return d.nodes[selected].Parse(lex, parent)
+		return d.nodes[selected].Parse(ctx, parent)
 	}
 
 	// Same logic without lookahead.
 	for _, a := range d.nodes {
-		if value, err := a.Parse(lex, parent); err != nil {
+		if value, err := a.Parse(ctx, parent); err != nil {
 			return nil, err
 		} else if value != nil {
 			return value, nil
@@ -136,9 +136,9 @@ type sequence struct {
 
 func (s *sequence) String() string { return stringer(s) }
 
-func (s *sequence) Parse(lex parseContext, parent reflect.Value) (out []reflect.Value, err error) {
+func (s *sequence) Parse(ctx parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	for n := s; n != nil; n = n.next {
-		child, err := n.node.Parse(lex, parent)
+		child, err := n.node.Parse(ctx, parent)
 		if err != nil {
 			return nil, err
 		}
@@ -147,7 +147,7 @@ func (s *sequence) Parse(lex parseContext, parent reflect.Value) (out []reflect.
 			if n == s {
 				return nil, nil
 			}
-			token, err := lex.Peek(0)
+			token, err := ctx.Peek(0)
 			if err != nil {
 				return nil, err
 			}
@@ -166,13 +166,13 @@ type capture struct {
 
 func (c *capture) String() string { return stringer(c) }
 
-func (c *capture) Parse(lex parseContext, parent reflect.Value) (out []reflect.Value, err error) {
-	token, err := lex.Peek(0)
+func (c *capture) Parse(ctx parseContext, parent reflect.Value) (out []reflect.Value, err error) {
+	token, err := ctx.Peek(0)
 	if err != nil {
 		return nil, err
 	}
 	pos := token.Pos
-	v, err := c.node.Parse(lex, parent)
+	v, err := c.node.Parse(ctx, parent)
 	if err != nil {
 		return nil, err
 	}
@@ -190,15 +190,15 @@ type reference struct {
 
 func (r *reference) String() string { return stringer(r) }
 
-func (r *reference) Parse(lex parseContext, parent reflect.Value) (out []reflect.Value, err error) {
-	token, err := lex.Peek(0)
+func (r *reference) Parse(ctx parseContext, parent reflect.Value) (out []reflect.Value, err error) {
+	token, err := ctx.Peek(0)
 	if err != nil {
 		return nil, err
 	}
 	if token.Type != r.typ {
 		return nil, nil
 	}
-	_, _ = lex.Next()
+	_, _ = ctx.Next()
 	return []reflect.Value{reflect.ValueOf(token.Value)}, nil
 }
 
@@ -211,8 +211,8 @@ type optional struct {
 
 func (o *optional) String() string { return stringer(o) }
 
-func (o *optional) Parse(lex parseContext, parent reflect.Value) (out []reflect.Value, err error) {
-	result, err := o.lookahead.Select(lex, parent)
+func (o *optional) Parse(ctx parseContext, parent reflect.Value) (out []reflect.Value, err error) {
+	result, err := o.lookahead.Select(ctx, parent)
 	if err != nil {
 		return nil, err
 	}
@@ -220,7 +220,7 @@ func (o *optional) Parse(lex parseContext, parent reflect.Value) (out []reflect.
 	case -2: // No lookahead table
 		fallthrough
 	case 0:
-		out, err = o.node.Parse(lex, parent)
+		out, err = o.node.Parse(ctx, parent)
 		if err != nil {
 			return nil, err
 		}
@@ -230,7 +230,7 @@ func (o *optional) Parse(lex parseContext, parent reflect.Value) (out []reflect.
 		fallthrough
 	case 1:
 		if o.next != nil {
-			next, err := o.next.Parse(lex, parent)
+			next, err := o.next.Parse(ctx, parent)
 			if err != nil {
 				return nil, err
 			}
@@ -262,8 +262,8 @@ func (r *repetition) String() string { return stringer(r) }
 
 // Parse a repetition. Once a repetition is encountered it will always match, so grammars
 // should ensure that branches are differentiated prior to the repetition.
-func (r *repetition) Parse(lex parseContext, parent reflect.Value) (out []reflect.Value, err error) {
-	result, err := r.lookahead.Select(lex, parent)
+func (r *repetition) Parse(ctx parseContext, parent reflect.Value) (out []reflect.Value, err error) {
+	result, err := r.lookahead.Select(ctx, parent)
 	if err != nil {
 		return nil, err
 	}
@@ -272,7 +272,7 @@ func (r *repetition) Parse(lex parseContext, parent reflect.Value) (out []reflec
 		fallthrough
 	case 0:
 		for {
-			v, err := r.node.Parse(lex, parent)
+			v, err := r.node.Parse(ctx, parent)
 			if err != nil {
 				return nil, err
 			}
@@ -287,7 +287,7 @@ func (r *repetition) Parse(lex parseContext, parent reflect.Value) (out []reflec
 		fallthrough
 	case 1:
 		if r.next != nil {
-			next, err := r.next.Parse(lex, parent)
+			next, err := r.next.Parse(ctx, parent)
 			if err != nil {
 				return nil, err
 			}
@@ -317,19 +317,19 @@ type literal struct {
 
 func (l *literal) String() string { return stringer(l) }
 
-func (l *literal) Parse(lex parseContext, parent reflect.Value) (out []reflect.Value, err error) {
-	token, err := lex.Peek(0)
+func (l *literal) Parse(ctx parseContext, parent reflect.Value) (out []reflect.Value, err error) {
+	token, err := ctx.Peek(0)
 	if err != nil {
 		return nil, err
 	}
 	equal := false // nolint: ineffassign
-	if lex.caseInsensitive[token.Type] {
+	if ctx.caseInsensitive[token.Type] {
 		equal = strings.EqualFold(token.Value, l.s)
 	} else {
 		equal = token.Value == l.s
 	}
 	if equal && (l.t == -1 || l.t == token.Type) {
-		next, err := lex.Next()
+		next, err := ctx.Next()
 		if err != nil {
 			return nil, err
 		}

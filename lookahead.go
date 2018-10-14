@@ -9,6 +9,8 @@ import (
 	"github.com/alecthomas/participle/lexer"
 )
 
+const lookaheadLimit = 32
+
 type lookahead struct {
 	root   int
 	tokens []lexer.Token
@@ -27,14 +29,14 @@ func (l *lookahead) hash() uint64 {
 }
 
 func buildLookahead(nodes ...node) (table []lookahead, err error) {
-	l := &lookaheadWalker{limit: 16, seen: map[node]int{}}
+	l := &lookaheadWalker{limit: lookaheadLimit, seen: map[node]int{}}
 	for root, node := range nodes {
 		if node != nil {
 			l.push(root, node, nil)
 		}
 	}
 	depth := 0
-	for ; depth < 16; depth++ {
+	for ; depth < lookaheadLimit; depth++ {
 		ambiguous := l.ambiguous()
 		if len(ambiguous) == 0 {
 			return l.collect(), nil

@@ -21,8 +21,7 @@ var (
 	sqlParser = participle.MustBuild(
 		&Expression{},
 		participle.Lexer(sqlLexer),
-		participle.Unquote(sqlLexer, "String"),
-		participle.Upper(sqlLexer, "Keyword"),
+		participle.Unquote("String"),
 		participle.CaseInsensitive("Keyword"),
 		// Need to solve left recursion detection first, if possible.
 		// participle.UseLookahead(),
