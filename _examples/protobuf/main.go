@@ -236,7 +236,10 @@ func (s *Scalar) Parse(lex lexer.PeekingLexer) error {
 	if !ok {
 		return participle.NextMatch
 	}
-	_, _ = lex.Next()
+	_, err = lex.Next()
+	if err != nil {
+		return err
+	}
 	*s = v
 	return nil
 }

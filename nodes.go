@@ -43,10 +43,10 @@ func decorate(err *error, name func() string) {
 		return
 	}
 	switch realError := (*err).(type) {
-	case Error:
-		*err = fmt.Errorf("%s: %s", name(), realError)
 	case *lexer.Error:
 		*err = &lexer.Error{Message: name() + ": " + realError.Message, Pos: realError.Pos}
+	default:
+		*err = fmt.Errorf("%s: %s", name(), realError)
 	}
 }
 
@@ -347,6 +347,12 @@ func conform(t reflect.Type, values []reflect.Value) (out []reflect.Value, err e
 			v = v.Addr()
 		}
 
+		// Already of the right kind, don't bother converting.
+		if v.Kind() == t.Kind() {
+			out = append(out, v)
+			continue
+		}
+
 		kind := t.Kind()
 		switch kind {
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
@@ -408,7 +414,7 @@ func sizeOfKind(kind reflect.Kind) int {
 // For all other types, an attempt will be made to convert the string to the corresponding
 // type (int, float32, etc.).
 func setField(pos lexer.Position, strct reflect.Value, field structLexerField, fieldValue []reflect.Value) (err error) { // nolint: gocyclo
-	defer decorate(&err, func() string { return strct.Type().String() + "." + field.Name })
+	defer decorate(&err, func() string { return pos.String() + ": " + strct.Type().String() + "." + field.Name })
 
 	f := strct.FieldByIndex(field.Index)
 	switch f.Kind() {
@@ -444,7 +450,7 @@ func setField(pos lexer.Position, strct reflect.Value, field structLexerField, f
 			}
 			err := d.Capture(ifv)
 			if err != nil {
-				return lexer.Errorf(pos, err.Error())
+				return err
 			}
 			return nil
 		}
