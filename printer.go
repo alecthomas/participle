@@ -58,6 +58,5 @@ func nodePrinter(seen map[node]bool, v node) string {
 
 	default:
 		panic(fmt.Sprintf("unsupported type %T", v))
-		return ""
 	}
 }

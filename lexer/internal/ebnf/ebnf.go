@@ -23,7 +23,6 @@
 package ebnf
 
 import (
-	"errors"
 	"fmt"
 	"text/scanner"
 	"unicode"
@@ -53,7 +52,7 @@ func (list errorList) Error() string {
 }
 
 func newError(pos scanner.Position, msg string) error {
-	return errors.New(fmt.Sprintf("%s: %s", pos, msg))
+	return fmt.Errorf("%s: %s", pos, msg)
 }
 
 // ----------------------------------------------------------------------------
@@ -84,7 +83,7 @@ type (
 		String    string
 	}
 
-	// A List node represents a range of characters.
+	// A Range node represents a range of characters.
 	Range struct {
 		Begin, End *Token     // begin ... end
 		Exclude    Expression // - token or range
@@ -128,6 +127,7 @@ type (
 		Productions []*NamedProduction
 	}
 
+	// A NamedProduction is an ordered Production.
 	NamedProduction struct {
 		Name       string
 		Production *Production

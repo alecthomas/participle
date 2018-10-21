@@ -273,7 +273,10 @@ alpha = "a"…"z" | "A"…"Z" .
 digit = "0"…"9" .
 any = "\u0000"…"\uffff" .
 `, ebnf.Elide("Whitespace", "Comment")))
-	parser = participle.MustBuild(&Proto{}, participle.Lexer(protoLexer), participle.Unquote("String"))
+	parser = participle.MustBuild(&Proto{},
+		participle.Lexer(protoLexer),
+		participle.Unquote("String"),
+	)
 
 	cli struct {
 		Files []string `required existingfile arg help:"Protobuf files."`
