@@ -9,36 +9,93 @@ import (
 	"text/scanner"
 	"unicode/utf8"
 
+	"github.com/alecthomas/participle/lexer"
 	"github.com/alecthomas/participle/lexer/internal/ebnf"
 )
+
+// EBNF creates a Lexer from an EBNF grammar.
+//
+// The EBNF grammar syntax is as defined by "golang.org/x/exp/ebnf" with one extension:
+// ranges also support exclusions, eg. "a"…"z"-"f" and "a"…"z"-"f"…"g".
+// Exclusions can be chained.
+//
+// Upper-case productions are exported as terminals. Lower-case productions are non-terminals.
+// All productions are lexical.
+//
+// Here's an example grammar for parsing whitespace and identifiers:
+//
+// 		Identifier = alpha { alpha | number } .
+//		Whitespace = "\n" | "\r" | "\t" | " " .
+//		alpha = "a"…"z" | "A"…"Z" | "_" .
+//		number = "0"…"9" .
+func EBNF(grammar string) (lexer.Definition, error) {
+	// Parse grammar.
+	r := strings.NewReader(grammar)
+	ast, err := ebnf.Parse("<grammar>", r)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate grammar.
+	for _, production := range ast {
+		if err = validate(ast, production); err != nil {
+			return nil, err
+		}
+	}
+	// Assign constants for roots.
+	rn := lexer.EOF - 1
+	symbols := map[string]rune{
+		"EOF": lexer.EOF,
+	}
+
+	// Optimize and export public productions.
+	productions := ebnf.Grammar{}
+	for symbol, production := range ast {
+		ch := symbol[0:1]
+		if strings.ToUpper(ch) == ch {
+			symbols[symbol] = rn
+			productions[symbol] = production
+			rn--
+		}
+	}
+	def := &ebnfLexerDefinition{
+		grammar:     ast,
+		symbols:     symbols,
+		productions: productions,
+	}
+	for _, production := range ast {
+		production.Expr = def.optimize(production.Expr)
+	}
+	return def, nil
+}
 
 type ebnfLexer struct {
 	r   *bufio.Reader
 	def *ebnfLexerDefinition
-	pos Position
+	pos lexer.Position
 	buf *bytes.Buffer
 }
 
-func (e *ebnfLexer) Next() (Token, error) {
+func (e *ebnfLexer) Next() (lexer.Token, error) {
 	if rn, err := e.peek(); err != nil {
-		return Token{}, err
-	} else if rn == EOF {
-		return EOFToken(e.pos), nil
+		return lexer.Token{}, err
+	} else if rn == lexer.EOF {
+		return lexer.EOFToken(e.pos), nil
 	}
 	pos := e.pos
 	e.buf.Reset()
 	for name, production := range e.def.productions {
 		if ok, err := e.match(name, production.Expr, e.buf); err != nil {
-			return Token{}, err
+			return lexer.Token{}, err
 		} else if ok {
-			return Token{
+			return lexer.Token{
 				Type:  e.def.symbols[name],
 				Pos:   pos,
 				Value: e.buf.String(),
 			}, nil
 		}
 	}
-	return Token{}, Errorf(pos, "no match found")
+	return lexer.Token{}, lexer.Errorf(pos, "no match found")
 }
 
 func (e *ebnfLexer) match(name string, expr ebnf.Expression, out *bytes.Buffer) (bool, error) { // nolint: gocyclo
@@ -77,7 +134,7 @@ func (e *ebnfLexer) match(name string, expr ebnf.Expression, out *bytes.Buffer) 
 		if rn < n.start || rn > n.end {
 			return false, nil
 		}
-		for n.exclude != nil {
+		for n != nil {
 			switch exclude := n.exclude.(type) {
 			case *ebnfRange:
 				n = exclude
@@ -88,6 +145,8 @@ func (e *ebnfLexer) match(name string, expr ebnf.Expression, out *bytes.Buffer) 
 				if rn == exclude.runes[0] {
 					return false, nil
 				}
+				n = nil
+			case nil:
 				n = nil
 			default:
 				panic("??")
@@ -158,10 +217,10 @@ func (e *ebnfLexer) match(name string, expr ebnf.Expression, out *bytes.Buffer) 
 	case nil:
 		if rn, err := e.peek(); err != nil {
 			return false, err
-		} else if rn == EOF {
+		} else if rn == lexer.EOF {
 			return false, nil
 		}
-		return false, fmt.Errorf("expected EOF")
+		return false, fmt.Errorf("expected lexer.EOF")
 	}
 	return false, fmt.Errorf("unsupported lexer expression type %T", expr)
 }
@@ -170,7 +229,7 @@ func (e *ebnfLexer) peek() (rune, error) {
 	// This is a bit more involved than I would like.
 	rn, _, err := e.r.ReadRune()
 	if err == io.EOF {
-		return EOF, nil
+		return lexer.EOF, nil
 	}
 	if err != nil {
 		return 0, fmt.Errorf("failed to read rune: %s", err)
@@ -184,7 +243,7 @@ func (e *ebnfLexer) peek() (rune, error) {
 func (e *ebnfLexer) read() (rune, error) {
 	rn, n, err := e.r.ReadRune()
 	if err == io.EOF {
-		return EOF, nil
+		return lexer.EOF, nil
 	}
 	if err != nil {
 		return 0, fmt.Errorf("failed to read rune: %s", err)
@@ -205,68 +264,13 @@ type ebnfLexerDefinition struct {
 	productions ebnf.Grammar
 }
 
-// EBNF creates a Lexer from an EBNF grammar.
-//
-// The EBNF grammar syntax is as defined by "golang.org/x/exp/ebnf" with one extension:
-// ranges also support exclusions, eg. "a"…"z"-"f" and "a"…"z"-"f"…"g".
-// Exclusions can be chained.
-//
-// Upper-case productions are exported as symbols. All productions are lexical.
-//
-// Here's an example grammar for parsing whitespace and identifiers:
-//
-// 		Identifier = alpha { alpha | number } .
-//		Whitespace = "\n" | "\r" | "\t" | " " .
-//		alpha = "a"…"z" | "A"…"Z" | "_" .
-//		number = "0"…"9" .
-func EBNF(grammar string) (Definition, error) {
-	// Parse grammar.
-	r := strings.NewReader(grammar)
-	ast, err := ebnf.Parse("<grammar>", r)
-	if err != nil {
-		return nil, err
-	}
-
-	// Validate grammar.
-	for _, production := range ast {
-		if err = validate(ast, production); err != nil {
-			return nil, err
-		}
-	}
-	// Assign constants for roots.
-	rn := EOF - 1
-	symbols := map[string]rune{
-		"EOF": EOF,
-	}
-
-	// Optimize and export public productions.
-	productions := ebnf.Grammar{}
-	for symbol, production := range ast {
-		ch := symbol[0:1]
-		if strings.ToUpper(ch) == ch {
-			symbols[symbol] = rn
-			productions[symbol] = production
-			rn--
-		}
-	}
-	def := &ebnfLexerDefinition{
-		grammar:     ast,
-		symbols:     symbols,
-		productions: productions,
-	}
-	for _, production := range ast {
-		production.Expr = def.optimize(production.Expr)
-	}
-	return def, nil
-}
-
-func (e *ebnfLexerDefinition) Lex(r io.Reader) Lexer {
+func (e *ebnfLexerDefinition) Lex(r io.Reader) lexer.Lexer {
 	return &ebnfLexer{
 		r:   bufio.NewReader(r),
 		def: e,
 		buf: bytes.NewBuffer(make([]byte, 0, 128)),
-		pos: Position{
-			Filename: NameOfReader(r),
+		pos: lexer.Position{
+			Filename: lexer.NameOfReader(r),
 			Line:     1,
 			Column:   1,
 		},
@@ -389,7 +393,7 @@ func validate(grammar ebnf.Grammar, expr ebnf.Expression) error { // nolint: goc
 
 	case *ebnf.Name:
 		if grammar[n.String] == nil {
-			return Errorf(Position(n.Pos()), "unknown production %q", n.String)
+			return lexer.Errorf(lexer.Position(n.Pos()), "unknown production %q", n.String)
 		}
 		return nil
 
@@ -398,10 +402,10 @@ func validate(grammar ebnf.Grammar, expr ebnf.Expression) error { // nolint: goc
 
 	case *ebnf.Range:
 		if utf8.RuneCountInString(n.Begin.String) != 1 {
-			return Errorf(Position(n.Pos()), "start of range must be a single rune")
+			return lexer.Errorf(lexer.Position(n.Pos()), "start of range must be a single rune")
 		}
 		if utf8.RuneCountInString(n.End.String) != 1 {
-			return Errorf(Position(n.Pos()), "end of range must be a single rune")
+			return lexer.Errorf(lexer.Position(n.Pos()), "end of range must be a single rune")
 		}
 		return nil
 
@@ -422,5 +426,5 @@ func validate(grammar ebnf.Grammar, expr ebnf.Expression) error { // nolint: goc
 	case nil:
 		return nil
 	}
-	return Errorf(Position(expr.Pos()), "unknown EBNF expression %T", expr)
+	return lexer.Errorf(lexer.Position(expr.Pos()), "unknown EBNF expression %T", expr)
 }
