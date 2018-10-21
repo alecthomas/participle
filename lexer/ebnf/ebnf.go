@@ -1,4 +1,4 @@
-package lexer
+package ebnf
 
 import (
 	"bufio"
@@ -13,7 +13,7 @@ import (
 	"github.com/alecthomas/participle/lexer/internal/ebnf"
 )
 
-// EBNF creates a Lexer from an EBNF grammar.
+// New creates a Lexer from an EBNF grammar.
 //
 // The EBNF grammar syntax is as defined by "golang.org/x/exp/ebnf" with one extension:
 // ranges also support exclusions, eg. "a"…"z"-"f" and "a"…"z"-"f"…"g".
@@ -28,7 +28,7 @@ import (
 //		Whitespace = "\n" | "\r" | "\t" | " " .
 //		alpha = "a"…"z" | "A"…"Z" | "_" .
 //		number = "0"…"9" .
-func EBNF(grammar string) (lexer.Definition, error) {
+func New(grammar string, options ...Option) (lexer.Definition, error) {
 	// Parse grammar.
 	r := strings.NewReader(grammar)
 	ast, err := ebnf.Parse("<grammar>", r)
@@ -37,7 +37,7 @@ func EBNF(grammar string) (lexer.Definition, error) {
 	}
 
 	// Validate grammar.
-	for _, production := range ast {
+	for _, production := range ast.Index {
 		if err = validate(ast, production); err != nil {
 			return nil, err
 		}
@@ -49,12 +49,15 @@ func EBNF(grammar string) (lexer.Definition, error) {
 	}
 
 	// Optimize and export public productions.
-	productions := ebnf.Grammar{}
-	for symbol, production := range ast {
+	productions := ebnf.Grammar{Index: map[string]*ebnf.Production{}}
+	for _, namedProduction := range ast.Productions {
+		symbol := namedProduction.Name
+		production := namedProduction.Production
 		ch := symbol[0:1]
 		if strings.ToUpper(ch) == ch {
 			symbols[symbol] = rn
-			productions[symbol] = production
+			productions.Index[symbol] = production
+			productions.Productions = append(productions.Productions, namedProduction)
 			rn--
 		}
 	}
@@ -62,9 +65,13 @@ func EBNF(grammar string) (lexer.Definition, error) {
 		grammar:     ast,
 		symbols:     symbols,
 		productions: productions,
+		elide:       map[string]bool{},
 	}
-	for _, production := range ast {
+	for _, production := range ast.Index {
 		production.Expr = def.optimize(production.Expr)
+	}
+	for _, option := range options {
+		option(def)
 	}
 	return def, nil
 }
@@ -77,25 +84,34 @@ type ebnfLexer struct {
 }
 
 func (e *ebnfLexer) Next() (lexer.Token, error) {
-	if rn, err := e.peek(); err != nil {
-		return lexer.Token{}, err
-	} else if rn == lexer.EOF {
-		return lexer.EOFToken(e.pos), nil
-	}
-	pos := e.pos
-	e.buf.Reset()
-	for name, production := range e.def.productions {
-		if ok, err := e.match(name, production.Expr, e.buf); err != nil {
+nextToken:
+	for {
+		if rn, err := e.peek(); err != nil {
 			return lexer.Token{}, err
-		} else if ok {
-			return lexer.Token{
-				Type:  e.def.symbols[name],
-				Pos:   pos,
-				Value: e.buf.String(),
-			}, nil
+		} else if rn == lexer.EOF {
+			return lexer.EOFToken(e.pos), nil
 		}
+		pos := e.pos
+		e.buf.Reset()
+		for _, namedProduction := range e.def.productions.Productions {
+			name := namedProduction.Name
+			production := namedProduction.Production
+			if ok, err := e.match(name, production.Expr, e.buf); err != nil {
+				return lexer.Token{}, err
+			} else if ok {
+				if e.def.elide[name] {
+					fmt.Println(name)
+					continue nextToken
+				}
+				return lexer.Token{
+					Type:  e.def.symbols[name],
+					Pos:   pos,
+					Value: e.buf.String(),
+				}, nil
+			}
+		}
+		return lexer.Token{}, lexer.Errorf(pos, "no match found")
 	}
-	return lexer.Token{}, lexer.Errorf(pos, "no match found")
 }
 
 func (e *ebnfLexer) match(name string, expr ebnf.Expression, out *bytes.Buffer) (bool, error) { // nolint: gocyclo
@@ -114,7 +130,7 @@ func (e *ebnfLexer) match(name string, expr ebnf.Expression, out *bytes.Buffer) 
 		return e.match(name, n.Body, out)
 
 	case *ebnf.Name:
-		return e.match(name, e.def.grammar[n.String].Expr, out)
+		return e.match(name, e.def.grammar.Index[n.String].Expr, out)
 
 	case *ebnf.Option:
 		_, err := e.match(name, n.Body, out)
@@ -261,6 +277,7 @@ func (e *ebnfLexer) read() (rune, error) {
 type ebnfLexerDefinition struct {
 	grammar     ebnf.Grammar
 	symbols     map[string]rune
+	elide       map[string]bool
 	productions ebnf.Grammar
 }
 
@@ -392,7 +409,7 @@ func validate(grammar ebnf.Grammar, expr ebnf.Expression) error { // nolint: goc
 		return validate(grammar, n.Body)
 
 	case *ebnf.Name:
-		if grammar[n.String] == nil {
+		if grammar.Index[n.String] == nil {
 			return lexer.Errorf(lexer.Position(n.Pos()), "unknown production %q", n.String)
 		}
 		return nil

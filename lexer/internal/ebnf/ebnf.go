@@ -123,7 +123,15 @@ type (
 	// A Grammar is a set of EBNF productions. The map
 	// is indexed by production name.
 	//
-	Grammar map[string]*Production
+	Grammar struct {
+		Index       map[string]*Production
+		Productions []*NamedProduction
+	}
+
+	NamedProduction struct {
+		Name       string
+		Production *Production
+	}
 )
 
 func (x Alternative) Pos() scanner.Position { return x[0].Pos() } // the parser always generates non-empty Alternative
@@ -158,9 +166,9 @@ func (v *verifier) error(pos scanner.Position, msg string) {
 
 func (v *verifier) push(prod *Production) {
 	name := prod.Name.String
-	if _, found := v.reached[name]; !found {
+	if _, found := v.reached.Index[name]; !found {
 		v.worklist = append(v.worklist, prod)
-		v.reached[name] = prod
+		v.reached.Index[name] = prod
 	}
 }
 
@@ -189,7 +197,7 @@ func (v *verifier) verifyExpr(expr Expression, lexical bool) {
 	case *Name:
 		// a production with this name must exist;
 		// add it to the worklist if not yet processed
-		if prod, found := v.grammar[x.String]; found {
+		if prod, found := v.grammar.Index[x.String]; found {
 			v.push(prod)
 		} else {
 			v.error(x.Pos(), "missing production "+x.String)
@@ -222,7 +230,7 @@ func (v *verifier) verifyExpr(expr Expression, lexical bool) {
 
 func (v *verifier) verify(grammar Grammar, start string) {
 	// find root production
-	root, found := grammar[start]
+	root, found := grammar.Index[start]
 	if !found {
 		var noPos scanner.Position
 		v.error(noPos, "no start production "+start)
@@ -231,7 +239,7 @@ func (v *verifier) verify(grammar Grammar, start string) {
 
 	// initialize verifier
 	v.worklist = v.worklist[0:0]
-	v.reached = make(Grammar)
+	v.reached = Grammar{Index: map[string]*Production{}}
 	v.grammar = grammar
 
 	// work through the worklist
@@ -247,9 +255,9 @@ func (v *verifier) verify(grammar Grammar, start string) {
 	}
 
 	// check if all productions were reached
-	if len(v.reached) < len(v.grammar) {
-		for name, prod := range v.grammar {
-			if _, found := v.reached[name]; !found {
+	if len(v.reached.Index) < len(v.grammar.Index) {
+		for name, prod := range v.grammar.Index {
+			if _, found := v.reached.Index[name]; !found {
 				v.error(prod.Pos(), name+" is unreachable")
 			}
 		}

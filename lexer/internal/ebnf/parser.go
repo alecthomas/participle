@@ -175,12 +175,16 @@ func (p *parser) parse(filename string, src io.Reader) Grammar {
 	p.scanner.Filename = filename
 	p.next() // initializes pos, tok, lit
 
-	grammar := make(Grammar)
+	grammar := Grammar{Index: map[string]*Production{}}
 	for p.tok != scanner.EOF {
 		prod := p.parseProduction()
 		name := prod.Name.String
-		if _, found := grammar[name]; !found {
-			grammar[name] = prod
+		if _, found := grammar.Index[name]; !found {
+			grammar.Index[name] = prod
+			grammar.Productions = append(grammar.Productions, &NamedProduction{
+				Name:       name,
+				Production: prod,
+			})
 		} else {
 			p.error(prod.Pos(), name+" declared already")
 		}

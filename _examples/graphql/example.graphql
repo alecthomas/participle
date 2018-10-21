@@ -1,3 +1,4 @@
+# A comment.
 type Tweet {
     id: ID!
     // The tweet text. No more than 140 characters!

@@ -5,8 +5,21 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/alecthomas/participle"
+	"github.com/alecthomas/participle/lexer"
+	"github.com/alecthomas/participle/lexer/ebnf"
 	"github.com/alecthomas/repr"
 )
+
+var graphQLLexer = lexer.Must(ebnf.New(`
+Comment = ("#" | "//") { "\u0000"…"\uffff"-"\n" } .
+Ident = (alpha | "_") { "_" | alpha | digit } .
+Number = ("." | digit) {"." | digit} .
+Whitespace = " " | "\t" | "\n" | "\r" .
+Punct = "!"…"/" | ":"…"@" | "["…`+"\"`\""+` | "{"…"~" .
+
+alpha = "a"…"z" | "A"…"Z" .
+digit = "0"…"9" .
+`, ebnf.Elide("Comment", "Whitespace")))
 
 type File struct {
 	Entries []*Entry `{ @@ }`
@@ -58,7 +71,7 @@ type Value struct {
 }
 
 var (
-	parser = participle.MustBuild(&File{})
+	parser = participle.MustBuild(&File{}, participle.Lexer(graphQLLexer))
 
 	cli struct {
 		Files []string `arg:"" type:"existingfile" required:"" help:"GraphQL schema files to parse."`

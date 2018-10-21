@@ -1,4 +1,4 @@
-package lexer
+package ebnf
 
 import (
 	"strings"
@@ -12,6 +12,7 @@ func TestBuilder(t *testing.T) {
 	tests := []struct {
 		name      string
 		grammar   string
+		options   []Option
 		source    string
 		tokens    []string
 		roots     []string
@@ -108,6 +109,19 @@ func TestBuilder(t *testing.T) {
 			fail:    true,
 		},
 		{
+			name: "Elide",
+			grammar: `
+			Identifier = alpha { alpha | number } .
+			Whitespace = "\n" | "\r" | "\t" | " " .
+
+			alpha = "a"…"z" | "A"…"Z" | "_" .
+			number = "0"…"9" .
+			`,
+			options: []Option{Elide("Whitespace")},
+			source:  `some id withCase andNumb3rs a`,
+			tokens:  []string{"some", "id", "withCase", "andNumb3rs", "a"},
+		},
+		{
 			name: "Identifier",
 			grammar: `
 			Identifier = alpha { alpha | number } .
@@ -123,7 +137,7 @@ func TestBuilder(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			defi, err := EBNF(test.grammar)
+			defi, err := New(test.grammar, test.options...)
 			if test.failBuild {
 				require.Error(t, err)
 				return
@@ -166,7 +180,7 @@ func readAllTokens(lex lexer.Lexer) (out []string, err error) {
 
 func BenchmarkEBNFLexer(b *testing.B) {
 	b.ReportAllocs()
-	def, err := EBNF(`
+	def, err := New(`
 Identifier = alpha { alpha | digit } .
 Whitespace = "\n" | "\r" | "\t" | " " .
 Number = digit { digit } .
