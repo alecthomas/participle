@@ -83,10 +83,9 @@ type Reserved struct {
 
 type Range struct {
 	Ident string `  @String`
-
-	Start int  `| @Int`
-	End   *int `  [ "to" ( @Int`
-	Max   bool `           | @"max" ) ]`
+	Start int    `| ( @Int`
+	End   *int   `  [ "to" ( @Int`
+	Max   bool   `           | @"max" ) ] )`
 }
 
 type Extend struct {
@@ -158,10 +157,10 @@ type MessageEntry struct {
 	Option     *Option     ` | "option" @@`
 	Message    *Message    ` | @@`
 	Oneof      *Oneof      ` | @@`
-	Field      *Field      ` | @@`
 	Extend     *Extend     ` | @@`
 	Reserved   *Reserved   ` | @@`
-	Extensions *Extensions ` | @@ ) { ";" }`
+	Extensions *Extensions ` | @@`
+	Field      *Field      ` | @@ ) { ";" }`
 }
 
 type Oneof struct {
@@ -259,15 +258,16 @@ type MapType struct {
 	Value *Type `"," @@ ">"`
 }
 
-var cli struct {
-	Files []string `required existingfile arg help:"Protobuf files."`
-}
+var (
+	parser = participle.MustBuild(&Proto{})
+
+	cli struct {
+		Files []string `required existingfile arg help:"Protobuf files."`
+	}
+)
 
 func main() {
 	ctx := kong.Parse(&cli)
-
-	parser, err := participle.Build(&Proto{})
-	ctx.FatalIfErrorf(err)
 
 	for _, file := range cli.Files {
 		proto := &Proto{}

@@ -1,7 +1,7 @@
 module github.com/alecthomas/participle
 
 require (
-	github.com/alecthomas/kong v0.1.9 // indirect
+	github.com/alecthomas/kong v0.1.9
 	github.com/alecthomas/repr v0.0.0-20180920225502-7ed41413b477
 	github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc // indirect
 	github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf // indirect

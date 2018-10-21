@@ -6,7 +6,6 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-	"unsafe"
 
 	"github.com/alecthomas/participle/lexer"
 )
@@ -388,8 +387,6 @@ func conform(t reflect.Type, values []reflect.Value) (out []reflect.Value, err e
 	return out, nil
 }
 
-const sizeOfInt = int(unsafe.Sizeof(int(0))) // nolint: gosec
-
 func sizeOfKind(kind reflect.Kind) int {
 	switch kind {
 	case reflect.Int8, reflect.Uint8:
@@ -401,7 +398,7 @@ func sizeOfKind(kind reflect.Kind) int {
 	case reflect.Int64, reflect.Uint64, reflect.Float64:
 		return 64
 	case reflect.Int, reflect.Uint:
-		return sizeOfInt
+		return strconv.IntSize
 	}
 	panic("unsupported kind " + kind.String())
 }
