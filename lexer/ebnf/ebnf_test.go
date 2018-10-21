@@ -104,8 +104,8 @@ func TestBuilder(t *testing.T) {
 		},
 		{
 			name:    "RangeWithExclusion",
-			grammar: `Option = "a"…"z"-"f"…"g"-"z" .`,
-			source:  "g",
+			grammar: `Option = "a"…"z"-"f"…"g"-"z"-"y" .`,
+			source:  "y",
 			fail:    true,
 		},
 		{

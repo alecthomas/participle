@@ -9,6 +9,7 @@ import (
 
 	"github.com/alecthomas/participle"
 	"github.com/alecthomas/participle/lexer"
+	"github.com/alecthomas/participle/lexer/ebnf"
 )
 
 type Proto struct {
@@ -259,7 +260,20 @@ type MapType struct {
 }
 
 var (
-	parser = participle.MustBuild(&Proto{})
+	protoLexer = lexer.Must(ebnf.New(`
+Comment = ("#" | "//") { "\u0000"…"\uffff"-"\n" } .
+Ident = (alpha | "_") { "_" | alpha | digit } .
+String = "\"" { "\u0000"…"\uffff"-"\""-"\\" | "\\" any } "\"" .
+Int = digit { digit } .
+Float = ("." | digit) {"." | digit} .
+Punct = "!"…"/" | ":"…"@" | "["…`+"\"`\""+` | "{"…"~" .
+Whitespace = " " | "\t" | "\n" | "\r" .
+
+alpha = "a"…"z" | "A"…"Z" .
+digit = "0"…"9" .
+any = "\u0000"…"\uffff" .
+`, ebnf.Elide("Whitespace", "Comment")))
+	parser = participle.MustBuild(&Proto{}, participle.Lexer(protoLexer), participle.Unquote("String"))
 
 	cli struct {
 		Files []string `required existingfile arg help:"Protobuf files."`
@@ -274,7 +288,7 @@ func main() {
 		r, err := os.Open(file)
 		ctx.FatalIfErrorf(err, "")
 		err = parser.Parse(r, proto)
-		ctx.FatalIfErrorf(err, "")
 		repr.Println(proto, repr.Hide(&lexer.Position{}))
+		ctx.FatalIfErrorf(err, "")
 	}
 }

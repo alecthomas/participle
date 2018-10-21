@@ -100,7 +100,6 @@ nextToken:
 				return lexer.Token{}, err
 			} else if ok {
 				if e.def.elide[name] {
-					fmt.Println(name)
 					continue nextToken
 				}
 				return lexer.Token{
@@ -380,7 +379,10 @@ func translateRange(n ebnf.Expression) ebnf.Expression {
 	switch n := n.(type) {
 	case *ebnf.Range:
 		start, _ := utf8.DecodeRuneInString(n.Begin.String)
-		end, _ := utf8.DecodeRuneInString(n.End.String)
+		end := start
+		if n.End != nil {
+			end, _ = utf8.DecodeRuneInString(n.End.String)
+		}
 		return &ebnfRange{pos: n.Pos(), start: start, end: end, exclude: translateRange(n.Exclude)}
 	case *ebnf.Token:
 		return &ebnfToken{pos: n.Pos(), runes: []rune(n.String)}

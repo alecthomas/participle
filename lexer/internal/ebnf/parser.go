@@ -86,6 +86,9 @@ func (p *parser) parseRange() (x Expression) {
 			exclude = p.parseRange()
 		}
 		x = &Range{tok, end, exclude}
+	} else if p.tok == '-' {
+		p.next()
+		x = &Range{tok, nil, p.parseRange()}
 	}
 	return x
 }

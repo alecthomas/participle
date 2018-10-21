@@ -10,17 +10,6 @@ import (
 	"github.com/alecthomas/repr"
 )
 
-var graphQLLexer = lexer.Must(ebnf.New(`
-Comment = ("#" | "//") { "\u0000"…"\uffff"-"\n" } .
-Ident = (alpha | "_") { "_" | alpha | digit } .
-Number = ("." | digit) {"." | digit} .
-Whitespace = " " | "\t" | "\n" | "\r" .
-Punct = "!"…"/" | ":"…"@" | "["…`+"\"`\""+` | "{"…"~" .
-
-alpha = "a"…"z" | "A"…"Z" .
-digit = "0"…"9" .
-`, ebnf.Elide("Comment", "Whitespace")))
-
 type File struct {
 	Entries []*Entry `{ @@ }`
 }
@@ -71,6 +60,17 @@ type Value struct {
 }
 
 var (
+	graphQLLexer = lexer.Must(ebnf.New(`
+Comment = ("#" | "//") { "\u0000"…"\uffff"-"\n" } .
+Ident = (alpha | "_") { "_" | alpha | digit } .
+Number = ("." | digit) {"." | digit} .
+Whitespace = " " | "\t" | "\n" | "\r" .
+Punct = "!"…"/" | ":"…"@" | "["…`+"\"`\""+` | "{"…"~" .
+
+alpha = "a"…"z" | "A"…"Z" .
+digit = "0"…"9" .
+`, ebnf.Elide("Comment", "Whitespace")))
+
 	parser = participle.MustBuild(&File{}, participle.Lexer(graphQLLexer))
 
 	cli struct {
