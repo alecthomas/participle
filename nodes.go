@@ -90,7 +90,7 @@ func (s *strct) Parse(ctx parseContext, parent reflect.Value) (out []reflect.Val
 	}
 	s.maybeInjectPos(t.Pos, sv)
 	if out, err = s.expr.Parse(ctx, sv); err != nil {
-		return nil, err
+		return []reflect.Value{sv}, err
 	} else if out == nil {
 		return nil, nil
 	}
@@ -118,7 +118,7 @@ func (d *disjunction) Parse(ctx parseContext, parent reflect.Value) (out []refle
 	// Same logic without lookahead.
 	for _, a := range d.nodes {
 		if value, err := a.Parse(ctx, parent); err != nil {
-			return nil, err
+			return value, err
 		} else if value != nil {
 			return value, nil
 		}
@@ -138,8 +138,9 @@ func (s *sequence) String() string { return stringer(s) }
 func (s *sequence) Parse(ctx parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	for n := s; n != nil; n = n.next {
 		child, err := n.node.Parse(ctx, parent)
+		out = append(out, child...)
 		if err != nil {
-			return nil, err
+			return out, err
 		}
 		if child == nil {
 			// Early exit if first value doesn't match, otherwise all values must match.
@@ -150,9 +151,8 @@ func (s *sequence) Parse(ctx parseContext, parent reflect.Value) (out []reflect.
 			if err != nil {
 				return nil, err
 			}
-			return nil, lexer.Errorf(token.Pos, "unexpected %q (expected %s)", token, n)
+			return out, lexer.Errorf(token.Pos, "unexpected %q (expected %s)", token, n)
 		}
-		out = append(out, child...)
 	}
 	return out, nil
 }
@@ -173,7 +173,10 @@ func (c *capture) Parse(ctx parseContext, parent reflect.Value) (out []reflect.V
 	pos := token.Pos
 	v, err := c.node.Parse(ctx, parent)
 	if err != nil {
-		return nil, err
+		if v != nil {
+			_ = setField(pos, parent, c.field, v)
+		}
+		return []reflect.Value{parent}, err
 	}
 	if v == nil {
 		return nil, nil
@@ -221,7 +224,7 @@ func (o *optional) Parse(ctx parseContext, parent reflect.Value) (out []reflect.
 	case 0:
 		out, err = o.node.Parse(ctx, parent)
 		if err != nil {
-			return nil, err
+			return out, err
 		}
 		if out == nil {
 			out = []reflect.Value{}
@@ -231,7 +234,7 @@ func (o *optional) Parse(ctx parseContext, parent reflect.Value) (out []reflect.
 		if o.next != nil {
 			next, err := o.next.Parse(ctx, parent)
 			if err != nil {
-				return nil, err
+				return next, err
 			}
 			if next == nil {
 				return nil, nil
@@ -272,13 +275,13 @@ func (r *repetition) Parse(ctx parseContext, parent reflect.Value) (out []reflec
 	case 0:
 		for {
 			v, err := r.node.Parse(ctx, parent)
+			out = append(out, v...)
 			if err != nil {
-				return nil, err
+				return out, err
 			}
 			if v == nil {
 				break
 			}
-			out = append(out, v...)
 		}
 		if out == nil {
 			out = []reflect.Value{}
@@ -287,13 +290,13 @@ func (r *repetition) Parse(ctx parseContext, parent reflect.Value) (out []reflec
 	case 1:
 		if r.next != nil {
 			next, err := r.next.Parse(ctx, parent)
+			out = append(out, next...)
 			if err != nil {
-				return nil, err
+				return out, err
 			}
 			if next == nil {
 				return nil, nil
 			}
-			out = append(out, next...)
 		}
 		return out, nil
 	case -1:
@@ -343,6 +346,10 @@ func (l *literal) Parse(ctx parseContext, parent reflect.Value) (out []reflect.V
 func conform(t reflect.Type, values []reflect.Value) (out []reflect.Value, err error) {
 	for _, v := range values {
 		for t != v.Type() && t.Kind() == reflect.Ptr && v.Kind() != reflect.Ptr {
+			// This can occur during partial failure.
+			if !v.CanAddr() {
+				return
+			}
 			v = v.Addr()
 		}
 
@@ -521,10 +528,6 @@ func indirectType(t reflect.Type) reflect.Type {
 		return indirectType(t.Elem())
 	}
 	return t
-}
-
-func panicf(f string, args ...interface{}) {
-	panic(Error(fmt.Sprintf(f, args...)))
 }
 
 // Error is an error returned by the parser internally to differentiate from non-Participle errors.

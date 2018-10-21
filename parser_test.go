@@ -857,18 +857,18 @@ func TestInvalidNumbers(t *testing.T) {
 
 // We'd like this to work, but it can wait.
 
-//func TestPartialAST(t *testing.T) {
-//	type grammar struct {
-//		Success string `@Ident`
-//		Fail    string `@"foo"`
-//	}
-//	p := mustTestParser(t, &grammar{})
-//	actual := &grammar{}
-//	err := p.ParseString(`foo bar`, actual)
-//	require.Error(t, err)
-//	expected := &grammar{Success: "foo"}
-//	require.Equal(t, expected, actual)
-//}
+func TestPartialAST(t *testing.T) {
+	type grammar struct {
+		Succeed string `@Ident`
+		Fail    string `@"foo"`
+	}
+	p := mustTestParser(t, &grammar{})
+	actual := &grammar{}
+	err := p.ParseString(`foo bar`, actual)
+	require.Error(t, err)
+	expected := &grammar{Succeed: "foo"}
+	require.Equal(t, expected, actual)
+}
 
 func TestCaseInsensitive(t *testing.T) {
 	type grammar struct {

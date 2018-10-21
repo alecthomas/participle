@@ -126,11 +126,11 @@ func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
 		return errors.New("target must be a pointer to a struct")
 	}
 	pv, err := p.root.Parse(ctx, rv.Elem())
+	if len(pv) > 0 && pv[0].Type() == rv.Elem().Type() {
+		rv.Elem().Set(reflect.Indirect(pv[0]))
+	}
 	if err != nil {
 		return err
-	}
-	if len(pv) > 0 {
-		rv.Elem().Set(reflect.Indirect(pv[0]))
 	}
 	token, err := lex.Peek(0)
 	if err != nil {

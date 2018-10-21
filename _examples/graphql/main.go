@@ -73,7 +73,7 @@ func main() {
 		ctx.FatalIfErrorf(err)
 		err = parser.Parse(r, ast)
 		r.Close()
-		ctx.FatalIfErrorf(err)
 		repr.Println(ast)
+		ctx.FatalIfErrorf(err)
 	}
 }
