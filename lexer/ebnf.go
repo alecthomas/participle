@@ -9,7 +9,7 @@ import (
 	"text/scanner"
 	"unicode/utf8"
 
-	"golang.org/x/exp/ebnf"
+	"github.com/alecthomas/participle/lexer/internal/ebnf"
 )
 
 type ebnfLexer struct {
@@ -76,6 +76,22 @@ func (e *ebnfLexer) match(name string, expr ebnf.Expression, out *bytes.Buffer) 
 		}
 		if rn < n.start || rn > n.end {
 			return false, nil
+		}
+		for n.exclude != nil {
+			switch exclude := n.exclude.(type) {
+			case *ebnfRange:
+				n = exclude
+				if rn >= n.start && rn <= n.end {
+					return false, nil
+				}
+			case *ebnfToken:
+				if rn == exclude.runes[0] {
+					return false, nil
+				}
+				n = nil
+			default:
+				panic("??")
+			}
 		}
 		_, _ = e.read()
 		out.WriteRune(rn)
@@ -191,8 +207,11 @@ type ebnfLexerDefinition struct {
 
 // EBNF creates a Lexer from an EBNF grammar.
 //
-// The EBNF grammar syntax is as defined by "golang.org/x/exp/ebnf". Upper-case productions are
-// exported as symbols. All productions are lexical.
+// The EBNF grammar syntax is as defined by "golang.org/x/exp/ebnf" with one extension:
+// ranges also support exclusions, eg. "a"…"z"-"f" and "a"…"z"-"f"…"g".
+// Exclusions can be chained.
+//
+// Upper-case productions are exported as symbols. All productions are lexical.
 //
 // Here's an example grammar for parsing whitespace and identifiers:
 //
@@ -270,6 +289,7 @@ func (c *characterSet) Pos() scanner.Position {
 type ebnfRange struct {
 	pos        scanner.Position
 	start, end rune
+	exclude    ebnf.Expression
 }
 
 func (e *ebnfRange) Pos() scanner.Position {
@@ -327,14 +347,27 @@ func (e *ebnfLexerDefinition) optimize(expr ebnf.Expression) ebnf.Expression {
 		n.Body = e.optimize(n.Body)
 
 	case *ebnf.Range:
-		start, _ := utf8.DecodeRuneInString(n.Begin.String)
-		end, _ := utf8.DecodeRuneInString(n.End.String)
-		return &ebnfRange{pos: n.Pos(), start: start, end: end}
+		return translateRange(n)
 
 	case *ebnf.Token:
 		return &ebnfToken{pos: n.Pos(), runes: []rune(n.String)}
 	}
 	return expr
+}
+
+func translateRange(n ebnf.Expression) ebnf.Expression {
+	switch n := n.(type) {
+	case *ebnf.Range:
+		start, _ := utf8.DecodeRuneInString(n.Begin.String)
+		end, _ := utf8.DecodeRuneInString(n.End.String)
+		return &ebnfRange{pos: n.Pos(), start: start, end: end, exclude: translateRange(n.Exclude)}
+	case *ebnf.Token:
+		return &ebnfToken{pos: n.Pos(), runes: []rune(n.String)}
+	case nil:
+		return nil
+	default:
+		panic(fmt.Sprintf("should not have encountered %T", n))
+	}
 }
 
 // Validate the grammar against the lexer rules.

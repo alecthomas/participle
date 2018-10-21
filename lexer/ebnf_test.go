@@ -101,6 +101,12 @@ func TestBuilder(t *testing.T) {
 			source:  "",
 		},
 		{
+			name:    "RangeWithExclusion",
+			grammar: `Option = "a"…"z"-"f"…"g"-"z" .`,
+			source:  "g",
+			fail:    true,
+		},
+		{
 			name: "Identifier",
 			grammar: `
 			Identifier = alpha { alpha | number } .
