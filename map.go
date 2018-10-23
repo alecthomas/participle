@@ -77,8 +77,12 @@ type mappingLexerDef struct {
 	mapper Mapper
 }
 
-func (m *mappingLexerDef) Lex(r io.Reader) lexer.Lexer {
-	return &mappingLexer{m.Definition.Lex(r), m.mapper}
+func (m *mappingLexerDef) Lex(r io.Reader) (lexer.Lexer, error) {
+	lexer, err := m.Definition.Lex(r)
+	if err != nil {
+		return nil, err
+	}
+	return &mappingLexer{lexer, m.mapper}, nil
 }
 
 type mappingLexer struct {

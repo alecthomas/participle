@@ -99,7 +99,10 @@ func Build(grammar interface{}, options ...Option) (parser *Parser, err error) {
 
 // Lex uses the parser's lexer to tokenise input.
 func (p *Parser) Lex(r io.Reader) ([]lexer.Token, error) {
-	lex := p.lex.Lex(r)
+	lex, err := p.lex.Lex(r)
+	if err != nil {
+		return nil, err
+	}
 	return lexer.ConsumeAll(lex)
 }
 
@@ -109,7 +112,11 @@ func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
 	if reflect.TypeOf(v) != p.typ {
 		return fmt.Errorf("must parse into value of type %s not %T", p.typ, v)
 	}
-	lex := lexer.Upgrade(p.lex.Lex(r))
+	baseLexer, err := p.lex.Lex(r)
+	if err != nil {
+		return err
+	}
+	lex := lexer.Upgrade(baseLexer)
 	caseInsensitive := map[rune]bool{}
 	for sym, rn := range p.lex.Symbols() {
 		if p.caseInsensitive[sym] {

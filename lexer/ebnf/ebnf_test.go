@@ -154,7 +154,9 @@ func TestBuilder(t *testing.T) {
 				require.Equal(t, test.roots, roots)
 			}
 			// repr.Println(def, repr.Indent("  "))
-			tokens, err := readAllTokens(def.Lex(strings.NewReader(test.source)))
+			lexer, err := def.Lex(strings.NewReader(test.source))
+			require.NoError(t, err)
+			tokens, err := readAllTokens(lexer)
 			if test.fail {
 				require.Error(t, err)
 			} else {
@@ -191,7 +193,8 @@ digit = "0"…"9" .
 	require.NoError(b, err)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		lex := def.Lex(strings.NewReader("hello world 123 hello world 123"))
+		lex, err := def.Lex(strings.NewReader("hello world 123 hello world 123"))
+		require.NoError(b, err)
 		lexer.ConsumeAll(lex) // nolint: errcheck
 	}
 }

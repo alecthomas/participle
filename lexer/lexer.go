@@ -18,7 +18,7 @@ func EOFToken(pos Position) Token {
 // Definition provides the parser with metadata for a lexer.
 type Definition interface {
 	// Lex an io.Reader.
-	Lex(io.Reader) Lexer
+	Lex(io.Reader) (Lexer, error)
 	// Symbols returns a map of symbolic names to the corresponding pseudo-runes for those symbols.
 	// This is the same approach as used by text/scanner. For example, "EOF" might have the rune
 	// value of -1, "Ident" might be -2, and so on.

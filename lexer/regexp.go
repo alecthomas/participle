@@ -39,11 +39,10 @@ func Regexp(pattern string) (Definition, error) {
 	return &regexpDefinition{re: re, symbols: symbols}, nil
 }
 
-func (d *regexpDefinition) Lex(r io.Reader) Lexer {
+func (d *regexpDefinition) Lex(r io.Reader) (Lexer, error) {
 	b, err := ioutil.ReadAll(r)
 	if err != nil {
-		// TODO: Make Lex also return an error.
-		panic(err)
+		return nil, err
 	}
 	return &regexpLexer{
 		pos: Position{
@@ -54,7 +53,7 @@ func (d *regexpDefinition) Lex(r io.Reader) Lexer {
 		b:     b,
 		re:    d.re,
 		names: d.re.SubexpNames(),
-	}
+	}, nil
 }
 
 func (d *regexpDefinition) Symbols() map[string]rune {

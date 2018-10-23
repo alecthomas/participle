@@ -280,7 +280,7 @@ type ebnfLexerDefinition struct {
 	productions ebnf.Grammar
 }
 
-func (e *ebnfLexerDefinition) Lex(r io.Reader) lexer.Lexer {
+func (e *ebnfLexerDefinition) Lex(r io.Reader) (lexer.Lexer, error) {
 	return &ebnfLexer{
 		r:   bufio.NewReader(r),
 		def: e,
@@ -290,7 +290,7 @@ func (e *ebnfLexerDefinition) Lex(r io.Reader) lexer.Lexer {
 			Line:     1,
 			Column:   1,
 		},
-	}
+	}, nil
 }
 
 func (e *ebnfLexerDefinition) Symbols() map[string]rune {

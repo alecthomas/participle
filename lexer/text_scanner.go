@@ -20,8 +20,8 @@ var (
 
 type defaultDefinition struct{}
 
-func (d *defaultDefinition) Lex(r io.Reader) Lexer {
-	return Lex(r)
+func (d *defaultDefinition) Lex(r io.Reader) (Lexer, error) {
+	return Lex(r), nil
 }
 
 func (d *defaultDefinition) Symbols() map[string]rune {
