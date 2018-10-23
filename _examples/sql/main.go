@@ -129,8 +129,8 @@ type Factor struct {
 
 type Term struct {
 	Select        *Select     `  @@`
-	SymbolRef     *SymbolRef  `| @@`
 	Value         *Value      `| @@`
+	SymbolRef     *SymbolRef  `| @@`
 	SubExpression *Expression `| "(" @@ ")"`
 }
 
@@ -140,8 +140,6 @@ type SymbolRef struct {
 }
 
 type Value struct {
-	Negated bool `[ @"-" | "+" ]`
-
 	Wildcard bool     `(  @"*"`
 	Number   *float64 ` | @Number`
 	String   *string  ` | @String`
@@ -163,7 +161,7 @@ var (
 Comment = "--" { "\u0000"…"\uffff"-"\n" } .
 Ident = (alpha | "_") { "_" | alpha | digit } .
 String = "\"" { "\u0000"…"\uffff"-"\""-"\\" | "\\" any } "\"" .
-Number = ("." | digit) {"." | digit} .
+Number = [ "-" | "+" ] ("." | digit) {"." | digit} .
 Punct = "!"…"/" | ":"…"@" | "["…`+"\"`\""+` | "{"…"~" .
 Whitespace = " " | "\t" | "\n" | "\r" .
 

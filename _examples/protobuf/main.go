@@ -264,7 +264,7 @@ var (
 Comment = ("#" | "//") { "\u0000"…"\uffff"-"\n" } .
 Ident = (alpha | "_") { "_" | alpha | digit } .
 String = "\"" { "\u0000"…"\uffff"-"\""-"\\" | "\\" any } "\"" .
-Int = digit { digit } .
+Int = [ "-" | "+" ] digit { digit } .
 Float = ("." | digit) {"." | digit} .
 Punct = "!"…"/" | ":"…"@" | "["…`+"\"`\""+` | "{"…"~" .
 Whitespace = " " | "\t" | "\n" | "\r" .
@@ -273,10 +273,7 @@ alpha = "a"…"z" | "A"…"Z" .
 digit = "0"…"9" .
 any = "\u0000"…"\uffff" .
 `, ebnf.Elide("Whitespace", "Comment")))
-	parser = participle.MustBuild(&Proto{},
-		participle.Lexer(protoLexer),
-		participle.Unquote("String"),
-	)
+	parser = participle.MustBuild(&Proto{}, participle.Lexer(protoLexer), participle.Unquote("String"))
 
 	cli struct {
 		Files []string `required existingfile arg help:"Protobuf files."`
