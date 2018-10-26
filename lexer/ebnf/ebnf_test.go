@@ -191,10 +191,16 @@ alpha = "a"…"z" | "A"…"Z" | "_" .
 digit = "0"…"9" .
 `)
 	require.NoError(b, err)
+	r := strings.NewReader("hello world 123 hello world 123")
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		lex, err := def.Lex(strings.NewReader("hello world 123 hello world 123"))
-		require.NoError(b, err)
-		lexer.ConsumeAll(lex) // nolint: errcheck
+		lex, _ := def.Lex(r)
+		for {
+			token, _ := lex.Next()
+			if token.Type == lexer.EOF {
+				break
+			}
+		}
+		r.Seek(0, 0)
 	}
 }

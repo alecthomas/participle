@@ -6,11 +6,10 @@ import (
 	"fmt"
 	"io"
 	"strings"
-	"text/scanner"
 	"unicode/utf8"
 
 	"github.com/alecthomas/participle/lexer"
-	"github.com/alecthomas/participle/lexer/internal/ebnf"
+	"github.com/alecthomas/participle/lexer/ebnf/internal"
 )
 
 // New creates a Lexer from an EBNF grammar.
@@ -31,7 +30,7 @@ import (
 func New(grammar string, options ...Option) (lexer.Definition, error) {
 	// Parse grammar.
 	r := strings.NewReader(grammar)
-	ast, err := ebnf.Parse("<grammar>", r)
+	ast, err := internal.Parse("<grammar>", r)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +48,7 @@ func New(grammar string, options ...Option) (lexer.Definition, error) {
 	}
 
 	// Optimize and export public productions.
-	productions := ebnf.Grammar{Index: map[string]*ebnf.Production{}}
+	productions := internal.Grammar{Index: map[string]*internal.Production{}}
 	for _, namedProduction := range ast.Productions {
 		symbol := namedProduction.Name
 		production := namedProduction.Production
@@ -113,9 +112,9 @@ nextToken:
 	}
 }
 
-func (e *ebnfLexer) match(name string, expr ebnf.Expression, out *bytes.Buffer) (bool, error) { // nolint: gocyclo
+func (e *ebnfLexer) match(name string, expr internal.Expression, out *bytes.Buffer) (bool, error) { // nolint: gocyclo
 	switch n := expr.(type) {
-	case ebnf.Alternative:
+	case internal.Alternative:
 		for _, an := range n {
 			if ok, err := e.match(name, an, out); err != nil {
 				return false, err
@@ -125,53 +124,23 @@ func (e *ebnfLexer) match(name string, expr ebnf.Expression, out *bytes.Buffer) 
 		}
 		return false, nil
 
-	case *ebnf.Group:
+	case *internal.Group:
 		return e.match(name, n.Body, out)
 
-	case *ebnf.Name:
+	case *internal.Name:
 		return e.match(name, e.def.grammar.Index[n.String].Expr, out)
 
-	case *ebnf.Option:
+	case *internal.Option:
 		_, err := e.match(name, n.Body, out)
 		if err != nil {
 			return false, err
 		}
 		return true, nil
 
-	case *ebnf.Range:
-		return false, fmt.Errorf("ebnf.Range should not occur here")
+	case *internal.Range:
+		return false, fmt.Errorf("internal.Range should not occur here")
 
-	case *ebnfRange:
-		rn, err := e.peek()
-		if err != nil {
-			return false, err
-		}
-		if rn < n.start || rn > n.end {
-			return false, nil
-		}
-		for n != nil {
-			switch exclude := n.exclude.(type) {
-			case *ebnfRange:
-				n = exclude
-				if rn >= n.start && rn <= n.end {
-					return false, nil
-				}
-			case *ebnfToken:
-				if rn == exclude.runes[0] {
-					return false, nil
-				}
-				n = nil
-			case nil:
-				n = nil
-			default:
-				panic("??")
-			}
-		}
-		_, _ = e.read()
-		out.WriteRune(rn)
-		return true, nil
-
-	case *ebnf.Repetition:
+	case *internal.Repetition:
 		for {
 			ok, err := e.match(name, n.Body, out)
 			if err != nil {
@@ -182,7 +151,7 @@ func (e *ebnfLexer) match(name string, expr ebnf.Expression, out *bytes.Buffer) 
 			}
 		}
 
-	case ebnf.Sequence:
+	case internal.Sequence:
 		for i, sn := range n {
 			if ok, err := e.match(name, sn, out); err != nil {
 				return false, err
@@ -197,8 +166,8 @@ func (e *ebnfLexer) match(name string, expr ebnf.Expression, out *bytes.Buffer) 
 		}
 		return true, nil
 
-	case *ebnf.Token:
-		return true, fmt.Errorf("ebnf.Token should not occur")
+	case *internal.Token:
+		return true, fmt.Errorf("internal.Token should not occur")
 
 	case *ebnfToken:
 		// If first rune doesn't match, we didn't match.
@@ -222,7 +191,19 @@ func (e *ebnfLexer) match(name string, expr ebnf.Expression, out *bytes.Buffer) 
 		if err != nil {
 			return false, err
 		}
-		if strings.ContainsRune(n.Set, rn) {
+		if n.Has(rn) {
+			_, err = e.read()
+			out.WriteRune(rn)
+			return true, err
+		}
+		return false, nil
+
+	case *asciiSet:
+		rn, err := e.peek()
+		if err != nil {
+			return false, err
+		}
+		if n.Has(rn) {
 			_, err = e.read()
 			out.WriteRune(rn)
 			return true, err
@@ -274,10 +255,10 @@ func (e *ebnfLexer) read() (rune, error) {
 }
 
 type ebnfLexerDefinition struct {
-	grammar     ebnf.Grammar
+	grammar     internal.Grammar
 	symbols     map[string]rune
 	elide       map[string]bool
-	productions ebnf.Grammar
+	productions internal.Grammar
 }
 
 func (e *ebnfLexerDefinition) Lex(r io.Reader) (lexer.Lexer, error) {
@@ -297,109 +278,96 @@ func (e *ebnfLexerDefinition) Symbols() map[string]rune {
 	return e.symbols
 }
 
-type characterSet struct {
-	pos scanner.Position
-	Set string
-}
-
-func (c *characterSet) Pos() scanner.Position {
-	return c.pos
-}
-
-type ebnfRange struct {
-	pos        scanner.Position
-	start, end rune
-	exclude    ebnf.Expression
-}
-
-func (e *ebnfRange) Pos() scanner.Position {
-	return e.pos
-}
-
-type ebnfToken struct {
-	pos   scanner.Position
-	runes []rune
-}
-
-func (e *ebnfToken) Pos() scanner.Position {
-	return e.pos
-}
-
-// TODO: Add a "repeatedCharacterSet" to represent the common case of { set }
-
 // Apply some optimizations to the EBNF.
-func (e *ebnfLexerDefinition) optimize(expr ebnf.Expression) ebnf.Expression {
+func (e *ebnfLexerDefinition) optimize(expr internal.Expression) internal.Expression {
 	switch n := expr.(type) {
-	case ebnf.Alternative:
+	case internal.Alternative:
 		// Convert alternate characters into a character set (eg. "a" | "b" | "c" | "true" becomes
 		// set("abc") | "true").
-		out := make(ebnf.Alternative, 0, len(n))
+		out := make(internal.Alternative, 0, len(n))
 		set := ""
 		for _, expr := range n {
-			if t, ok := expr.(*ebnf.Token); ok && utf8.RuneCountInString(t.String) == 1 {
+			if t, ok := expr.(*internal.Token); ok && utf8.RuneCountInString(t.String) == 1 {
 				set += t.String
 				continue
 			}
-			// Flush set?
+			// Hit a node that is not a single-character Token. Flush set?
 			if set != "" {
-				out = append(out, &characterSet{Set: set})
+				out = append(out, makeSet(n.Pos(), set))
 				set = ""
 			}
 			out = append(out, e.optimize(expr))
 		}
 		if set != "" {
-			out = append(out, &characterSet{Set: set})
+			out = append(out, makeSet(n.Pos(), set))
 		}
 		return out
 
-	case ebnf.Sequence:
+	case internal.Sequence:
 		for i, expr := range n {
 			n[i] = e.optimize(expr)
 		}
 
-	case *ebnf.Group:
+	case *internal.Group:
 		n.Body = e.optimize(n.Body)
 
-	case *ebnf.Option:
+	case *internal.Option:
 		n.Body = e.optimize(n.Body)
 
-	case *ebnf.Repetition:
+	case *internal.Repetition:
 		n.Body = e.optimize(n.Body)
 
-	case *ebnf.Range:
-		return translateRange(n)
+	case *internal.Range:
+		// Convert range into a set.
+		begin, end := beginEnd(n)
+		set := ""
+		for i := begin; i <= end; i++ {
+			set += string(i)
+		}
+		for next := n.Exclude; next != nil; {
+			switch n := next.(type) {
+			case *internal.Range:
+				begin, end := beginEnd(n)
+				for i := begin; i <= end; i++ {
+					set = strings.Replace(set, string(i), "", -1)
+				}
+				next = n.Exclude
+			case *internal.Token:
+				rn, _ := utf8.DecodeRuneInString(n.String)
+				set = strings.Replace(set, string(rn), "", -1)
+				next = nil
+			default:
+				panic(fmt.Sprintf("should not have encountered %T", n))
+			}
+		}
+		// Use an asciiSet if the characters are in ASCII range.
+		return makeSet(n.Pos(), set)
 
-	case *ebnf.Token:
+	case *internal.Token:
 		return &ebnfToken{pos: n.Pos(), runes: []rune(n.String)}
 	}
 	return expr
 }
 
-func translateRange(n ebnf.Expression) ebnf.Expression {
-	switch n := n.(type) {
-	case *ebnf.Range:
-		start, _ := utf8.DecodeRuneInString(n.Begin.String)
-		end := start
-		if n.End != nil {
-			end, _ = utf8.DecodeRuneInString(n.End.String)
-		}
-		return &ebnfRange{pos: n.Pos(), start: start, end: end, exclude: translateRange(n.Exclude)}
-	case *ebnf.Token:
-		return &ebnfToken{pos: n.Pos(), runes: []rune(n.String)}
-	case nil:
-		return nil
-	default:
-		panic(fmt.Sprintf("should not have encountered %T", n))
+func beginEnd(n *internal.Range) (rune, rune) {
+	begin, _ := utf8.DecodeRuneInString(n.Begin.String)
+	end := begin
+	if n.End != nil {
+		end, _ = utf8.DecodeRuneInString(n.End.String)
 	}
+	if begin > end {
+		begin, end = end, begin
+	}
+	return begin, end
 }
 
 // Validate the grammar against the lexer rules.
-func validate(grammar ebnf.Grammar, expr ebnf.Expression) error { // nolint: gocyclo
+func validate(grammar internal.Grammar, expr internal.Expression) error { // nolint: gocyclo
 	switch n := expr.(type) {
-	case *ebnf.Production:
+	case *internal.Production:
 		return validate(grammar, n.Expr)
 
-	case ebnf.Alternative:
+	case internal.Alternative:
 		for _, e := range n {
 			if err := validate(grammar, e); err != nil {
 				return err
@@ -407,19 +375,19 @@ func validate(grammar ebnf.Grammar, expr ebnf.Expression) error { // nolint: goc
 		}
 		return nil
 
-	case *ebnf.Group:
+	case *internal.Group:
 		return validate(grammar, n.Body)
 
-	case *ebnf.Name:
+	case *internal.Name:
 		if grammar.Index[n.String] == nil {
 			return lexer.Errorf(lexer.Position(n.Pos()), "unknown production %q", n.String)
 		}
 		return nil
 
-	case *ebnf.Option:
+	case *internal.Option:
 		return validate(grammar, n.Body)
 
-	case *ebnf.Range:
+	case *internal.Range:
 		if utf8.RuneCountInString(n.Begin.String) != 1 {
 			return lexer.Errorf(lexer.Position(n.Pos()), "start of range must be a single rune")
 		}
@@ -428,10 +396,10 @@ func validate(grammar ebnf.Grammar, expr ebnf.Expression) error { // nolint: goc
 		}
 		return nil
 
-	case *ebnf.Repetition:
+	case *internal.Repetition:
 		return validate(grammar, n.Body)
 
-	case ebnf.Sequence:
+	case internal.Sequence:
 		for _, e := range n {
 			if err := validate(grammar, e); err != nil {
 				return err
@@ -439,7 +407,7 @@ func validate(grammar ebnf.Grammar, expr ebnf.Expression) error { // nolint: goc
 		}
 		return nil
 
-	case *ebnf.Token:
+	case *internal.Token:
 		return nil
 
 	case nil:
