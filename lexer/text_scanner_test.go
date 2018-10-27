@@ -41,10 +41,16 @@ func TestLexSingleString(t *testing.T) {
 }
 
 func BenchmarkTextScannerLexer(b *testing.B) {
+	r := strings.NewReader(strings.Repeat("hello world 123 hello world 123", 100))
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		lex, err := TextScannerLexer.Lex(strings.NewReader("hello world 123 hello world 123"))
-		require.NoError(b, err)
-		ConsumeAll(lex) // nolint: errcheck
+		lex, _ := TextScannerLexer.Lex(r)
+		for {
+			token, _ := lex.Next()
+			if token.Type == EOF {
+				break
+			}
+		}
+		r.Seek(0, 0)
 	}
 }

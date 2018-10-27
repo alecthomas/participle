@@ -36,10 +36,16 @@ func BenchmarkRegexpLexer(b *testing.B) {
 	b.ReportAllocs()
 	def, err := Regexp(`(?P<Ident>[a-z]+)|(?P<Whitespace>\s+)|(?P<Number>\d+)`)
 	require.NoError(b, err)
+	r := strings.NewReader(strings.Repeat("hello world 123 hello world 123", 100))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		lex, err := def.Lex(strings.NewReader("hello world 123 hello world 123"))
-		require.NoError(b, err)
-		ConsumeAll(lex) // nolint: errcheck
+		lex, _ := def.Lex(r)
+		for {
+			token, _ := lex.Next()
+			if token.Type == EOF {
+				break
+			}
+		}
+		r.Seek(0, 0)
 	}
 }

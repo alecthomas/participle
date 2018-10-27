@@ -191,7 +191,7 @@ alpha = "a"…"z" | "A"…"Z" | "_" .
 digit = "0"…"9" .
 `)
 	require.NoError(b, err)
-	r := strings.NewReader("hello world 123 hello world 123")
+	r := strings.NewReader(strings.Repeat("hello world 123 hello world 123", 100))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		lex, _ := def.Lex(r)
