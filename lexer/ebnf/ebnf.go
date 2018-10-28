@@ -76,23 +76,25 @@ func New(grammar string, options ...Option) (lexer.Definition, error) {
 }
 
 type ebnfLexer struct {
-	r   *bufio.Reader
+	r   *tokenReader
 	def *ebnfLexerDefinition
-	pos lexer.Position
 	buf *bytes.Buffer
 }
 
 func (e *ebnfLexer) Next() (lexer.Token, error) {
 nextToken:
 	for {
-		if rn, err := e.peek(); err != nil {
+		e.r.Begin()
+		rn, err := e.peek()
+		if err != nil {
 			return lexer.Token{}, err
 		} else if rn == lexer.EOF {
-			return lexer.EOFToken(e.pos), nil
+			return lexer.EOFToken(e.r.Pos()), nil
 		}
-		pos := e.pos
-		e.buf.Reset()
+		pos := e.r.Pos()
 		for _, namedProduction := range e.def.productions.Productions {
+			e.r.Rewind()
+			e.buf.Reset()
 			name := namedProduction.Name
 			production := namedProduction.Production
 			if ok, err := e.match(name, production.Expr, e.buf); err != nil {
@@ -108,7 +110,7 @@ nextToken:
 				}, nil
 			}
 		}
-		return lexer.Token{}, lexer.Errorf(pos, "no match found")
+		return lexer.Token{}, lexer.Errorf(pos, "no match found for %c", rn)
 	}
 }
 
@@ -159,15 +161,14 @@ func (e *ebnfLexer) match(name string, expr internal.Expression, out *bytes.Buff
 				continue
 			}
 			if i > 0 {
-				rn, _ := e.peek()
-				return false, fmt.Errorf("unexpected input %q", rn)
+				return false, nil
 			}
 			return false, nil
 		}
 		return true, nil
 
 	case *internal.Token:
-		return true, fmt.Errorf("internal.Token should not occur")
+		return true, lexer.Errorf(e.r.Pos(), "internal.Token should not occur")
 
 	case *ebnfToken:
 		// If first rune doesn't match, we didn't match.
@@ -180,13 +181,25 @@ func (e *ebnfLexer) match(name string, expr internal.Expression, out *bytes.Buff
 			if r, err := e.read(); err != nil {
 				return false, err
 			} else if r != rn {
-				return false, fmt.Errorf("unexpected input %q, expected %q", r, n.runes)
+				return false, nil
 			}
 			out.WriteRune(rn)
 		}
 		return true, nil
 
 	case *characterSet:
+		rn, err := e.peek()
+		if err != nil {
+			return false, err
+		}
+		if n.Has(rn) {
+			_, err = e.read()
+			out.WriteRune(rn)
+			return true, err
+		}
+		return false, nil
+
+	case *rangeSet:
 		rn, err := e.peek()
 		if err != nil {
 			return false, err
@@ -222,34 +235,19 @@ func (e *ebnfLexer) match(name string, expr internal.Expression, out *bytes.Buff
 }
 
 func (e *ebnfLexer) peek() (rune, error) {
-	// This is a bit more involved than I would like.
-	rn, _, err := e.r.ReadRune()
-	if err == io.EOF {
-		return lexer.EOF, nil
-	}
-	if err != nil {
-		return 0, fmt.Errorf("failed to read rune: %s", err)
-	}
-	if err = e.r.UnreadRune(); err != nil {
-		return 0, fmt.Errorf("failed to unread rune: %s", err)
-	}
-	return rn, nil
+	return e.fixRuneRead(e.r.Peek())
 }
 
 func (e *ebnfLexer) read() (rune, error) {
-	rn, n, err := e.r.ReadRune()
+	return e.fixRuneRead(e.r.Read())
+}
+
+func (e *ebnfLexer) fixRuneRead(rn rune, err error) (rune, error) {
 	if err == io.EOF {
 		return lexer.EOF, nil
 	}
 	if err != nil {
 		return 0, fmt.Errorf("failed to read rune: %s", err)
-	}
-	e.pos.Offset += n
-	if rn == '\n' {
-		e.pos.Line++
-		e.pos.Column = 1
-	} else {
-		e.pos.Column++
 	}
 	return rn, nil
 }
@@ -263,14 +261,13 @@ type ebnfLexerDefinition struct {
 
 func (e *ebnfLexerDefinition) Lex(r io.Reader) (lexer.Lexer, error) {
 	return &ebnfLexer{
-		r:   bufio.NewReader(r),
-		def: e,
-		buf: bytes.NewBuffer(make([]byte, 0, 128)),
-		pos: lexer.Position{
+		r: newTokenReader(bufio.NewReader(r), lexer.Position{
 			Filename: lexer.NameOfReader(r),
 			Line:     1,
 			Column:   1,
-		},
+		}),
+		def: e,
+		buf: bytes.NewBuffer(make([]byte, 0, 128)),
 	}, nil
 }
 
@@ -293,13 +290,13 @@ func (e *ebnfLexerDefinition) optimize(expr internal.Expression) internal.Expres
 			}
 			// Hit a node that is not a single-character Token. Flush set?
 			if set != "" {
-				out = append(out, makeSet(n.Pos(), set))
+				out = append(out, &characterSet{pos: n.Pos(), Set: set})
 				set = ""
 			}
 			out = append(out, e.optimize(expr))
 		}
 		if set != "" {
-			out = append(out, makeSet(n.Pos(), set))
+			out = append(out, &characterSet{pos: n.Pos(), Set: set})
 		}
 		return out
 
@@ -320,21 +317,20 @@ func (e *ebnfLexerDefinition) optimize(expr internal.Expression) internal.Expres
 	case *internal.Range:
 		// Convert range into a set.
 		begin, end := beginEnd(n)
-		set := ""
-		for i := begin; i <= end; i++ {
-			set += string(i)
+		set := &rangeSet{
+			pos:     n.Pos(),
+			include: [2]rune{begin, end},
 		}
+
 		for next := n.Exclude; next != nil; {
 			switch n := next.(type) {
 			case *internal.Range:
 				begin, end := beginEnd(n)
-				for i := begin; i <= end; i++ {
-					set = strings.Replace(set, string(i), "", -1)
-				}
+				set.exclude = append(set.exclude, [2]rune{begin, end})
 				next = n.Exclude
 			case *internal.Token:
 				rn, _ := utf8.DecodeRuneInString(n.String)
-				set = strings.Replace(set, string(rn), "", -1)
+				set.exclude = append(set.exclude, [2]rune{rn, rn})
 				next = nil
 			default:
 				panic(fmt.Sprintf("should not have encountered %T", n))

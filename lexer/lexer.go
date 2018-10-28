@@ -48,7 +48,7 @@ func SymbolsByRune(def Definition) map[rune]string {
 }
 
 // NameOfReader attempts to retrieve the filename of a reader.
-func NameOfReader(r io.Reader) string {
+func NameOfReader(r interface{}) string {
 	if nr, ok := r.(interface{ Name() string }); ok {
 		return nr.Name()
 	}
