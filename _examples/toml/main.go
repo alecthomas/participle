@@ -1,50 +1,14 @@
 package main
 
 import (
-	"gopkg.in/alecthomas/kingpin.v2"
+	"os"
 
+	"github.com/alecthomas/kong"
 	"github.com/alecthomas/participle"
 	"github.com/alecthomas/participle/lexer"
+	"github.com/alecthomas/participle/lexer/ebnf"
 	"github.com/alecthomas/repr"
 )
-
-// TODO: Custom lexer to support dates.
-
-const example = `
-// This is a TOML document.
-
-title = "TOML Example"
-
-[owner]
-name = "Tom Preston-Werner"
-// dob = 1979-05-27T07:32:00-08:00 // First class dates
-
-[database]
-server = "192.168.1.1"
-ports = [ 8001, 8001, 8002 ]
-connection_max = 5000
-enabled = true
-
-[servers]
-
-  // Indentation (tabs and/or spaces) is allowed but not required
-  [servers.alpha]
-  ip = "10.0.0.1"
-  dc = "eqdc10"
-
-  [servers.beta]
-  ip = "10.0.0.2"
-  dc = "eqdc10"
-
-[clients]
-data = [ ["gamma", "delta"], [1, 2] ]
-
-// Line breaks are OK when inside arrays
-hosts = [
-  "alpha",
-  "omega"
-]
-`
 
 type TOML struct {
 	Pos lexer.Position
@@ -63,11 +27,14 @@ type Field struct {
 }
 
 type Value struct {
-	String  *string  `  @String`
-	Bool    *bool    `| (@"true" | "false")`
-	Integer *int64   `| @Int`
-	Float   *float64 `| @Float`
-	List    []*Value `| "[" [ @@ { "," @@ } ] "]"`
+	String   *string  `  @String`
+	DateTime *string  `| @DateTime`
+	Date     *string  `| @Date`
+	Time     *string  `| @Time`
+	Bool     *bool    `| (@"true" | "false")`
+	Integer  *int64   `| @Int`
+	Float    *float64 `| @Float`
+	List     []*Value `| "[" [ @@ { "," @@ } ] "]"`
 }
 
 type Section struct {
@@ -75,11 +42,39 @@ type Section struct {
 	Fields []*Field `{ @@ }`
 }
 
+var (
+	tomlLexer = lexer.Must(ebnf.New(`
+		Comment = "#" { "\u0000"…"\uffff"-"\n" } .
+		DateTime = date "T" time [ "-" digit digit ":" digit digit ].
+		Date = date .
+		Time = time .
+		Ident = (alpha | "_") { "_" | alpha | digit } .
+		String = "\"" { "\u0000"…"\uffff"-"\""-"\\" | "\\" any } "\"" .
+		Int = [ "-" | "+" ] digit { digit } .
+		Float = ("." | digit) {"." | digit} .
+		Punct = "!"…"/" | ":"…"@" | "["…`+"\"`\""+` | "{"…"~" .
+		Whitespace = " " | "\t" | "\n" | "\r" .
+
+		alpha = "a"…"z" | "A"…"Z" .
+		digit = "0"…"9" .
+		any = "\u0000"…"\uffff" .
+		date = digit digit digit digit "-" digit digit "-" digit digit .
+		time = digit digit ":" digit digit ":" digit digit [ "." { digit } ] .
+	`, ebnf.Elide("Whitespace", "Comment")))
+	tomlParser = participle.MustBuild(&TOML{}, participle.Lexer(tomlLexer), participle.Unquote("String"))
+
+	cli struct {
+		File string `help:"TOML file to parse." arg:""`
+	}
+)
+
 func main() {
-	parser, err := participle.Build(&TOML{})
-	kingpin.FatalIfError(err, "")
+	ctx := kong.Parse(&cli)
 	toml := &TOML{}
-	err = parser.ParseString(example, toml)
-	kingpin.FatalIfError(err, "")
+	r, err := os.Open(cli.File)
+	ctx.FatalIfErrorf(err)
+	defer r.Close()
+	err = tomlParser.Parse(r, toml)
+	ctx.FatalIfErrorf(err)
 	repr.Println(toml)
 }
