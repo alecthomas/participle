@@ -65,13 +65,16 @@ Comment = ("#" | "//") { "\u0000"…"\uffff"-"\n" } .
 Ident = (alpha | "_") { "_" | alpha | digit } .
 Number = ("." | digit) {"." | digit} .
 Whitespace = " " | "\t" | "\n" | "\r" .
-Punct = "!"…"/" | ":"…"@" | "["…`+"\"`\""+` | "{"…"~" .
+Punct = "!"…"/" | ":"…"@" | "["…` + "\"`\"" + ` | "{"…"~" .
 
 alpha = "a"…"z" | "A"…"Z" .
 digit = "0"…"9" .
-`, ebnf.Elide("Comment", "Whitespace")))
+`))
 
-	parser = participle.MustBuild(&File{}, participle.Lexer(graphQLLexer))
+	parser = participle.MustBuild(&File{},
+		participle.Lexer(graphQLLexer),
+		participle.Elide("Comment", "Whitespace"),
+	)
 
 	cli struct {
 		Files []string `arg:"" type:"existingfile" required:"" help:"GraphQL schema files to parse."`

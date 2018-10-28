@@ -52,7 +52,7 @@ var (
 		String = "\"" { "\u0000"…"\uffff"-"\""-"\\" | "\\" any } "\"" .
 		Int = [ "-" | "+" ] digit { digit } .
 		Float = ("." | digit) {"." | digit} .
-		Punct = "!"…"/" | ":"…"@" | "["…`+"\"`\""+` | "{"…"~" .
+		Punct = "!"…"/" | ":"…"@" | "["…` + "\"`\"" + ` | "{"…"~" .
 		Whitespace = " " | "\t" | "\n" | "\r" .
 
 		alpha = "a"…"z" | "A"…"Z" .
@@ -60,8 +60,12 @@ var (
 		any = "\u0000"…"\uffff" .
 		date = digit digit digit digit "-" digit digit "-" digit digit .
 		time = digit digit ":" digit digit ":" digit digit [ "." { digit } ] .
-	`, ebnf.Elide("Whitespace", "Comment")))
-	tomlParser = participle.MustBuild(&TOML{}, participle.Lexer(tomlLexer), participle.Unquote("String"))
+	`))
+	tomlParser = participle.MustBuild(&TOML{},
+		participle.Lexer(tomlLexer),
+		participle.Unquote("String"),
+		participle.Elide("Whitespace", "Comment"),
+	)
 
 	cli struct {
 		File string `help:"TOML file to parse." arg:""`

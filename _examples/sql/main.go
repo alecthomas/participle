@@ -162,18 +162,19 @@ Comment = "--" { "\u0000"…"\uffff"-"\n" } .
 Ident = (alpha | "_") { "_" | alpha | digit } .
 String = "\"" { "\u0000"…"\uffff"-"\""-"\\" | "\\" any } "\"" .
 Number = [ "-" | "+" ] ("." | digit) {"." | digit} .
-Punct = "!"…"/" | ":"…"@" | "["…`+"\"`\""+` | "{"…"~" .
+Punct = "!"…"/" | ":"…"@" | "["…` + "\"`\"" + ` | "{"…"~" .
 Whitespace = " " | "\t" | "\n" | "\r" .
 
 alpha = "a"…"z" | "A"…"Z" .
 digit = "0"…"9" .
 any = "\u0000"…"\uffff" .
-	`, ebnf.Elide("Whitespace", "Comment")))
+	`))
 	sqlParser = participle.MustBuild(
 		&Select{},
 		participle.Lexer(sqlLexer),
 		participle.Unquote("String"),
 		participle.CaseInsensitive("Ident"),
+		participle.Elide("Whitespace", "Comment"),
 		// Need to solve left recursion detection first, if possible.
 		// participle.UseLookahead(),
 	)

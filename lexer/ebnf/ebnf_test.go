@@ -140,7 +140,7 @@ func TestBuilder(t *testing.T) {
 			}},
 		},
 		{
-			name: "Elide",
+			name: "Ident",
 			grammar: `
 			Identifier = alpha { alpha | number } .
 			Whitespace = "\n" | "\r" | "\t" | " " .
@@ -149,10 +149,6 @@ func TestBuilder(t *testing.T) {
 			number = "0"…"9" .
 			`,
 			cases: []entry{{
-				source:  `some id withCase andNumb3rs a`,
-				tokens:  []string{"some", "id", "withCase", "andNumb3rs", "a"},
-				options: []Option{Elide("Whitespace")},
-			}, {
 				source: `some id withCase andNumb3rs a`,
 				tokens: []string{"some", " ", "id", " ", "withCase", " ", "andNumb3rs", " ", "a"},
 			}},
