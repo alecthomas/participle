@@ -51,6 +51,6 @@ func BenchmarkTextScannerLexer(b *testing.B) {
 				break
 			}
 		}
-		r.Seek(0, 0)
+		_, _ = r.Seek(0, 0)
 	}
 }

@@ -93,16 +93,6 @@ func (a *asciiSet) Pos() scanner.Position {
 	return a.pos
 }
 
-type ebnfRange struct {
-	pos        scanner.Position
-	start, end rune
-	exclude    internal.Expression
-}
-
-func (e *ebnfRange) Pos() scanner.Position {
-	return e.pos
-}
-
 type ebnfToken struct {
 	pos   scanner.Position
 	runes []rune

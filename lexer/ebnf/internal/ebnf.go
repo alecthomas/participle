@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package ebnf is a library for EBNF grammars. The input is text ([]byte)
+// Package internal is a library for EBNF grammars. The input is text ([]byte)
 // satisfying the following grammar (represented itself in EBNF):
 //
 //	Production  = name "=" [ Expression ] "." .

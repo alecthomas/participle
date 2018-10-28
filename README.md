@@ -3,20 +3,20 @@
 [![Godoc](https://godoc.org/github.com/alecthomas/participle?status.svg)](http://godoc.org/github.com/alecthomas/participle) [![CircleCI](https://img.shields.io/circleci/project/github/alecthomas/participle.svg)](https://circleci.com/gh/alecthomas/participle)
  [![Go Report Card](https://goreportcard.com/badge/github.com/alecthomas/participle)](https://goreportcard.com/report/github.com/alecthomas/participle) [![Gitter chat](https://badges.gitter.im/alecthomas.png)](https://gitter.im/alecthomas/Lobby)
 
-<!-- MarkdownTOC -->
+<!-- TOC -->
 
 1. [Introduction](#introduction)
-1. [Limitations](#limitations)
-1. [Tutorial](#tutorial)
-1. [Overview](#overview)
-1. [Annotation syntax](#annotation-syntax)
-1. [Capturing](#capturing)
-1. [Lexing](#lexing)
-1. [Options](#options)
-1. [Example](#example)
-1. [Performance](#performance)
+2. [Limitations](#limitations)
+3. [Tutorial](#tutorial)
+4. [Overview](#overview)
+5. [Annotation syntax](#annotation-syntax)
+6. [Capturing](#capturing)
+7. [Lexing](#lexing)
+8. [Options](#options)
+9. [Examples](#examples)
+10. [Performance](#performance)
 
-<!-- /MarkdownTOC -->
+<!-- /TOC -->
 
 ## Introduction
 
@@ -163,77 +163,120 @@ and [Lexer](https://godoc.org/github.com/alecthomas/participle/lexer#Lexer).
 
 The Parser's behaviour can be configured via [Options](https://godoc.org/github.com/alecthomas/participle#Option).
 
-## Example
+## Examples
 
-There are several [examples](_examples) included in the source. Of particular
-note is the [ini](_examples/ini) parser, which also includes a custom lexer.
+There are several [examples](https://github.com/alecthomas/participle/tree/master/_examples) included:
 
-Included below is a parser for the form of EBNF used by `exp/ebnf`:
+Example | Description
+--------|---------------
+[BASIC](https://github.com/alecthomas/participle/tree/master/_examples/basic) | A lexer, parser and interpreter for a [rudimentary dialect](https://caml.inria.fr/pub/docs/oreilly-book/html/book-ora058.html) of BASIC.
+[EBNF](https://github.com/alecthomas/participle/tree/master/_examples/ebnf) | Parser for the form of EBNF used by Participle.
+[Expr](https://github.com/alecthomas/participle/tree/master/_examples/expr) | A basic mathematical expression parser and evaluator.
+[GraphQL](https://github.com/alecthomas/participle/tree/master/_examples/graphql) | Lexer+parser for GraphQL schemas
+[HCL](https://github.com/alecthomas/participle/tree/master/_examples/hcl) | A parser for the [HashiCorp Configuration Language](https://github.com/hashicorp/hcl).
+[INI](https://github.com/alecthomas/participle/tree/master/_examples/ini) | An INI file parser.
+[Protobuf](https://github.com/alecthomas/participle/tree/master/_examples/protobuf) | A full [Protobuf](https://developers.google.com/protocol-buffers/) version 2 and 3 parser.
+[SQL](https://github.com/alecthomas/participle/tree/master/_examples/sql) | A *very* rudimentary SQL SELECT parser.
+[Thrift](https://github.com/alecthomas/participle/tree/master/_examples/thrift) | A full [Thrift](https://thrift.apache.org/docs/idl) parser.
+[TOML](https://github.com/alecthomas/participle/blob/master/_examples/toml/main.go) | A [TOML](https://github.com/toml-lang/toml) parser.
+
+Included below is a full GraphQL lexer and parser:
 
 ```go
 package main
 
 import (
-  "fmt"
   "os"
 
+  "github.com/alecthomas/kong"
+  "github.com/alecthomas/repr"
+
   "github.com/alecthomas/participle"
+  "github.com/alecthomas/participle/lexer"
+  "github.com/alecthomas/participle/lexer/ebnf"
 )
 
-type Group struct {
-  Expression *Expression `'(' @@ ')'`
+type File struct {
+  Entries []*Entry `{ @@ }`
 }
 
-type Option struct {
-  Expression *Expression `'[' @@ ']'`
+type Entry struct {
+  Type   *Type   `  @@`
+  Schema *Schema `| @@`
+  Enum   *Enum   `| @@`
+  Scalar string  `| "scalar" @Ident`
 }
 
-type Repetition struct {
-  Expression *Expression `'{' @@ '}'`
+type Enum struct {
+  Name  string   `"enum" @Ident`
+  Cases []string `"{" { @Ident } "}"`
 }
 
-type Literal struct {
-  Start string `@String`
-  End   string `[ '…' @String ]`
+type Schema struct {
+  Fields []*Field `"schema" "{" { @@ } "}"`
 }
 
-type Term struct {
-  Name       string      `@Ident |`
-  Literal    *Literal    `@@ |`
-  Group      *Group      `@@ |`
-  Option     *Option     `@@ |`
-  Repetition *Repetition `@@`
+type Type struct {
+  Name       string   `"type" @Ident`
+  Implements string   `[ "implements" @Ident ]`
+  Fields     []*Field `"{" { @@ } "}"`
 }
 
-type Sequence struct {
-  Terms []*Term `@@ { @@ }`
+type Field struct {
+  Name       string      `@Ident`
+  Arguments  []*Argument `[ "(" [ @@ { "," @@ } ] ")" ]`
+  Type       *TypeRef    `":" @@`
+  Annotation string      `[ "@" @Ident ]`
 }
 
-type Expression struct {
-  Alternatives []*Sequence `@@ { '|' @@ }`
+type Argument struct {
+  Name    string   `@Ident`
+  Type    *TypeRef `":" @@`
+  Default *Value   `[ "=" @@ ]`
 }
 
-type Expressions []*Expression
-
-type Production struct {
-  Name        string      `@Ident '='`
-  Expressions Expressions `@@ { @@ } '.'`
+type TypeRef struct {
+  Array       *TypeRef `(   "[" @@ "]"`
+  Type        string   `  | @Ident )`
+  NonNullable bool     `[ @"!" ]`
 }
 
-type EBNF struct {
-  Productions []*Production `{ @@ }`
+type Value struct {
+  Symbol string `@Ident`
 }
+
+var (
+  graphQLLexer = lexer.Must(ebnf.New(`
+    Comment = ("#" | "//") { "\u0000"…"\uffff"-"\n" } .
+    Ident = (alpha | "_") { "_" | alpha | digit } .
+    Number = ("." | digit) {"." | digit} .
+    Whitespace = " " | "\t" | "\n" | "\r" .
+    Punct = "!"…"/" | ":"…"@" | "["…`+"\"`\""+` | "{"…"~" .
+
+    alpha = "a"…"z" | "A"…"Z" .
+    digit = "0"…"9" .
+`, ebnf.Elide("Comment", "Whitespace")))
+
+  parser = participle.MustBuild(&File{}, participle.Lexer(graphQLLexer))
+
+  cli struct {
+    Files []string `arg:"" type:"existingfile" required:"" help:"GraphQL schema files to parse."`
+  }
+)
 
 func main() {
-  parser, err := participle.Build(&EBNF{})
-  if err != nil { panic(err) }
-
-  ebnf := &EBNF{}
-  err = parser.Parse(os.Stdin, ebnf)
-  if err != nil { panic(err) }
-
-  json.NewEncoder(os.Stdout).Encode(ebnf)
+  ctx := kong.Parse(&cli)
+  for _, file := range cli.Files {
+    ast := &File{}
+    r, err := os.Open(file)
+    ctx.FatalIfErrorf(err)
+    err = parser.Parse(r, ast)
+    r.Close()
+    repr.Println(ast)
+    ctx.FatalIfErrorf(err)
+  }
 }
+
 ```
 
 ## Performance
