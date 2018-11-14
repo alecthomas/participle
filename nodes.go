@@ -222,26 +222,20 @@ func (o *optional) Parse(ctx parseContext, parent reflect.Value) (out []reflect.
 	case -2: // No lookahead table
 		fallthrough
 	case 0:
-		out, err = o.node.Parse(ctx, parent)
-		if err != nil {
+		if t, err := ctx.Peek(0); err != nil {
 			return out, err
+		} else if !t.EOF() {
+			out, err = o.node.Parse(ctx, parent)
+			if err != nil {
+				return out, err
+			}
 		}
 		if out == nil {
 			out = []reflect.Value{}
 		}
 		fallthrough
 	case 1:
-		if o.next != nil {
-			next, err := o.next.Parse(ctx, parent)
-			if err != nil {
-				return next, err
-			}
-			if next == nil {
-				return nil, nil
-			}
-			out = append(out, next...)
-		}
-		return out, nil
+		return parseVariableNext(ctx, parent, o.node, o.next, out)
 	case -1:
 		// We have a next node but neither it or the optional matched the lookahead, so it's a complete mismatch.
 		if o.next != nil {
@@ -274,6 +268,11 @@ func (r *repetition) Parse(ctx parseContext, parent reflect.Value) (out []reflec
 		fallthrough
 	case 0:
 		for {
+			if t, err := ctx.Peek(0); err != nil {
+				return out, err
+			} else if t.EOF() {
+				break
+			}
 			v, err := r.node.Parse(ctx, parent)
 			out = append(out, v...)
 			if err != nil {
@@ -288,17 +287,7 @@ func (r *repetition) Parse(ctx parseContext, parent reflect.Value) (out []reflec
 		}
 		fallthrough
 	case 1:
-		if r.next != nil {
-			next, err := r.next.Parse(ctx, parent)
-			out = append(out, next...)
-			if err != nil {
-				return out, err
-			}
-			if next == nil {
-				return nil, nil
-			}
-		}
-		return out, nil
+		return parseVariableNext(ctx, parent, r.node, r.next, out)
 	case -1:
 		// We have a next node but neither it or the optional matched the lookahead, so it's a complete mismatch.
 		if r.next != nil {
@@ -308,6 +297,32 @@ func (r *repetition) Parse(ctx parseContext, parent reflect.Value) (out []reflec
 	default:
 		panic("unexpected selection")
 	}
+}
+
+func parseVariableNext(ctx parseContext, parent reflect.Value, prev, next node, out []reflect.Value) ([]reflect.Value, error) {
+	if next == nil {
+		return out, nil
+	}
+	nextTokens, err := next.Parse(ctx, parent)
+	out = append(out, nextTokens...)
+	if err != nil {
+		return out, err
+	}
+	// Match, return.
+	if nextTokens != nil {
+		return out, nil
+	}
+
+	// Nothing matched in the optional part or the next part, return no match.
+	if len(out) == 0 {
+		return nil, nil
+	}
+	// Repeated part progressed, but next expression didn't.
+	if out != nil {
+		t, _ := ctx.Peek(0)
+		return nil, lexer.Errorf(t.Pos, "expected %s after %s but got %s", next, prev, t)
+	}
+	return out, nil
 }
 
 // Match a token literal exactly "..."[:<type>].

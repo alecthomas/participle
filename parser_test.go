@@ -893,3 +893,23 @@ func TestCaseInsensitive(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, expected, actual)
 }
+
+func TestTokenAfterRepeatErrors(t *testing.T) {
+	type grammar struct {
+		Text string `{ @Ident } "foo"`
+	}
+	p := mustTestParser(t, &grammar{})
+	ast := &grammar{}
+	err := p.ParseString(``, ast)
+	require.Error(t, err)
+}
+
+func TestEOFAfterRepeat(t *testing.T) {
+	type grammar struct {
+		Text string `{ @Ident }`
+	}
+	p := mustTestParser(t, &grammar{})
+	ast := &grammar{}
+	err := p.ParseString(``, ast)
+	require.NoError(t, err)
+}

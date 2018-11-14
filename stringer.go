@@ -79,9 +79,13 @@ func (s *stringerVisitor) visit(n node, depth int, disjunctions bool) {
 		}
 
 	case *repetition:
-		fmt.Fprint(s, "( ")
+		fmt.Fprint(s, "{ ")
 		s.visit(n.node, depth, disjunctions)
-		fmt.Fprint(s, " )")
+		fmt.Fprint(s, " }")
+		if n.next != nil {
+			fmt.Fprint(s, " ")
+			s.visit(n.next, depth, disjunctions)
+		}
 
 	case *literal:
 		fmt.Fprintf(s, "%q", n.s)
