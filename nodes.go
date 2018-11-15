@@ -70,6 +70,7 @@ func (p *parseable) Parse(ctx parseContext, parent reflect.Value) (out []reflect
 }
 
 type strct struct {
+	root bool
 	typ  reflect.Type
 	expr node
 }
@@ -91,7 +92,7 @@ func (s *strct) Parse(ctx parseContext, parent reflect.Value) (out []reflect.Val
 	s.maybeInjectPos(t.Pos, sv)
 	if out, err = s.expr.Parse(ctx, sv); err != nil {
 		return []reflect.Value{sv}, err
-	} else if out == nil {
+	} else if (!s.root && len(out) == 0) || out == nil {
 		return nil, nil
 	}
 	return []reflect.Value{sv}, nil
@@ -178,7 +179,7 @@ func (c *capture) Parse(ctx parseContext, parent reflect.Value) (out []reflect.V
 		}
 		return []reflect.Value{parent}, err
 	}
-	if v == nil {
+	if len(v) == 0 {
 		return nil, nil
 	}
 	return []reflect.Value{parent}, setField(pos, parent, c.field, v)
