@@ -37,10 +37,6 @@ func MustBuild(grammar interface{}, options ...Option) *Parser {
 //
 // See documentation for details
 func Build(grammar interface{}, options ...Option) (parser *Parser, err error) {
-	gv := reflect.ValueOf(grammar)
-	if gv.Kind() != reflect.Ptr || gv.Elem().Kind() != reflect.Struct {
-		return nil, fmt.Errorf("expected the grammar to be a pointer to a struct but got a %T", grammar)
-	}
 	// Configure Parser struct with defaults + options.
 	p := &Parser{
 		lex:             lexer.TextScannerLexer,
@@ -94,7 +90,6 @@ func Build(grammar interface{}, options ...Option) (parser *Parser, err error) {
 	if err != nil {
 		return nil, err
 	}
-	p.root.(*strct).root = true
 	// TODO: Fix lookahead - see SQL example.
 	if p.useLookahead {
 		return p, applyLookahead(p.root, map[node]bool{})
