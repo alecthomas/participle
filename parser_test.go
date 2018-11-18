@@ -524,9 +524,7 @@ func BenchmarkEBNFParser(b *testing.B) {
 	parser, err := Build(&EBNF{})
 	require.NoError(b, err)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		actual := &EBNF{}
-		_ = parser.ParseString(strings.TrimSpace(`
+	source := strings.TrimSpace(`
 Production  = name "=" [ Expression ] "." .
 Expression  = Alternative { "|" Alternative } .
 Alternative = Term { Term } .
@@ -535,7 +533,10 @@ Group       = "(" Expression ")" .
 EBNFOption      = "[" Expression "]" .
 Repetition  = "{" Expression "}" .
 
-`), actual)
+`)
+	for i := 0; i < b.N; i++ {
+		actual := &EBNF{}
+		_ = parser.ParseString(source, actual)
 	}
 }
 

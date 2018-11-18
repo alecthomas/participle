@@ -2,6 +2,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/alecthomas/kong"
@@ -9,7 +10,6 @@ import (
 
 	"github.com/alecthomas/participle"
 	"github.com/alecthomas/participle/lexer"
-	"github.com/alecthomas/participle/lexer/ebnf"
 )
 
 type Proto struct {
@@ -44,7 +44,7 @@ type Value struct {
 
 	String    *string  `  @String`
 	Number    *float64 `| @Float`
-	Int       *int64   `| [ @"-" ] @Int`
+	Int       *int64   `| @Int`
 	Bool      *bool    `| (@"true" | "false")`
 	Reference *string  `| @Ident @{ "." Ident }`
 	Map       *Map     `| @@`
@@ -260,24 +260,7 @@ type MapType struct {
 }
 
 var (
-	protoLexer = lexer.Must(ebnf.New(`
-Comment = ("#" | "//") { "\u0000"…"\uffff"-"\n" } .
-Ident = (alpha | "_") { "_" | alpha | digit } .
-String = "\"" { "\u0000"…"\uffff"-"\""-"\\" | "\\" any } "\"" .
-Int = [ "-" | "+" ] digit { digit } .
-Float = ("." | digit) {"." | digit} .
-Punct = "!"…"/" | ":"…"@" | "["…` + "\"`\"" + ` | "{"…"~" .
-Whitespace = " " | "\t" | "\n" | "\r" .
-
-alpha = "a"…"z" | "A"…"Z" .
-digit = "0"…"9" .
-any = "\u0000"…"\uffff" .
-`))
-	parser = participle.MustBuild(&Proto{},
-		participle.Lexer(protoLexer),
-		participle.Unquote("String"),
-		participle.Elide("Whitespace", "Comment"),
-	)
+	parser = participle.MustBuild(&Proto{}, participle.UseLookahead(0))
 
 	cli struct {
 		Files []string `required existingfile arg help:"Protobuf files."`
@@ -288,6 +271,7 @@ func main() {
 	ctx := kong.Parse(&cli)
 
 	for _, file := range cli.Files {
+		fmt.Println(file)
 		proto := &Proto{}
 		r, err := os.Open(file)
 		ctx.FatalIfErrorf(err, "")

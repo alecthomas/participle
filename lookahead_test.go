@@ -18,7 +18,7 @@ type LAT1Decl struct {
 
 func TestIssue3Example1(t *testing.T) {
 	g := &LAT1Module{}
-	p := mustTestParser(t, g, UseLookahead())
+	p := mustTestParser(t, g, UseLookahead(5))
 	err := p.ParseString(`
 		source_filename = "foo.c"
 		target datalayout = "bar"
@@ -57,11 +57,11 @@ type LAT2Group struct {
 
 func TestIssue3Example2(t *testing.T) {
 	g := &LAT2Config{}
-	p := mustTestParser(t, g, UseLookahead())
+	p := mustTestParser(t, g, UseLookahead(2))
 	err := p.ParseString(`
 		key = "value"
 		block {
-			key = "value"
+			inner_key = "inner_value"
 		}
 	`, g)
 	require.NoError(t, err)
@@ -74,7 +74,7 @@ func TestIssue3Example2(t *testing.T) {
 					Group: &LAT2Group{
 						Name: "block",
 						Entries: []*LAT2Entry{
-							{Attribute: &LAT2Attribute{Key: "key", Value: "value"}},
+							{Attribute: &LAT2Attribute{Key: "inner_key", Value: "inner_value"}},
 						},
 					},
 				},
@@ -99,7 +99,7 @@ type LAT3Value struct {
 
 func TestIssue11(t *testing.T) {
 	g := &LAT3Grammar{}
-	p := mustTestParser(t, g, UseLookahead())
+	p := mustTestParser(t, g, UseLookahead(5))
 	err := p.ParseString(`
 		A paid $30.80 for snacks.
 		B paid $70 for housecleaning.
@@ -123,7 +123,7 @@ func TestLookaheadOptional(t *testing.T) {
 		Key   string `[ @Ident "=" ]`
 		Value string `@Ident`
 	}
-	p := mustTestParser(t, &grammar{}, UseLookahead())
+	p := mustTestParser(t, &grammar{}, UseLookahead(5))
 	actual := &grammar{}
 	err := p.ParseString(`value`, actual)
 	require.NoError(t, err)
@@ -138,53 +138,28 @@ func TestLookaheadOptionalNoTail(t *testing.T) {
 		Key   string `@Ident`
 		Value string `[ "=" @Int ]`
 	}
-	p := mustTestParser(t, &grammar{}, UseLookahead())
+	p := mustTestParser(t, &grammar{}, UseLookahead(5))
 	actual := &grammar{}
 	err := p.ParseString(`key`, actual)
 	require.NoError(t, err)
 }
 
-// func TestLookaheadRepitition(t *testing.T) {
-// 	g := &struct {
-// 		A string `( @String @"." )`
-// 		B string `@String`
-// 	}{}
-// 	p := mustTestParser(t, g, UseLookahead())
-// 	// repr.Println(p.root)
-// 	err := p.ParseString(`"value"`, g)
-// 	require.NoError(t, err)
-// 	// repr.Println(g)
-// 	err = p.ParseString(`"key" = "value"`, g)
-// 	require.NoError(t, err)
-// }
-
 func TestLookaheadDisjunction(t *testing.T) {
-	g := &struct {
-		A string `  "hello" @Ident`
-		B string `| "hello" @Ident "world"`
+	type grammar struct {
+		B string `  "hello" @Ident "world"`
 		C string `| "hello" "world" @Ident`
-	}{}
-	p := mustTestParser(t, g, UseLookahead())
+		A string `| "hello" @Ident`
+	}
+	p := mustTestParser(t, &grammar{}, UseLookahead(5))
+
+	g := &grammar{}
 	err := p.ParseString(`hello moo`, g)
 	require.NoError(t, err)
-	require.Equal(t, g.A, "moo")
+	require.Equal(t, &grammar{A: "moo"}, g)
+
 	err = p.ParseString(`hello moo world`, g)
 	require.NoError(t, err)
-	require.Equal(t, g.B, "moo")
-}
-
-func TestLookaheadChooseLiteralOverType(t *testing.T) {
-	g := &struct {
-		A string `  "hello" @Ident`
-		B string `| "hello" @"world"`
-	}{}
-	p := mustTestParser(t, g, UseLookahead())
-	err := p.ParseString(`hello ONE`, g)
-	require.NoError(t, err)
-	require.Equal(t, g.A, "ONE")
-	err = p.ParseString(`hello world`, g)
-	require.NoError(t, err)
-	require.Equal(t, g.B, "world")
+	require.Equal(t, &grammar{B: "moo"}, g)
 }
 
 func TestLookaheadNestedDisjunctions(t *testing.T) {
@@ -192,10 +167,15 @@ func TestLookaheadNestedDisjunctions(t *testing.T) {
 		A string `  "hello" ( "foo" @Ident | "bar" "waz" @Ident)`
 		B string `| "hello" @"world"`
 	}{}
-	p := mustTestParser(t, g, UseLookahead())
+	p := mustTestParser(t, g, UseLookahead(5))
+
 	err := p.ParseString(`hello foo FOO`, g)
 	require.NoError(t, err)
 	require.Equal(t, g.A, "FOO")
+
+	err = p.ParseString(`hello world`, g)
+	require.NoError(t, err)
+	require.Equal(t, g.B, "world")
 }
 
 func TestLookaheadTerm(t *testing.T) {
@@ -215,7 +195,7 @@ func TestLookaheadTerm(t *testing.T) {
 			A string `"(" @Ident ")"`
 		} `| @@`
 	}{}
-	mustTestParser(t, g, UseLookahead())
+	mustTestParser(t, g, UseLookahead(5))
 }
 
 // Term holds the different possible terms
@@ -246,7 +226,7 @@ type issue28Value struct {
 }
 
 func TestIssue28(t *testing.T) {
-	p := mustTestParser(t, &issue28Term{}, UseLookahead())
+	p := mustTestParser(t, &issue28Term{}, UseLookahead(5))
 
 	actual := &issue28Term{}
 	err := p.ParseString(`"key": "value"`, actual)
@@ -298,7 +278,7 @@ func TestLookaheadWithConvergingTokens(t *testing.T) {
 		Op   string   `[ @( ">" "=" | ">" | "<" "=" | "<" )`
 		Next *grammar `  @@ ]`
 	}
-	p := mustTestParser(t, &grammar{}, UseLookahead())
+	p := mustTestParser(t, &grammar{}, UseLookahead(5))
 	actual := &grammar{}
 	err := p.ParseString("a >= b", actual)
 	require.NoError(t, err)
@@ -310,15 +290,22 @@ func TestLookaheadWithConvergingTokens(t *testing.T) {
 // }
 
 // type leftRecursionFuncType struct {
-// 	Return *leftRecursionType   `@@`
-// 	Args   []*leftRecursionType `"(" @@ { "," @@ } ")"`
+// 	Return   *leftRecursionType   `@@`
+// 	Function string               `@Ident`
+// 	Args     []*leftRecursionType `"(" @@ { "," @@ } ")"`
 // }
 
 // func TestLeftRecursion(t *testing.T) {
-// 	p := mustTestParser(t, &leftRecursionType{}, UseLookahead())
+// 	p := mustTestParser(t, &leftRecursionType{}, UseLookahead(5))
 // 	actual := &leftRecursionType{}
 // 	err := p.ParseString(`int f()`, actual)
 // 	require.NoError(t, err)
+// 	require.Equal(t, &leftRecursionType{
+// 		Function: &leftRecursionFuncType{
+// 			Return:   &leftRecursionType{Type: "int"},
+// 			Function: "f",
+// 		},
+// 	}, actual)
 // }
 
 func TestIssue27(t *testing.T) {
@@ -344,7 +331,7 @@ func TestLookaheadDisambiguateByType(t *testing.T) {
 		Float float64 `| @(["-"] Float)`
 	}
 
-	p := mustTestParser(t, &grammar{}, UseLookahead())
+	p := mustTestParser(t, &grammar{}, UseLookahead(5))
 	actual := &grammar{}
 
 	err := p.ParseString(`- 100`, actual)
@@ -354,4 +341,60 @@ func TestLookaheadDisambiguateByType(t *testing.T) {
 	err = p.ParseString(`- 100.5`, actual)
 	require.NoError(t, err)
 	require.Equal(t, &grammar{Float: -100.5}, actual)
+}
+
+func TestShowNearestError(t *testing.T) {
+	type grammar struct {
+		A string `  @"a" @"b" @"c"`
+		B string `| @"a" @"z"`
+	}
+	p := mustTestParser(t, &grammar{}, UseLookahead(10))
+	actual := &grammar{}
+	err := p.ParseString(`a b d`, actual)
+	require.EqualError(t, err, `<source>:1:3: unexpected "b" (expected "z")`)
+}
+
+func TestRewindDisjunction(t *testing.T) {
+	type grammar struct {
+		Function string `  @Ident "(" ")"`
+		Ident    string `| @Ident`
+	}
+	p := mustTestParser(t, &grammar{}, UseLookahead(2))
+	ast := &grammar{}
+	err := p.ParseString(`name`, ast)
+	require.NoError(t, err)
+	require.Equal(t, &grammar{Ident: "name"}, ast)
+}
+
+func TestRewindOptional(t *testing.T) {
+	type grammar struct {
+		Var string `  [ "int" "int" ] @Ident`
+	}
+	p := mustTestParser(t, &grammar{}, UseLookahead(3))
+	ast := &grammar{}
+
+	err := p.ParseString(`one`, ast)
+	require.NoError(t, err)
+	require.Equal(t, &grammar{Var: "one"}, ast)
+
+	err = p.ParseString(`int int one`, ast)
+	require.NoError(t, err)
+	require.Equal(t, &grammar{Var: "one"}, ast)
+}
+
+func TestRewindRepetition(t *testing.T) {
+	type grammar struct {
+		Ints  []string `{ @"int" }`
+		Ident string   `@Ident`
+	}
+	p := mustTestParser(t, &grammar{}, UseLookahead(3))
+	ast := &grammar{}
+
+	err := p.ParseString(`int int one`, ast)
+	require.NoError(t, err)
+	require.Equal(t, &grammar{Ints: []string{"int", "int"}, Ident: "one"}, ast)
+
+	err = p.ParseString(`int int one`, ast)
+	require.NoError(t, err)
+	require.Equal(t, &grammar{Ints: []string{"int", "int"}, Ident: "one"}, ast)
 }

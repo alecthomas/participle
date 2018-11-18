@@ -16,7 +16,7 @@ type Parser struct {
 	root            node
 	lex             lexer.Definition
 	typ             reflect.Type
-	useLookahead    bool
+	useLookahead    int
 	caseInsensitive map[string]bool
 	mappers         []mapperByToken
 }
@@ -41,6 +41,7 @@ func Build(grammar interface{}, options ...Option) (parser *Parser, err error) {
 	p := &Parser{
 		lex:             lexer.TextScannerLexer,
 		caseInsensitive: map[string]bool{},
+		useLookahead:    1,
 	}
 	for _, option := range options {
 		if option == nil {
@@ -90,10 +91,6 @@ func Build(grammar interface{}, options ...Option) (parser *Parser, err error) {
 	if err != nil {
 		return nil, err
 	}
-	// TODO: Fix lookahead - see SQL example.
-	if p.useLookahead {
-		return p, applyLookahead(p.root, map[node]bool{})
-	}
 	return p, nil
 }
 
@@ -123,7 +120,10 @@ func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
 			caseInsensitive[rn] = true
 		}
 	}
-	ctx := parseContext{PeekingLexer: lex, caseInsensitive: caseInsensitive}
+	ctx, err := newParseContext(lex, p.useLookahead, caseInsensitive)
+	if err != nil {
+		return err
+	}
 	// If the grammar implements Parseable, use it.
 	if parseable, ok := v.(Parseable); ok {
 		return p.rootParseable(lex, parseable)

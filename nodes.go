@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/alecthomas/participle/lexer"
+	"github.com/google/gxui/math"
 )
 
 var (
@@ -20,18 +21,12 @@ var (
 	NextMatch = errors.New("no match") // nolint: golint
 )
 
-// Context for a single parse.
-type parseContext struct {
-	lexer.PeekingLexer
-	caseInsensitive map[rune]bool
-}
-
 // A node in the grammar.
 type node interface {
 	// Parse from scanner into value.
 	//
 	// Returned slice will be nil if the node does not match.
-	Parse(ctx parseContext, parent reflect.Value) ([]reflect.Value, error)
+	Parse(ctx *parseContext, parent reflect.Value) ([]reflect.Value, error)
 
 	// Return a decent string representation of the Node.
 	String() string
@@ -56,7 +51,7 @@ type parseable struct {
 
 func (p *parseable) String() string { return stringer(p) }
 
-func (p *parseable) Parse(ctx parseContext, parent reflect.Value) (out []reflect.Value, err error) {
+func (p *parseable) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	rv := reflect.New(p.t)
 	v := rv.Interface().(Parseable)
 	err = v.Parse(ctx)
@@ -82,7 +77,7 @@ func (s *strct) maybeInjectPos(pos lexer.Position, v reflect.Value) {
 	}
 }
 
-func (s *strct) Parse(ctx parseContext, parent reflect.Value) (out []reflect.Value, err error) {
+func (s *strct) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	sv := reflect.New(s.typ).Elem()
 	t, err := ctx.Peek(0)
 	if err != nil {
@@ -90,38 +85,48 @@ func (s *strct) Parse(ctx parseContext, parent reflect.Value) (out []reflect.Val
 	}
 	s.maybeInjectPos(t.Pos, sv)
 	if out, err = s.expr.Parse(ctx, sv); err != nil {
+		_ = ctx.Apply()
 		return []reflect.Value{sv}, err
 	} else if out == nil {
 		return nil, nil
 	}
-	return []reflect.Value{sv}, nil
+	return []reflect.Value{sv}, ctx.Apply()
 }
 
 // <expr> {"|" <expr>}
 type disjunction struct {
-	nodes     []node
-	lookahead lookaheadTable
+	nodes []node
 }
 
 func (d *disjunction) String() string { return stringer(d) }
 
-func (d *disjunction) Parse(ctx parseContext, parent reflect.Value) (out []reflect.Value, err error) {
-	if selected, err := d.lookahead.Select(ctx, parent); err != nil {
-		return nil, err
-	} else if selected != -2 {
-		if selected == -1 {
-			return nil, nil
-		}
-		return d.nodes[selected].Parse(ctx, parent)
-	}
-
-	// Same logic without lookahead.
+func (d *disjunction) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
+	var (
+		nearestError = math.MaxInt
+		firstError   error
+		firstValues  []reflect.Value
+	)
 	for _, a := range d.nodes {
-		if value, err := a.Parse(ctx, parent); err != nil {
-			return value, err
+		branch := ctx.Branch()
+		if value, err := a.Parse(branch, parent); err != nil {
+			// If this branch progressed too far and still didn't match, error out.
+			if ctx.Stop(branch) {
+				return value, err
+			}
+			// Show the closest error returned. The idea here is that the further the parser progresses
+			// without error, the more difficult it is to trace the error back to its root.
+			if err != nil && branch.cursor < nearestError {
+				firstError = err
+				firstValues = value
+				nearestError = branch.cursor
+			}
 		} else if value != nil {
+			ctx.Accept(branch)
 			return value, nil
 		}
+	}
+	if firstError != nil {
+		return firstValues, firstError
 	}
 	return nil, nil
 }
@@ -135,7 +140,7 @@ type sequence struct {
 
 func (s *sequence) String() string { return stringer(s) }
 
-func (s *sequence) Parse(ctx parseContext, parent reflect.Value) (out []reflect.Value, err error) {
+func (s *sequence) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	for n := s; n != nil; n = n.next {
 		child, err := n.node.Parse(ctx, parent)
 		out = append(out, child...)
@@ -165,7 +170,7 @@ type capture struct {
 
 func (c *capture) String() string { return stringer(c) }
 
-func (c *capture) Parse(ctx parseContext, parent reflect.Value) (out []reflect.Value, err error) {
+func (c *capture) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	token, err := ctx.Peek(0)
 	if err != nil {
 		return nil, err
@@ -174,14 +179,15 @@ func (c *capture) Parse(ctx parseContext, parent reflect.Value) (out []reflect.V
 	v, err := c.node.Parse(ctx, parent)
 	if err != nil {
 		if v != nil {
-			_ = setField(pos, parent, c.field, v)
+			ctx.Defer(pos, parent, c.field, v)
 		}
 		return []reflect.Value{parent}, err
 	}
 	if v == nil {
 		return nil, nil
 	}
-	return []reflect.Value{parent}, setField(pos, parent, c.field, v)
+	ctx.Defer(pos, parent, c.field, v)
+	return []reflect.Value{parent}, nil
 }
 
 // <identifier> - named lexer token reference
@@ -192,7 +198,7 @@ type reference struct {
 
 func (r *reference) String() string { return stringer(r) }
 
-func (r *reference) Parse(ctx parseContext, parent reflect.Value) (out []reflect.Value, err error) {
+func (r *reference) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	token, err := ctx.Peek(0)
 	if err != nil {
 		return nil, err
@@ -206,100 +212,63 @@ func (r *reference) Parse(ctx parseContext, parent reflect.Value) (out []reflect
 
 // [ <expr> ] <sequence>
 type optional struct {
-	node      node
-	next      node
-	lookahead lookaheadTable
+	node node
+	next node
 }
 
 func (o *optional) String() string { return stringer(o) }
 
-func (o *optional) Parse(ctx parseContext, parent reflect.Value) (out []reflect.Value, err error) {
-	result, err := o.lookahead.Select(ctx, parent)
+func (o *optional) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
+	branch := ctx.Branch()
+	out, err = o.node.Parse(branch, parent)
 	if err != nil {
-		return nil, err
-	}
-	switch result {
-	case -2: // No lookahead table
-		fallthrough
-	case 0:
-		if t, err := ctx.Peek(0); err != nil {
+		// Optional part failed to match.
+		if ctx.Stop(branch) {
 			return out, err
-		} else if !t.EOF() {
-			out, err = o.node.Parse(ctx, parent)
-			if err != nil {
-				return out, err
-			}
 		}
-		if out == nil {
-			out = []reflect.Value{}
-		}
-		fallthrough
-	case 1:
-		return parseVariableNext(ctx, parent, o.node, o.next, out)
-	case -1:
-		// We have a next node but neither it or the optional matched the lookahead, so it's a complete mismatch.
-		if o.next != nil {
-			return nil, nil
-		}
-		return []reflect.Value{}, nil
-	default:
-		panic("unexpected selection")
+	} else {
+		ctx.Accept(branch)
 	}
+	if out == nil {
+		out = []reflect.Value{}
+	}
+	return parseVariableNext(ctx, parent, o.node, o.next, out)
 }
 
 // { <expr> } <sequence>
 type repetition struct {
-	node      node
-	next      node
-	lookahead lookaheadTable
+	node node
+	next node
 }
 
 func (r *repetition) String() string { return stringer(r) }
 
 // Parse a repetition. Once a repetition is encountered it will always match, so grammars
 // should ensure that branches are differentiated prior to the repetition.
-func (r *repetition) Parse(ctx parseContext, parent reflect.Value) (out []reflect.Value, err error) {
-	result, err := r.lookahead.Select(ctx, parent)
-	if err != nil {
-		return nil, err
-	}
-	switch result {
-	case -2: // No lookahead table
-		fallthrough
-	case 0:
-		for {
-			if t, err := ctx.Peek(0); err != nil {
-				return out, err
-			} else if t.EOF() {
-				break
-			}
-			v, err := r.node.Parse(ctx, parent)
-			out = append(out, v...)
-			if err != nil {
+func (r *repetition) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
+	for {
+		branch := ctx.Branch()
+		v, err := r.node.Parse(branch, parent)
+		out = append(out, v...)
+		if err != nil {
+			if ctx.Stop(branch) {
 				return out, err
 			}
-			if v == nil {
-				break
-			}
+			break
+		} else {
+			ctx.Accept(branch)
 		}
-		if out == nil {
-			out = []reflect.Value{}
+		if v == nil {
+			break
 		}
-		fallthrough
-	case 1:
-		return parseVariableNext(ctx, parent, r.node, r.next, out)
-	case -1:
-		// We have a next node but neither it or the optional matched the lookahead, so it's a complete mismatch.
-		if r.next != nil {
-			return nil, nil
-		}
-		return []reflect.Value{}, nil
-	default:
-		panic("unexpected selection")
 	}
+	if out == nil {
+		out = []reflect.Value{}
+	}
+	return parseVariableNext(ctx, parent, r.node, r.next, out)
 }
 
-func parseVariableNext(ctx parseContext, parent reflect.Value, prev, next node, out []reflect.Value) ([]reflect.Value, error) {
+func parseVariableNext(ctx *parseContext, parent reflect.Value, prev, next node, out []reflect.Value) ([]reflect.Value, error) {
 	if next == nil {
 		return out, nil
 	}
@@ -334,7 +303,7 @@ type literal struct {
 
 func (l *literal) String() string { return stringer(l) }
 
-func (l *literal) Parse(ctx parseContext, parent reflect.Value) (out []reflect.Value, err error) {
+func (l *literal) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	token, err := ctx.Peek(0)
 	if err != nil {
 		return nil, err

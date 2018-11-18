@@ -13,12 +13,15 @@ func Lexer(def lexer.Definition) Option {
 	}
 }
 
-// UseLookahead builds lookahead tables for disambiguating branches.
+// UseLookahead allows branch lookahead up to "n" tokens.
 //
-// NOTE: This is an experimental feature.
-func UseLookahead() Option {
+// If parsing cannot be disambiguated before "n" tokens of lookahead, parsing will fail.
+//
+// Note that increasing lookahead has a minor performance impact, but also
+// reduces the accuracy of error reporting.
+func UseLookahead(n int) Option {
 	return func(p *Parser) error {
-		p.useLookahead = true
+		p.useLookahead = n
 		return nil
 	}
 }

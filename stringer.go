@@ -53,11 +53,11 @@ func (s *stringerVisitor) visit(n node, depth int, disjunctions bool) {
 		}
 
 	case *parseable:
-		fmt.Fprint(s, n.t.Name())
+		fmt.Fprintf(s, "<%s>", strings.ToLower(n.t.Name()))
 
 	case *capture:
 		if _, ok := n.node.(*parseable); ok {
-			fmt.Fprint(s, n.field.Name)
+			fmt.Fprintf(s, "<%s>", strings.ToLower(n.field.Name))
 		} else {
 			if n.node == nil {
 				fmt.Fprintf(s, "<%s>", strings.ToLower(n.field.Name))
