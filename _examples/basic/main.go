@@ -30,7 +30,7 @@ var (
 		participle.Lexer(basicLexer),
 		participle.CaseInsensitive("Ident"),
 		participle.Unquote("String"),
-		participle.UseLookahead(),
+		participle.UseLookahead(2),
 		participle.Elide("Whitespace"),
 	)
 

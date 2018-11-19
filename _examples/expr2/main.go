@@ -68,7 +68,7 @@ func main() {
 		Expr []string `arg required help:"Expression to parse."`
 	}
 	ctx := kong.Parse(&cli)
-	p := participle.MustBuild(&Expression{}, participle.UseLookahead())
+	p := participle.MustBuild(&Expression{}, participle.UseLookahead(2))
 
 	expr := &Expression{}
 	err := p.ParseString(strings.Join(cli.Expr, " "), expr)

@@ -41,7 +41,10 @@ type Value struct {
 }
 
 func main() {
-	parser, err := participle.Build(&INI{}, participle.Lexer(iniLexer), participle.Unquote(iniLexer, "String"))
+	parser, err := participle.Build(&INI{},
+		participle.Lexer(iniLexer),
+		participle.Unquote("String"),
+	)
 	if err != nil {
 		panic(err)
 	}
