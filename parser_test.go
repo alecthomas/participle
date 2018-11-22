@@ -914,3 +914,12 @@ func TestEOFAfterRepeat(t *testing.T) {
 	err := p.ParseString(``, ast)
 	require.NoError(t, err)
 }
+
+func TestTrailing(t *testing.T) {
+	type grammar struct {
+		Text string `@Ident`
+	}
+	p := mustTestParser(t, &grammar{})
+	err := p.ParseString(`foo bar`, &grammar{})
+	require.Error(t, err)
+}

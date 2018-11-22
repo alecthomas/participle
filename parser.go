@@ -126,7 +126,7 @@ func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
 	}
 	// If the grammar implements Parseable, use it.
 	if parseable, ok := v.(Parseable); ok {
-		return p.rootParseable(lex, parseable)
+		return p.rootParseable(ctx, parseable)
 	}
 	rv := reflect.ValueOf(v)
 	if rv.Kind() != reflect.Ptr || rv.Elem().Kind() != reflect.Struct {
@@ -139,7 +139,7 @@ func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
 	if err != nil {
 		return err
 	}
-	token, err := lex.Peek(0)
+	token, err := ctx.Peek(0)
 	if err != nil {
 		return err
 	} else if !token.EOF() {
