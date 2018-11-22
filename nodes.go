@@ -12,6 +12,9 @@ import (
 )
 
 var (
+	// MaxIterations limits the number of elements capturable by {}.
+	MaxIterations = 1000000
+
 	positionType  = reflect.TypeOf(lexer.Position{})
 	captureType   = reflect.TypeOf((*Capture)(nil)).Elem()
 	parseableType = reflect.TypeOf((*Parseable)(nil)).Elem()
@@ -246,11 +249,13 @@ func (r *repetition) String() string { return stringer(r) }
 // Parse a repetition. Once a repetition is encountered it will always match, so grammars
 // should ensure that branches are differentiated prior to the repetition.
 func (r *repetition) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
-	for {
+	i := 0
+	for ; i < MaxIterations; i++ {
 		branch := ctx.Branch()
 		v, err := r.node.Parse(branch, parent)
 		out = append(out, v...)
 		if err != nil {
+			// Optional part failed to match.
 			if ctx.Stop(branch) {
 				return out, err
 			}
@@ -261,6 +266,10 @@ func (r *repetition) Parse(ctx *parseContext, parent reflect.Value) (out []refle
 		if v == nil {
 			break
 		}
+	}
+	if i >= MaxIterations {
+		t, _ := ctx.Peek(0)
+		return nil, fmt.Errorf("too many iterations of %s at %s", r, t.Pos)
 	}
 	if out == nil {
 		out = []reflect.Value{}
