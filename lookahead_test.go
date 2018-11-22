@@ -351,7 +351,7 @@ func TestShowNearestError(t *testing.T) {
 	p := mustTestParser(t, &grammar{}, UseLookahead(10))
 	actual := &grammar{}
 	err := p.ParseString(`a b d`, actual)
-	require.EqualError(t, err, `<source>:1:3: unexpected "b" (expected "z")`)
+	require.EqualError(t, err, `<source>:1:5: unexpected "d" (expected "c")`)
 }
 
 func TestRewindDisjunction(t *testing.T) {

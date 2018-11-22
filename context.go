@@ -66,7 +66,11 @@ func (p *parseContext) Branch() *parseContext {
 
 // Stop returns true if parsing should terminate after the given "branch" failed to match.
 func (p *parseContext) Stop(branch *parseContext) bool {
-	return branch.cursor > p.cursor+p.lookahead
+	if branch.cursor > p.cursor+p.lookahead {
+		p.Accept(branch)
+		return true
+	}
+	return false
 }
 
 type rewinder struct {

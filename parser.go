@@ -143,7 +143,7 @@ func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
 	if err != nil {
 		return err
 	} else if !token.EOF() {
-		return lexer.Errorf(token.Pos, "expected %s but got %q", p.root, token)
+		return lexer.Errorf(token.Pos, "unexpected trailing token %q", token)
 	}
 	if pv == nil {
 		return lexer.Errorf(token.Pos, "invalid syntax")

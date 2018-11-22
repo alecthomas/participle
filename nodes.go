@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/alecthomas/participle/lexer"
-	"github.com/google/gxui/math"
 )
 
 var (
@@ -105,7 +104,7 @@ func (d *disjunction) String() string { return stringer(d) }
 
 func (d *disjunction) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	var (
-		nearestError = math.MaxInt
+		deepestError = 0
 		firstError   error
 		firstValues  []reflect.Value
 	)
@@ -118,10 +117,10 @@ func (d *disjunction) Parse(ctx *parseContext, parent reflect.Value) (out []refl
 			}
 			// Show the closest error returned. The idea here is that the further the parser progresses
 			// without error, the more difficult it is to trace the error back to its root.
-			if err != nil && branch.cursor < nearestError {
+			if err != nil && branch.cursor >= deepestError {
 				firstError = err
 				firstValues = value
-				nearestError = branch.cursor
+				deepestError = branch.cursor
 			}
 		} else if value != nil {
 			ctx.Accept(branch)
@@ -298,7 +297,7 @@ func parseVariableNext(ctx *parseContext, parent reflect.Value, prev, next node,
 	// Repeated part progressed, but next expression didn't.
 	if out != nil {
 		t, _ := ctx.Peek(0)
-		return nil, lexer.Errorf(t.Pos, "expected %s after %s but got %s", next, prev, t)
+		return nil, lexer.Errorf(t.Pos, "expected %s after %s but got %q", next, prev, t)
 	}
 	return out, nil
 }
