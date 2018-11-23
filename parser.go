@@ -185,5 +185,5 @@ func (p *Parser) ParseBytes(b []byte, v interface{}) error {
 
 // String representation of the grammar.
 func (p *Parser) String() string {
-	return stringer(p.root)
+	return stringern(p.root, 128)
 }

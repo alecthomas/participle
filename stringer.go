@@ -13,10 +13,14 @@ type stringerVisitor struct {
 	seen map[node]bool
 }
 
-func stringer(n node) string {
+func stringern(n node, depth int) string {
 	v := &stringerVisitor{seen: map[node]bool{}}
-	v.visit(n, 1, false)
+	v.visit(n, depth, false)
 	return v.String()
+}
+
+func stringer(n node) string {
+	return stringern(n, 1)
 }
 
 func (s *stringerVisitor) visit(n node, depth int, disjunctions bool) {
@@ -28,17 +32,11 @@ func (s *stringerVisitor) visit(n node, depth int, disjunctions bool) {
 
 	switch n := n.(type) {
 	case *disjunction:
-		if disjunctions {
-			fmt.Fprintf(s, "(")
-		}
 		for i, c := range n.nodes {
 			if i > 0 {
 				fmt.Fprint(s, " | ")
 			}
 			s.visit(c, depth, disjunctions || len(n.nodes) > 1)
-		}
-		if disjunctions {
-			fmt.Fprintf(s, ")")
 		}
 
 	case *strct:
@@ -86,7 +84,19 @@ func (s *stringerVisitor) visit(n node, depth int, disjunctions bool) {
 		}
 
 	case *group:
-		fmt.Fprintf(s, "(%s)", n.expr)
+		fmt.Fprint(s, "(")
+		if child, ok := n.expr.(*group); ok && child.mode == groupMatchOnce {
+			s.visit(child.expr, depth, disjunctions)
+		} else if child, ok := n.expr.(*capture); ok {
+			if grandchild, ok := child.node.(*group); ok && grandchild.mode == groupMatchOnce {
+				s.visit(grandchild.expr, depth, disjunctions)
+			} else {
+				s.visit(n.expr, depth, disjunctions)
+			}
+		} else {
+			s.visit(n.expr, depth, disjunctions)
+		}
+		fmt.Fprint(s, ")")
 		switch n.mode {
 		case groupMatchNonEmpty:
 			fmt.Fprintf(s, "!")
