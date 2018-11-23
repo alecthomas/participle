@@ -43,11 +43,15 @@ func (s *stringerVisitor) visit(n node, depth int, disjunctions bool) {
 		s.visit(n.expr, depth, disjunctions)
 
 	case *sequence:
-		for c, i := n, 0; c != nil && depth-i > 0; c, i = c.next, i+1 {
+		c := n
+		for i := 0; c != nil && depth-i > 0; c, i = c.next, i+1 {
 			if c != n {
 				fmt.Fprint(s, " ")
 			}
 			s.visit(c.node, depth-i, disjunctions)
+		}
+		if c != nil {
+			fmt.Fprint(s, " ...")
 		}
 
 	case *parseable:
