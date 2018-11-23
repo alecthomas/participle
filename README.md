@@ -18,6 +18,7 @@
 
 <!-- /TOC -->
 
+<a id="markdown-introduction" name="introduction"></a>
 ## Introduction
 
 The goal of this package is to provide a simple, idiomatic and elegant way of
@@ -28,6 +29,7 @@ programmer who has used the `encoding/json` package: struct field tags define
 what and how input is mapped to those same fields. This is not unusual for Go
 encoders, but is unusual for a parser.
 
+<a id="markdown-limitations" name="limitations"></a>
 ## Limitations
 
 Participle parsers are recursive descent. This means that they do not support left recursion.
@@ -38,10 +40,12 @@ tables for disambiguation. You can enable this with the parser option
 
 Left recursion must be eliminated by restructuring your grammar.
 
+<a id="markdown-tutorial" name="tutorial"></a>
 ## Tutorial
 
 A [tutorial](TUTORIAL.md) is available, walking through the creation of an .ini parser.
 
+<a id="markdown-overview" name="overview"></a>
 ## Overview
 
 A grammar is an annotated Go structure used to both define the parser grammar,
@@ -90,17 +94,28 @@ err := parser.ParseString("size = 10", ast)
 // }
 ```
 
+<a id="markdown-annotation-syntax" name="annotation-syntax"></a>
 ## Annotation syntax
 
 - `@<expr>` Capture expression into the field.
 - `@@` Recursively capture using the fields own type.
 - `<identifier>` Match named lexer token.
-- `{ ... }` Match 0 or more times.
 - `( ... )` Group.
-- `[ ... ]` Optional.
-- `"..."[:<identifier>]` Match the literal, optionally specifying the exact lexer token type to match.
+- `"..."` Match the literal (note that the lexer must emit tokens matching this literal exactly).
+- `"...":<identifier>` Match the literal, specifying the exact lexer token type to match.
 - `<expr> <expr> ...` Match expressions.
 - `<expr> | <expr>` Match one of the alternatives.
+
+The following modifiers can be used after any expression:
+
+- `*` Expression can match zero or more times.
+- `+` Expression must match one or more times.
+- `?` Expression can match zero or once.
+- `!` Require a non-empty match (this is useful with a sequence of optional matches eg. `("a"? "b"? "c"?)!`).
+
+Supported but deprecated:
+- `{ ... }` Match 0 or more times (**DEPRECATED** - prefer `( ... )*`).
+- `[ ... ]` Optional (**DEPRECATED** - prefer `( ... )?`).
 
 Notes:
 
@@ -110,6 +125,7 @@ Notes:
   will be used as the grammar fragment. This allows the grammar syntax to remain
   clear and simple to maintain.
 
+<a id="markdown-capturing" name="capturing"></a>
 ## Capturing
 
 Prefixing any expression in the grammar with `@` will capture matching values
@@ -145,6 +161,7 @@ Custom control of how values are captured into fields can be achieved by a
 field type implementing the `Capture` interface (`Capture(values []string)
 error`).
 
+<a id="markdown-lexing" name="lexing"></a>
 ## Lexing
 
 Participle operates on tokens and thus relies on a lexer to convert character
@@ -159,10 +176,12 @@ To use your own Lexer you will need to implement two interfaces:
 [Definition](https://godoc.org/github.com/alecthomas/participle/lexer#Definition)
 and [Lexer](https://godoc.org/github.com/alecthomas/participle/lexer#Lexer).
 
+<a id="markdown-options" name="options"></a>
 ## Options
 
 The Parser's behaviour can be configured via [Options](https://godoc.org/github.com/alecthomas/participle#Option).
 
+<a id="markdown-examples" name="examples"></a>
 ## Examples
 
 There are several [examples](https://github.com/alecthomas/participle/tree/master/_examples) included:
@@ -170,7 +189,7 @@ There are several [examples](https://github.com/alecthomas/participle/tree/maste
 Example | Description
 --------|---------------
 [BASIC](https://github.com/alecthomas/participle/tree/master/_examples/basic) | A lexer, parser and interpreter for a [rudimentary dialect](https://caml.inria.fr/pub/docs/oreilly-book/html/book-ora058.html) of BASIC.
-[EBNF](https://github.com/alecthomas/participle/tree/master/_examples/ebnf) | Parser for the form of EBNF used by Participle.
+[EBNF](https://github.com/alecthomas/participle/tree/master/_examples/ebnf) | Parser for the form of EBNF used by Go.
 [Expr](https://github.com/alecthomas/participle/tree/master/_examples/expr) | A basic mathematical expression parser and evaluator.
 [GraphQL](https://github.com/alecthomas/participle/tree/master/_examples/graphql) | Lexer+parser for GraphQL schemas
 [HCL](https://github.com/alecthomas/participle/tree/master/_examples/hcl) | A parser for the [HashiCorp Configuration Language](https://github.com/hashicorp/hcl).
@@ -282,6 +301,7 @@ func main() {
 
 ```
 
+<a id="markdown-performance" name="performance"></a>
 ## Performance
 
 One of the included examples is a complete Thrift parser

@@ -116,22 +116,6 @@ loop:
 			cursor.next = &sequence{node: term}
 			cursor = cursor.next
 		}
-
-		// An optional or repetition result in some magic.
-		switch n := term.(type) {
-		case *optional:
-			n.next, err = g.parseSequence(slexer)
-			if err != nil {
-				return nil, err
-			}
-			break loop
-		case *repetition:
-			n.next, err = g.parseSequence(slexer)
-			if err != nil {
-				return nil, err
-			}
-			break loop
-		}
 	}
 	if head.node == nil {
 		return nil, nil
@@ -142,30 +126,63 @@ loop:
 	return head, nil
 }
 
-func (g *generatorContext) parseTerm(slexer *structLexer) (node, error) {
-	r, err := slexer.Peek()
+func (g *generatorContext) parseTermNoModifiers(slexer *structLexer) (node, error) {
+	t, err := slexer.Peek()
 	if err != nil {
 		return nil, err
 	}
-	switch r.Type {
+	var out node
+	switch t.Type {
 	case '@':
-		return g.parseCapture(slexer)
+		out, err = g.parseCapture(slexer)
 	case scanner.String, scanner.RawString, scanner.Char:
-		return g.parseLiteral(slexer)
+		out, err = g.parseLiteral(slexer)
 	case '[':
 		return g.parseOptional(slexer)
 	case '{':
 		return g.parseRepetition(slexer)
 	case '(':
-		return g.parseGroup(slexer)
+		out, err = g.parseGroup(slexer)
 	case scanner.Ident:
-		return g.parseReference(slexer)
+		out, err = g.parseReference(slexer)
 	case lexer.EOF:
 		_, _ = slexer.Next()
 		return nil, nil
 	default:
 		return nil, nil
 	}
+	return out, err
+}
+
+func (g *generatorContext) parseTerm(slexer *structLexer) (node, error) {
+	out, err := g.parseTermNoModifiers(slexer)
+	if err != nil {
+		return nil, err
+	}
+	return g.parseModifier(slexer, out)
+}
+
+// Parse modifiers: ?, *, + and/or !
+func (g *generatorContext) parseModifier(slexer *structLexer, expr node) (node, error) {
+	out := &group{expr: expr}
+	t, err := slexer.Peek()
+	if err != nil {
+		return nil, err
+	}
+	switch t.Type {
+	case '!':
+		out.mode = groupMatchNonEmpty
+	case '+':
+		out.mode = groupMatchOneOrMore
+	case '*':
+		out.mode = groupMatchZeroOrMore
+	case '?':
+		out.mode = groupMatchZeroOrOne
+	default:
+		return expr, nil
+	}
+	_, _ = slexer.Next()
+	return out, nil
 }
 
 // @<expression> captures <expression> into the current field.
@@ -187,7 +204,7 @@ func (g *generatorContext) parseCapture(slexer *structLexer) (node, error) {
 	if indirectType(field.Type).Kind() == reflect.Struct && !field.Type.Implements(captureType) {
 		return nil, fmt.Errorf("structs can only be parsed with @@ or by implementing the Capture interface")
 	}
-	n, err := g.parseTerm(slexer)
+	n, err := g.parseTermNoModifiers(slexer)
 	if err != nil {
 		return nil, err
 	}
@@ -217,7 +234,7 @@ func (g *generatorContext) parseOptional(slexer *structLexer) (node, error) {
 	if err != nil {
 		return nil, err
 	}
-	optional := &optional{node: disj}
+	n := &group{expr: disj, mode: groupMatchZeroOrOne}
 	next, err := slexer.Next()
 	if err != nil {
 		return nil, err
@@ -225,7 +242,7 @@ func (g *generatorContext) parseOptional(slexer *structLexer) (node, error) {
 	if next.Type != ']' {
 		return nil, fmt.Errorf("expected ] but got %q", next)
 	}
-	return optional, nil
+	return n, nil
 }
 
 // { <expression> } matches 0 or more repititions of <expression>
@@ -235,9 +252,7 @@ func (g *generatorContext) parseRepetition(slexer *structLexer) (node, error) {
 	if err != nil {
 		return nil, err
 	}
-	n := &repetition{
-		node: disj,
-	}
+	n := &group{expr: disj, mode: groupMatchZeroOrMore}
 	next, err := slexer.Next()
 	if err != nil {
 		return nil, err
@@ -262,7 +277,7 @@ func (g *generatorContext) parseGroup(slexer *structLexer) (node, error) {
 	if next.Type != ')' {
 		return nil, fmt.Errorf("expected ) but got %q", next)
 	}
-	return disj, nil
+	return &group{expr: disj}, nil
 }
 
 // A literal string.
@@ -299,4 +314,11 @@ func (g *generatorContext) parseLiteral(lex *structLexer) (node, error) { // nol
 		}
 	}
 	return &literal{s: s, t: t, tt: g.symbolsToIDs[t]}, nil
+}
+
+func indirectType(t reflect.Type) reflect.Type {
+	if t.Kind() == reflect.Ptr || t.Kind() == reflect.Slice {
+		return indirectType(t.Elem())
+	}
+	return t
 }

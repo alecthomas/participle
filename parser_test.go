@@ -3,6 +3,7 @@ package participle
 import (
 	"fmt"
 	"math"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -922,4 +923,82 @@ func TestTrailing(t *testing.T) {
 	p := mustTestParser(t, &grammar{})
 	err := p.ParseString(`foo bar`, &grammar{})
 	require.Error(t, err)
+}
+
+func TestModifiers(t *testing.T) {
+	nonEmptyGrammar := &struct {
+		A string `@( ("x"? "y"? "z"?)! "b" )`
+	}{}
+	tests := []struct {
+		name     string
+		grammar  interface{}
+		input    string
+		expected string
+		fail     bool
+	}{
+		{name: "NonMatchingOptionalNonEmpty",
+			input:   "b",
+			fail:    true,
+			grammar: nonEmptyGrammar},
+		{name: "NonEmptyMatch",
+			input:    "x b",
+			expected: "xb",
+			grammar:  nonEmptyGrammar},
+		{name: "NonEmptyMatchAll",
+			input:    "x y z b",
+			expected: "xyzb",
+			grammar:  nonEmptyGrammar},
+		{name: "NonEmptyMatchSome",
+			input:    "x z b",
+			expected: "xzb",
+			grammar:  nonEmptyGrammar},
+		{name: "MatchingOptional",
+			input:    "a b",
+			expected: "ab",
+			grammar: &struct {
+				A string `@( "a"? "b" )`
+			}{}},
+		{name: "NonMatchingOptionalIsSkipped",
+			input:    "b",
+			expected: "b",
+			grammar: &struct {
+				A string `@( "a"? "b" )`
+			}{}},
+		{name: "MatchingOneOrMore",
+			input:    "a a a a a",
+			expected: "aaaaa",
+			grammar: &struct {
+				A string `@( "a"+ )`
+			}{}},
+		{name: "NonMatchingOneOrMore",
+			input: "",
+			fail:  true,
+			grammar: &struct {
+				A string `@( "a"+ )`
+			}{}},
+		{name: "MatchingZeroOrMore",
+			input: "aaaaaaa",
+			fail:  true,
+			grammar: &struct {
+				A string `@( "a"* )`
+			}{}},
+		{name: "NonMatchingZeroOrMore",
+			input: "",
+			grammar: &struct {
+				A string `@( "a"* )`
+			}{}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			p := mustTestParser(t, test.grammar)
+			err := p.ParseString(test.input, test.grammar)
+			if test.fail {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				actual := reflect.ValueOf(test.grammar).Elem().FieldByName("A").String()
+				require.Equal(t, test.expected, actual)
+			}
+		})
+	}
 }

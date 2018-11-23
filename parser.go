@@ -86,7 +86,11 @@ func Build(grammar interface{}, options ...Option) (parser *Parser, err error) {
 	}
 
 	context := newGeneratorContext(p.lex)
-	p.typ = reflect.TypeOf(grammar)
+	v := reflect.ValueOf(grammar)
+	if v.Kind() == reflect.Interface {
+		v = v.Elem()
+	}
+	p.typ = v.Type()
 	p.root, err = context.parseType(p.typ)
 	if err != nil {
 		return nil, err
@@ -106,7 +110,11 @@ func (p *Parser) Lex(r io.Reader) ([]lexer.Token, error) {
 // Parse from r into grammar v which must be of the same type as the grammar passed to
 // participle.Build().
 func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
-	if reflect.TypeOf(v) != p.typ {
+	rv := reflect.ValueOf(v)
+	if rv.Kind() == reflect.Interface {
+		rv = rv.Elem()
+	}
+	if rv.Type() != p.typ {
 		return fmt.Errorf("must parse into value of type %s not %T", p.typ, v)
 	}
 	baseLexer, err := p.lex.Lex(r)
@@ -128,7 +136,6 @@ func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
 	if parseable, ok := v.(Parseable); ok {
 		return p.rootParseable(ctx, parseable)
 	}
-	rv := reflect.ValueOf(v)
 	if rv.Kind() != reflect.Ptr || rv.Elem().Kind() != reflect.Struct {
 		return errors.New("target must be a pointer to a struct")
 	}
@@ -178,5 +185,5 @@ func (p *Parser) ParseBytes(b []byte, v interface{}) error {
 
 // String representation of the grammar.
 func (p *Parser) String() string {
-	return dumpNode(p.root)
+	return stringer(p.root)
 }

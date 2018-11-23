@@ -95,6 +95,88 @@ func (s *strct) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Va
 	return []reflect.Value{sv}, ctx.Apply()
 }
 
+type groupMatchMode int
+
+const (
+	groupMatchOnce       groupMatchMode = iota
+	groupMatchZeroOrOne                 = iota
+	groupMatchZeroOrMore                = iota
+	groupMatchOneOrMore                 = iota
+	groupMatchNonEmpty                  = iota
+)
+
+// ( <expr> ) - match once
+// ( <expr> )* - match zero or more times
+// ( <expr> )+ - match one or more times
+// ( <expr> )? - match zero or once
+// ( <expr> )! - must be a non-empty match
+//
+// The additional modifier "!" forces the content of the group to be non-empty if it does match.
+type group struct {
+	expr node
+	mode groupMatchMode
+}
+
+func (g *group) String() string { return stringer(g) }
+func (g *group) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
+	// Configure min/max matches.
+	min := 1
+	max := 1
+	switch g.mode {
+	case groupMatchNonEmpty:
+		out, err = g.expr.Parse(ctx, parent)
+		if err != nil {
+			return out, err
+		}
+		if len(out) == 0 {
+			t, _ := ctx.Peek(0)
+			return out, lexer.Errorf(t.Pos, "sub-expression %s cannot be empty", g)
+		}
+		return out, nil
+	case groupMatchOnce:
+		return g.expr.Parse(ctx, parent)
+	case groupMatchZeroOrOne:
+		min = 0
+	case groupMatchZeroOrMore:
+		min = 0
+		max = MaxIterations
+	case groupMatchOneOrMore:
+		min = 1
+		max = MaxIterations
+	}
+	matches := 0
+	for ; matches < max; matches++ {
+		branch := ctx.Branch()
+		v, err := g.expr.Parse(branch, parent)
+		out = append(out, v...)
+		if err != nil {
+			// Optional part failed to match.
+			if ctx.Stop(branch) {
+				return out, err
+			}
+			break
+		} else {
+			ctx.Accept(branch)
+		}
+		if v == nil {
+			break
+		}
+	}
+	// fmt.Printf("%d < %d < %d: out == nil? %v\n", min, matches, max, out == nil)
+	t, _ := ctx.Peek(0)
+	if matches >= MaxIterations {
+		panic(lexer.Errorf(t.Pos, "too many iterations of %s (> %d)", g, MaxIterations))
+	}
+	if matches < min {
+		return out, lexer.Errorf(t.Pos, "sub-expression %s must match at least once", g)
+	}
+	// The idea here is that something like "a"? is a successful match and that parsing should proceed.
+	if min == 0 && out == nil {
+		out = []reflect.Value{}
+	}
+	return out, nil
+}
+
 // <expr> {"|" <expr>}
 type disjunction struct {
 	nodes []node
@@ -215,7 +297,6 @@ func (r *reference) Parse(ctx *parseContext, parent reflect.Value) (out []reflec
 // [ <expr> ] <sequence>
 type optional struct {
 	node node
-	next node
 }
 
 func (o *optional) String() string { return stringer(o) }
@@ -234,13 +315,12 @@ func (o *optional) Parse(ctx *parseContext, parent reflect.Value) (out []reflect
 	if out == nil {
 		out = []reflect.Value{}
 	}
-	return parseVariableNext(ctx, parent, o.node, o.next, out)
+	return out, nil
 }
 
 // { <expr> } <sequence>
 type repetition struct {
 	node node
-	next node
 }
 
 func (r *repetition) String() string { return stringer(r) }
@@ -268,36 +348,10 @@ func (r *repetition) Parse(ctx *parseContext, parent reflect.Value) (out []refle
 	}
 	if i >= MaxIterations {
 		t, _ := ctx.Peek(0)
-		return nil, fmt.Errorf("too many iterations of %s at %s", r, t.Pos)
+		panic(lexer.Errorf(t.Pos, "too many iterations of %s (> %d)", r, MaxIterations))
 	}
 	if out == nil {
 		out = []reflect.Value{}
-	}
-	return parseVariableNext(ctx, parent, r.node, r.next, out)
-}
-
-func parseVariableNext(ctx *parseContext, parent reflect.Value, prev, next node, out []reflect.Value) ([]reflect.Value, error) {
-	if next == nil {
-		return out, nil
-	}
-	nextTokens, err := next.Parse(ctx, parent)
-	out = append(out, nextTokens...)
-	if err != nil {
-		return out, err
-	}
-	// Match, return.
-	if nextTokens != nil {
-		return out, nil
-	}
-
-	// Nothing matched in the optional part or the next part, return no match.
-	if len(out) == 0 {
-		return nil, nil
-	}
-	// Repeated part progressed, but next expression didn't.
-	if out != nil {
-		t, _ := ctx.Peek(0)
-		return nil, lexer.Errorf(t.Pos, "expected %s after %s but got %q", next, prev, t)
 	}
 	return out, nil
 }
@@ -513,13 +567,6 @@ func setField(pos lexer.Position, strct reflect.Value, field structLexerField, f
 		return fmt.Errorf("unsupported field type %s for field %s", f.Type(), field.Name)
 	}
 	return nil
-}
-
-func indirectType(t reflect.Type) reflect.Type {
-	if t.Kind() == reflect.Ptr || t.Kind() == reflect.Slice {
-		return indirectType(t.Elem())
-	}
-	return t
 }
 
 // Error is an error returned by the parser internally to differentiate from non-Participle errors.

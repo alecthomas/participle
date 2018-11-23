@@ -73,24 +73,32 @@ func (s *stringerVisitor) visit(n node, depth int, disjunctions bool) {
 		fmt.Fprint(s, "[ ")
 		s.visit(n.node, depth, disjunctions)
 		fmt.Fprint(s, " ]")
-		if n.next != nil {
-			fmt.Fprint(s, " ")
-			s.visit(n.next, depth, disjunctions)
-		}
 
 	case *repetition:
 		fmt.Fprint(s, "{ ")
 		s.visit(n.node, depth, disjunctions)
 		fmt.Fprint(s, " }")
-		if n.next != nil {
-			fmt.Fprint(s, " ")
-			s.visit(n.next, depth, disjunctions)
-		}
 
 	case *literal:
 		fmt.Fprintf(s, "%q", n.s)
 		if n.t != lexer.EOF && n.s == "" {
 			fmt.Fprintf(s, ":%s", n.tt)
 		}
+
+	case *group:
+		fmt.Fprintf(s, "(%s)", n.expr)
+		switch n.mode {
+		case groupMatchNonEmpty:
+			fmt.Fprintf(s, "!")
+		case groupMatchZeroOrOne:
+			fmt.Fprintf(s, "?")
+		case groupMatchZeroOrMore:
+			fmt.Fprintf(s, "*")
+		case groupMatchOneOrMore:
+			fmt.Fprintf(s, "+")
+		}
+
+	default:
+		panic("unsupported")
 	}
 }
