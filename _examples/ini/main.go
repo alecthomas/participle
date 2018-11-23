@@ -21,13 +21,13 @@ var iniLexer = lexer.Must(lexer.Regexp(
 ))
 
 type INI struct {
-	Properties []*Property `{ @@ }`
-	Sections   []*Section  `{ @@ }`
+	Properties []*Property `@@*`
+	Sections   []*Section  `@@*`
 }
 
 type Section struct {
 	Identifier string      `"[" @Ident "]"`
-	Properties []*Property `{ @@ }`
+	Properties []*Property `@@*`
 }
 
 type Property struct {

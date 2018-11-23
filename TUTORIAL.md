@@ -40,13 +40,13 @@ working towards. Read on below for details.
 
  ```go
  type INI struct {
-   Properties []*Property `{ @@ }`
-   Sections   []*Section  `{ @@ }`
+   Properties []*Property `@@*`
+   Sections   []*Section  `@@*`
  }
 
  type Section struct {
    Identifier string      `"[" @Ident "]"`
-   Properties []*Property `{ @@ }`
+   Properties []*Property `@@*`
  }
 
  type Property struct {
@@ -155,13 +155,13 @@ type Property struct {
 ```
 
 Now that we can parse a `Property` we need to go back to the root of the
-grammar. We want to parse 0 or more properties. To do this, we use `{ ... }`.
+grammar. We want to parse 0 or more properties. To do this, we use `<expr>*`.
 Participle will accumulate each match into the slice until matching fails,
 then move to the next node in the grammar.
 
 ```go
 type INI struct {
-  Properties []*Property `{ @@ }`
+  Properties []*Property `@@*`
 }
 ```
 
@@ -173,7 +173,7 @@ We now have a functional, but limited, .ini parser!
 
 ```go
 type INI struct {
-  Properties []*Property `{ @@ }`
+  Properties []*Property `@@*`
 }
 
 type Property struct {
@@ -196,7 +196,7 @@ of properties:
 ```go
 type Section struct {
   Identifier string      `"[" @Ident "]"`
-  Properties []*Property `{ @@ }`
+  Properties []*Property `@@*`
 }
 ```
 
@@ -206,8 +206,8 @@ Now we just add a sequence of `Section`s to our root node:
 
 ```go
 type INI struct {
-  Properties []*Property `{ @@ }`
-  Sections   []*Section  `{ @@ }`
+  Properties []*Property `@@*`
+  Sections   []*Section  `@@*`
 }
 ```
 
