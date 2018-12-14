@@ -5,7 +5,6 @@ import (
 	"github.com/alecthomas/kong"
 	"github.com/alecthomas/participle"
 	"github.com/alecthomas/participle/lexer"
-	"github.com/alecthomas/participle/lexer/ebnf"
 	"github.com/alecthomas/repr"
 )
 
@@ -157,24 +156,19 @@ var (
 		SQL string `arg:"" required:"" help:"SQL to parse."`
 	}
 
-	sqlLexer = lexer.Must(ebnf.New(`
-Comment = "--" { "\u0000"…"\uffff"-"\n" } .
-Ident = (alpha | "_") { "_" | alpha | digit } .
-String = "\"" { "\u0000"…"\uffff"-"\""-"\\" | "\\" any } "\"" .
-Number = [ "-" | "+" ] ("." | digit) {"." | digit} .
-Punct = "!"…"/" | ":"…"@" | "["…` + "\"`\"" + ` | "{"…"~" .
-Whitespace = " " | "\t" | "\n" | "\r" .
-
-alpha = "a"…"z" | "A"…"Z" .
-digit = "0"…"9" .
-any = "\u0000"…"\uffff" .
-	`))
+	sqlLexer = lexer.Must(lexer.Regexp(`(\s+)` +
+		`|(?P<Keyword>(?i)SELECT|FROM|TOP|DISTINCT|ALL|WHERE|GROUP|BY|HAVING|UNION|MINUS|EXCEPT|INTERSECT|ORDER|LIMIT|OFFSET|TRUE|FALSE|NULL|IS|NOT|ANY|SOME|BETWEEN|AND|OR|LIKE|AS|IN)` +
+		`|(?P<Ident>[a-zA-Z_][a-zA-Z0-9_]*)` +
+		`|(?P<Number>[-+]?\d*\.?\d+([eE][-+]?\d+)?)` +
+		`|(?P<String>'[^']*'|"[^"]*")` +
+		`|(?P<Operators><>|!=|<=|>=|[-+*/%,.()=<>])`,
+	))
 	sqlParser = participle.MustBuild(
 		&Select{},
 		participle.Lexer(sqlLexer),
 		participle.Unquote("String"),
-		participle.CaseInsensitive("Ident"),
-		participle.Elide("Whitespace", "Comment"),
+		participle.CaseInsensitive("Keyword"),
+		// participle.Elide("Comment"),
 		// Need to solve left recursion detection first, if possible.
 		// participle.UseLookahead(),
 	)
@@ -184,6 +178,6 @@ func main() {
 	ctx := kong.Parse(&cli)
 	sql := &Select{}
 	err := sqlParser.ParseString(cli.SQL, sql)
-	ctx.FatalIfErrorf(err)
 	repr.Println(sql, repr.Indent("  "), repr.OmitEmpty(true))
+	ctx.FatalIfErrorf(err)
 }
