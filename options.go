@@ -1,6 +1,8 @@
 package participle
 
-import "github.com/alecthomas/participle/lexer"
+import (
+	"github.com/alecthomas/participle/lexer"
+)
 
 // An Option to modify the behaviour of the Parser.
 type Option func(p *Parser) error

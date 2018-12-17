@@ -2,7 +2,6 @@ package participle
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"reflect"
@@ -114,7 +113,14 @@ func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
 	if rv.Kind() == reflect.Interface {
 		rv = rv.Elem()
 	}
-	if rv.Type() != p.typ {
+	var stream reflect.Value
+	if rv.Kind() == reflect.Chan {
+		stream = rv
+		rt := rv.Type().Elem()
+		rv = reflect.New(rt).Elem()
+	}
+	rt := rv.Type()
+	if rt != p.typ {
 		return fmt.Errorf("must parse into value of type %s not %T", p.typ, v)
 	}
 	baseLexer, err := p.lex.Lex(r)
@@ -136,13 +142,32 @@ func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
 	if parseable, ok := v.(Parseable); ok {
 		return p.rootParseable(ctx, parseable)
 	}
-	if rv.Kind() != reflect.Ptr || rv.Elem().Kind() != reflect.Struct {
-		return errors.New("target must be a pointer to a struct")
+	if rt.Kind() != reflect.Ptr || rt.Elem().Kind() != reflect.Struct {
+		return fmt.Errorf("target must be a pointer to a struct, not %s", rt)
 	}
-	pv, err := p.root.Parse(ctx, rv.Elem())
-	if len(pv) > 0 && pv[0].Type() == rv.Elem().Type() {
-		rv.Elem().Set(reflect.Indirect(pv[0]))
+	if stream.IsValid() {
+		return p.parseStreaming(ctx, stream)
 	}
+	return p.parseOne(ctx, rv)
+}
+
+func (p *Parser) parseStreaming(ctx *parseContext, rv reflect.Value) error {
+	t := rv.Type().Elem().Elem()
+	for {
+		if token, _ := ctx.Peek(0); token.EOF() {
+			rv.Close()
+			return nil
+		}
+		v := reflect.New(t)
+		if err := p.parseInto(ctx, v); err != nil {
+			return err
+		}
+		rv.Send(v)
+	}
+}
+
+func (p *Parser) parseOne(ctx *parseContext, rv reflect.Value) error {
+	err := p.parseInto(ctx, rv)
 	if err != nil {
 		return err
 	}
@@ -152,7 +177,22 @@ func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
 	} else if !token.EOF() {
 		return lexer.Errorf(token.Pos, "unexpected trailing token %q", token)
 	}
+	return nil
+}
+
+func (p *Parser) parseInto(ctx *parseContext, rv reflect.Value) error {
+	if rv.IsNil() {
+		return fmt.Errorf("target must be a non-nil pointer to a struct, but is a nil %s", rv.Type())
+	}
+	pv, err := p.root.Parse(ctx, rv.Elem())
+	if len(pv) > 0 && pv[0].Type() == rv.Elem().Type() {
+		rv.Elem().Set(reflect.Indirect(pv[0]))
+	}
+	if err != nil {
+		return err
+	}
 	if pv == nil {
+		token, _ := ctx.Peek(0)
 		return lexer.Errorf(token.Pos, "invalid syntax")
 	}
 	return nil

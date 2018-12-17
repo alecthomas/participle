@@ -11,10 +11,11 @@
 4. [Overview](#overview)
 5. [Annotation syntax](#annotation-syntax)
 6. [Capturing](#capturing)
-7. [Lexing](#lexing)
-8. [Options](#options)
-9. [Examples](#examples)
-10. [Performance](#performance)
+7. [Streaming](#streaming)
+8. [Lexing](#lexing)
+9. [Options](#options)
+10. [Examples](#examples)
+11. [Performance](#performance)
 
 <!-- /TOC -->
 
@@ -32,7 +33,7 @@ encoders, but is unusual for a parser.
 <a id="markdown-limitations" name="limitations"></a>
 ## Limitations
 
-Participle parsers are recursive descent. This means that they do not support left recursion.
+Participle parsers are recursive descent. Among other things, this means that they do not support left recursion.
 
 There is an experimental lookahead option for using precomputed lookahead
 tables for disambiguation. You can enable this with the parser option
@@ -160,6 +161,29 @@ with `strconv.ParseInt()` and `strconv.ParseBool()` respectively.
 Custom control of how values are captured into fields can be achieved by a
 field type implementing the `Capture` interface (`Capture(values []string)
 error`).
+
+<a id="markdown-streaming" name="streaming"></a>
+## Streaming
+
+Participle supports streaming parsing. Simply pass a channel of your grammar into
+`Parse*()`. The grammar will be repeatedly parsed and sent to the channel. Note that
+the `Parse*()` call will not return until parsing completes, so it should generally be
+started in a goroutine.
+
+```go
+type token struct {
+  Str string `  @Ident`
+  Num int    `| @Int`
+}
+
+parser, err := participle.Build(&token{})
+
+tokens := make(chan *token, 128)
+err := parser.ParseString(`hello 10 11 12 world`, tokens)
+for token := range tokens {
+  fmt.Printf("%#v\n", token)
+}
+```
 
 <a id="markdown-lexing" name="lexing"></a>
 ## Lexing
