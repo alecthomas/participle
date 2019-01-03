@@ -41,6 +41,7 @@ func (d *defaultDefinition) Symbols() map[string]rune {
 type textScannerLexer struct {
 	scanner  *scanner.Scanner
 	filename string
+	err      error
 }
 
 // Lex an io.Reader with text/scanner.Scanner.
@@ -53,7 +54,7 @@ func Lex(r io.Reader) Lexer {
 	lexer.scanner.Error = func(s *scanner.Scanner, msg string) {
 		// This is to support single quoted strings. Hacky.
 		if msg != "illegal char literal" {
-			panic(Errorf(Position(lexer.scanner.Pos()), msg))
+			lexer.err = Errorf(Position(lexer.scanner.Pos()), msg)
 		}
 	}
 	return lexer
@@ -90,6 +91,9 @@ func (t *textScannerLexer) Next() (Token, error) {
 	text := t.scanner.TokenText()
 	pos := Position(t.scanner.Position)
 	pos.Filename = t.filename
+	if t.err != nil {
+		return Token{}, t.err
+	}
 	return textScannerTransform(Token{
 		Type:  typ,
 		Value: text,
