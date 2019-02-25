@@ -95,7 +95,7 @@ func newRewinder(lex lexer.Lexer) (*rewinder, error) {
 
 func (r *rewinder) Next() (lexer.Token, error) {
 	if r.cursor >= len(r.tokens) {
-		return lexer.EOFToken(lexer.Position{}), nil
+		return r.eofToken(), nil
 	}
 	r.cursor++
 	return r.tokens[r.cursor-1], nil
@@ -104,9 +104,16 @@ func (r *rewinder) Next() (lexer.Token, error) {
 func (r *rewinder) Peek(n int) (lexer.Token, error) {
 	i := r.cursor + n
 	if i >= len(r.tokens) {
-		return lexer.EOFToken(lexer.Position{}), nil
+		return r.eofToken(), nil
 	}
 	return r.tokens[i], nil
+}
+
+func (r *rewinder) eofToken() lexer.Token {
+	if len(r.tokens) > 0 {
+		return lexer.EOFToken(r.tokens[len(r.tokens)-1].Pos)
+	}
+	return lexer.EOFToken(lexer.Position{})
 }
 
 // Lookahead returns a new rewinder usable for lookahead.

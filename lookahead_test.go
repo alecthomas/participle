@@ -398,3 +398,28 @@ func TestRewindRepetition(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, &grammar{Ints: []string{"int", "int"}, Ident: "one"}, ast)
 }
+
+//func TestLookaheadErrorReporting(t *testing.T) {
+//	type keyvalue struct {
+//		Key   string `@Ident "="`
+//		Value string `@Ident`
+//	}
+//	type expr struct {
+//		KV   keyvalue `  @@`
+//		Pair string   `| @Ident "," @Ident`
+//	}
+//	type grammar struct {
+//		SubExpr expr `"set" "(" @@ ")"`
+//	}
+//	p := mustTestParser(t, &grammar{}, UseLookahead(3))
+//
+//	tokens, err := lexer.ConsumeAll(lexer.LexString(`set ( a`))
+//	require.NoError(t, err)
+//	for _, token := range tokens {
+//		fmt.Println(token.Value, token.Pos)
+//	}
+//
+//	ast := &grammar{}
+//	err = p.ParseString(`set ( a `, ast)
+//	require.NoError(t, err)
+//}

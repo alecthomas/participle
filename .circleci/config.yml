@@ -18,7 +18,7 @@ jobs:
       - run:
           name: Test
           command: |
-            (go test -v ./... && (cd ./_examples && go test ./...)) 2>&1 | tee report.txt && go-junit-report report.txt > ~/report/junit.xml
+            (go test -v ./... && (cd ./_examples && go test ./...)) 2>&1 | tee report.txt && go-junit-report < report.txt > ~/report/junit.xml
       - run:
           name: Lint
           command: |
