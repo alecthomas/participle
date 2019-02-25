@@ -33,11 +33,9 @@ encoders, but is unusual for a parser.
 <a id="markdown-limitations" name="limitations"></a>
 ## Limitations
 
-Participle parsers are recursive descent. Among other things, this means that they do not support left recursion.
+Participle parsers are LL(k). Among other things, this means that they do not support left recursion.
 
-There is an experimental lookahead option for using precomputed lookahead
-tables for disambiguation. You can enable this with the parser option
-`participle.UseLookahead()`.
+The default value of K is 1 but this can be controlled with `participle.UseLookahead(k)`.
 
 Left recursion must be eliminated by restructuring your grammar.
 
@@ -240,7 +238,7 @@ import (
 )
 
 type File struct {
-  Entries []*Entry `{ @@ }`
+  Entries []*Entry `@@*`
 }
 
 type Entry struct {
@@ -252,36 +250,36 @@ type Entry struct {
 
 type Enum struct {
   Name  string   `"enum" @Ident`
-  Cases []string `"{" { @Ident } "}"`
+  Cases []string `"{" @Ident* "}"`
 }
 
 type Schema struct {
-  Fields []*Field `"schema" "{" { @@ } "}"`
+  Fields []*Field `"schema" "{" @@* "}"`
 }
 
 type Type struct {
   Name       string   `"type" @Ident`
-  Implements string   `[ "implements" @Ident ]`
-  Fields     []*Field `"{" { @@ } "}"`
+  Implements string   `("implements" @Ident)?`
+  Fields     []*Field `"{" @@* "}"`
 }
 
 type Field struct {
   Name       string      `@Ident`
-  Arguments  []*Argument `[ "(" [ @@ { "," @@ } ] ")" ]`
+  Arguments  []*Argument `("(" (@@ ("," @@)*)? ")")?`
   Type       *TypeRef    `":" @@`
-  Annotation string      `[ "@" @Ident ]`
+  Annotation string      `("@" @Ident)?`
 }
 
 type Argument struct {
   Name    string   `@Ident`
   Type    *TypeRef `":" @@`
-  Default *Value   `[ "=" @@ ]`
+  Default *Value   `("=" @@)?`
 }
 
 type TypeRef struct {
   Array       *TypeRef `(   "[" @@ "]"`
   Type        string   `  | @Ident )`
-  NonNullable bool     `[ @"!" ]`
+  NonNullable bool     `@"!"?`
 }
 
 type Value struct {

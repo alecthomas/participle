@@ -175,7 +175,7 @@ func (p *Parser) parseOne(ctx *parseContext, rv reflect.Value) error {
 	if err != nil {
 		return err
 	} else if !token.EOF() {
-		return lexer.Errorf(token.Pos, "unexpected trailing token %q", token)
+		return lexer.Errorf(token.Pos, "unexpected token %q", token)
 	}
 	return nil
 }
