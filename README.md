@@ -16,6 +16,7 @@
 9. [Options](#options)
 10. [Examples](#examples)
 11. [Performance](#performance)
+12. [Concurrency](#concurrency)
 
 <!-- /TOC -->
 
@@ -341,3 +342,8 @@ You can run the benchmarks yourself, but here's the output on my machine:
 
 On a real life codebase of 47K lines of Thrift, Participle takes 200ms and go-
 thrift takes 630ms, which aligns quite closely with the benchmarks.
+
+<a id="markdown-concurrency" name="concurrency"></a>
+## Concurrency
+
+A compiled `Parser` instance can be used concurrently. A `LexerDefinition` can be used concurrently. A `Lexer` instance cannot be used concurrently.
