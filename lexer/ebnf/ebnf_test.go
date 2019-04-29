@@ -4,9 +4,36 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/alecthomas/participle/lexer"
 	"github.com/stretchr/testify/require"
+
+	"github.com/alecthomas/participle/lexer"
 )
+
+func TestIssue54(t *testing.T) {
+	d, err := New(`
+		EqEqEq = "===" .
+		EqEq = "==" .
+		Integer = "0" | "1"…"9" { digit } .
+		Whitespace = " " | "\t" | "\n" | "\r" .
+		Punct = "!"…"/" | ":"…"@" | "["…` + "\"`\"" + ` | "{"…"~" .
+		digit = "0"…"9" .
+`)
+	require.NoError(t, err)
+	l, err := d.Lex(strings.NewReader(`10 ==! 10`))
+	require.NoError(t, err)
+	actual, err := lexer.ConsumeAll(l)
+	require.NoError(t, err)
+	expected := []lexer.Token{
+		{Type: -4, Value: "10", Pos: lexer.Position{Offset: 0, Line: 1, Column: 1}},
+		{Type: -5, Value: " ", Pos: lexer.Position{Offset: 2, Line: 1, Column: 3}},
+		{Type: -3, Value: "==", Pos: lexer.Position{Offset: 3, Line: 1, Column: 4}},
+		{Type: -6, Value: "!", Pos: lexer.Position{Offset: 5, Line: 1, Column: 6}},
+		{Type: -5, Value: " ", Pos: lexer.Position{Offset: 6, Line: 1, Column: 7}},
+		{Type: -4, Value: "10", Pos: lexer.Position{Offset: 7, Line: 1, Column: 8}},
+		{Type: -1, Pos: lexer.Position{Offset: 9, Line: 1, Column: 10}},
+	}
+	require.Equal(t, expected, actual)
+}
 
 func TestBuilder(t *testing.T) {
 	type entry struct {

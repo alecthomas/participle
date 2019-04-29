@@ -14,6 +14,7 @@ type tokenReader struct {
 	r      io.RuneReader
 	cursor int
 	runes  []rune
+	oldPos lexer.Position
 	pos    lexer.Position
 }
 
@@ -29,11 +30,13 @@ func (r *tokenReader) Pos() lexer.Position {
 func (r *tokenReader) Begin() {
 	r.runes = r.runes[r.cursor:]
 	r.cursor = 0
+	r.oldPos = r.pos
 }
 
 // Rewind to beginning of token attempt.
 func (r *tokenReader) Rewind() {
 	r.cursor = 0
+	r.pos = r.oldPos
 }
 
 func (r *tokenReader) Read() (rune, error) {
