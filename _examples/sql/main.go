@@ -50,7 +50,7 @@ type AliasedExpression struct {
 }
 
 type Expression struct {
-	And *AndCondition `@@ { "OR" @@ }`
+	And []*AndCondition `@@ { "OR" @@ }`
 }
 
 type AndCondition struct {
