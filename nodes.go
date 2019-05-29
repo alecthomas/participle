@@ -401,6 +401,9 @@ func conform(t reflect.Type, values []reflect.Value) (out []reflect.Value, err e
 
 		// Already of the right kind, don't bother converting.
 		if v.Kind() == t.Kind() {
+			if v.Type() != t {
+				v = v.Convert(t)
+			}
 			out = append(out, v)
 			continue
 		}
