@@ -77,6 +77,9 @@ func (g *generatorContext) parseDisjunction(slexer *structLexer) (node, error) {
 		if err != nil {
 			return nil, err
 		}
+		if n == nil {
+			return nil, fmt.Errorf("alternative expression %d cannot be empty", len(out.nodes)+1)
+		}
 		out.nodes = append(out.nodes, n)
 		if token, _ := slexer.Peek(); token.Type != '|' {
 			break
