@@ -1026,3 +1026,12 @@ func TestStreamingParser(t *testing.T) {
 	require.Equal(t, expected, actual)
 	require.NoError(t, err)
 }
+
+func TestIssue60(t *testing.T) {
+	type grammar struct {
+		A string `@("one" | | "two")`
+	}
+
+	_, err := Build(&grammar{})
+	require.Error(t, err)
+}
