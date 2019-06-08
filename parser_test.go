@@ -845,6 +845,7 @@ func TestInvalidNumbers(t *testing.T) {
 		{name: "InvalidFloat64", input: "float64 asdf", err: true},
 	}
 	for _, test := range tests {
+		// nolint: scopelint
 		t.Run(test.name, func(t *testing.T) {
 			actual := &grammar{}
 			err := p.ParseString(test.input, actual)
@@ -990,6 +991,7 @@ func TestModifiers(t *testing.T) {
 			}{}},
 	}
 	for _, test := range tests {
+		// nolint: scopelint
 		t.Run(test.name, func(t *testing.T) {
 			p := mustTestParser(t, test.grammar)
 			err := p.ParseString(test.input, test.grammar)

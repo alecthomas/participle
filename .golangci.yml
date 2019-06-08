@@ -13,6 +13,7 @@ linters:
     - megacheck
     - lll
     - gocyclo
+    - gochecknoglobals
 
 linters-settings:
   govet:
@@ -34,8 +35,9 @@ issues:
     - '^(G104|G204):'
     # Very commonly not checked.
     - 'Error return value of .(.*\.Help|.*\.MarkFlagRequired|(os\.)?std(out|err)\..*|.*Close|.*Flush|os\.Remove(All)?|.*printf?|os\.(Un)?Setenv). is not checked'
-    - 'exported method (.*\.MarshalJSON|.*\.UnmarshalJSON|.*\.EntityURN|.*\.GoString|.*\.Pos) should have comment or be unexported'
+    - 'exported method `(.*\.MarshalJSON|.*\.UnmarshalJSON|.*\.EntityURN|.*\.GoString|.*\.Pos)` should have comment or be unexported'
     - 'composite literal uses unkeyed fields'
     - 'declaration of "err" shadows declaration'
     - 'bad syntax for struct tag key'
     - 'bad syntax for struct tag pair'
+    - '^ST1012'
