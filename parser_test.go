@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -1024,5 +1025,27 @@ func TestStreamingParser(t *testing.T) {
 		{Str: "world", Num: 0},
 	}
 	require.Equal(t, expected, actual)
+	require.NoError(t, err)
+}
+
+type Issue62Bar struct {
+	A int
+}
+
+func (x *Issue62Bar) Parse(lex lexer.PeekingLexer) error {
+	token, err := lex.Next()
+	if err != nil {
+		return err
+	}
+	x.A, err = strconv.Atoi(token.Value)
+	return err
+}
+
+type Issue62Foo struct {
+	Bars []Issue62Bar `parser:"@@+"`
+}
+
+func TestIssue62(t *testing.T) {
+	_, err := Build(&Issue62Foo{})
 	require.NoError(t, err)
 }
