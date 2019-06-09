@@ -24,16 +24,15 @@ func newGeneratorContext(lex lexer.Definition) *generatorContext {
 
 // Takes a type and builds a tree of nodes out of it.
 func (g *generatorContext) parseType(t reflect.Type) (_ node, returnedError error) {
-	rt := t
 	t = indirectType(t)
 	if n, ok := g.typeNodes[t]; ok {
 		return n, nil
 	}
-	if rt.Implements(parseableType) {
-		return &parseable{rt.Elem()}, nil
+	if t.Implements(parseableType) {
+		return &parseable{t.Elem()}, nil
 	}
-	if reflect.PtrTo(rt).Implements(parseableType) {
-		return &parseable{rt}, nil
+	if reflect.PtrTo(t).Implements(parseableType) {
+		return &parseable{t}, nil
 	}
 	switch t.Kind() {
 	case reflect.Slice, reflect.Ptr:

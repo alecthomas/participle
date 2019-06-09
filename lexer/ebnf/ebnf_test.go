@@ -198,6 +198,7 @@ func TestBuilder(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		// nolint: scopelint
 		t.Run(test.name, func(t *testing.T) {
 			for _, entry := range test.cases {
 				defi, err := New(test.grammar, entry.options...)

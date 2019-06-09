@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -844,6 +845,7 @@ func TestInvalidNumbers(t *testing.T) {
 		{name: "InvalidFloat64", input: "float64 asdf", err: true},
 	}
 	for _, test := range tests {
+		// nolint: scopelint
 		t.Run(test.name, func(t *testing.T) {
 			actual := &grammar{}
 			err := p.ParseString(test.input, actual)
@@ -989,6 +991,7 @@ func TestModifiers(t *testing.T) {
 			}{}},
 	}
 	for _, test := range tests {
+		// nolint: scopelint
 		t.Run(test.name, func(t *testing.T) {
 			p := mustTestParser(t, test.grammar)
 			err := p.ParseString(test.input, test.grammar)
@@ -1027,6 +1030,7 @@ func TestStreamingParser(t *testing.T) {
 	require.NoError(t, err)
 }
 
+
 func TestIssue60(t *testing.T) {
 	type grammar struct {
 		A string `@("one" | | "two")`
@@ -1034,4 +1038,26 @@ func TestIssue60(t *testing.T) {
 
 	_, err := Build(&grammar{})
 	require.Error(t, err)
+}
+
+type Issue62Bar struct {
+	A int
+}
+
+func (x *Issue62Bar) Parse(lex lexer.PeekingLexer) error {
+	token, err := lex.Next()
+	if err != nil {
+		return err
+	}
+	x.A, err = strconv.Atoi(token.Value)
+	return err
+}
+
+type Issue62Foo struct {
+	Bars []Issue62Bar `parser:"@@+"`
+}
+
+func TestIssue62(t *testing.T) {
+	_, err := Build(&Issue62Foo{})
+	require.NoError(t, err)
 }
