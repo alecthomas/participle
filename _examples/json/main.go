@@ -1,13 +1,11 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
 	"reflect"
 
-	"github.com/alecthomas/kong"
 	"github.com/alecthomas/participle"
 )
 
@@ -25,44 +23,52 @@ type acc struct {
 	Index *int    `| @Int`
 }
 
-var (
-	parser = participle.MustBuild(&pathExpr{})
-	cli    struct {
-		File string `arg:"" type:"existingfile" help:"File to parse."`
-	}
-)
+var parser = participle.MustBuild(&pathExpr{})
 
 func main() {
-	ctx := kong.Parse(&cli)
-	r, err := os.Open(cli.File)
-	ctx.FatalIfErrorf(err)
-	defer r.Close()
+	if len(os.Args) < 3 {
+		fmt.Fprintf(os.Stderr, "Usage: %s <query> <files...>\n", os.Args[0])
+		os.Exit(2)
+	}
 
-	var input map[string]interface{}
-	err = json.NewDecoder(r).Decode(&input)
-	ctx.FatalIfErrorf(err)
+	q := os.Args[1]
+	files := os.Args[2:]
 
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
+	var expr pathExpr
+	if err := parser.ParseString(q, &expr); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 
-	for {
-		// Example: check_run.check_suite.pull_requests[0].head.sha
-		fmt.Fprint(os.Stderr, "Enter a json path: ")
-		q, err := bufio.NewReader(os.Stdin).ReadString('\n')
-		ctx.FatalIfErrorf(err)
-
-		var expr pathExpr
-		if err := parser.ParseString(q, &expr); err != nil {
+	for _, file := range files {
+		f, err := os.Open(file)
+		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
-			continue
+			os.Exit(1)
 		}
+
+		var input map[string]interface{}
+		if err := json.NewDecoder(f).Decode(&input); err != nil {
+			f.Close()
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		f.Close()
 
 		result, err := match(input, expr)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
-			continue
+			os.Exit(1)
 		}
-		enc.Encode(result)
+
+		switch r := result.(type) {
+		case map[string]interface{}:
+			enc := json.NewEncoder(os.Stdout)
+			enc.SetIndent("", "  ")
+			_ = enc.Encode(r)
+		default:
+			fmt.Printf("%v\n", r)
+		}
 	}
 }
 
