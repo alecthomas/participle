@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"reflect"
 
 	"github.com/alecthomas/participle"
 )
@@ -73,43 +72,43 @@ func main() {
 }
 
 func match(input map[string]interface{}, expr pathExpr) (interface{}, error) {
-	v := reflect.ValueOf(input)
-
+	var v interface{} = input
 	for _, e := range expr.Parts {
-		if v.Kind() == reflect.Interface {
-			v = v.Elem()
-		}
-		if v.Kind() != reflect.Map {
-			return nil, fmt.Errorf("%q is not a map", e.Obj)
-		}
-		v = v.MapIndex(reflect.ValueOf(e.Obj))
-		if !v.IsValid() {
-			return nil, fmt.Errorf("not found: %q", e.Obj)
-		}
-		if v.Kind() == reflect.Interface {
-			v = v.Elem()
-		}
-		for _, a := range e.Acc {
-			if a.Name != nil {
-				if v.Kind() != reflect.Map {
-					return nil, fmt.Errorf("cannot access named index in %s", v.Kind())
-				}
-				v = v.MapIndex(reflect.ValueOf(*a.Name))
-			}
-			if a.Index != nil {
-				if v.Kind() != reflect.Slice {
-					return nil, fmt.Errorf("cannot access numeric index in %s", v.Kind())
-				}
-				v = v.Index(*a.Index)
-			}
-			if !v.IsValid() {
+		switch m := v.(type) {
+		case map[string]interface{}:
+			val, ok := m[e.Obj]
+			if !ok {
 				return nil, fmt.Errorf("not found: %q", e.Obj)
 			}
-			if v.Kind() == reflect.Interface {
-				v = v.Elem()
+			v = val
+			for _, a := range e.Acc {
+				if a.Name != nil {
+					switch m := v.(type) {
+					case map[string]interface{}:
+						val, ok = m[*a.Name].(map[string]interface{})
+						if !ok {
+							return nil, fmt.Errorf("not found: %q does not contain %q", e.Obj, *a.Name)
+						}
+						v = val
+					default:
+						return nil, fmt.Errorf("cannot access named index in %T", v)
+					}
+				}
+				if a.Index != nil {
+					switch s := v.(type) {
+					case []interface{}:
+						if len(s) <= *a.Index {
+							return nil, fmt.Errorf("not found: %q does contains %d items", e.Obj, len(s))
+						}
+						v = s[*a.Index]
+					default:
+						return nil, fmt.Errorf("cannot access numeric index in %T", v)
+					}
+				}
 			}
+		default:
+			return nil, fmt.Errorf("cannot read %q, parent is not a map", e.Obj)
 		}
 	}
-
-	return v.Interface(), nil
+	return v, nil
 }
