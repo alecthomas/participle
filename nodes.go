@@ -199,7 +199,7 @@ func (d *disjunction) Parse(ctx *parseContext, parent reflect.Value) (out []refl
 			}
 			// Show the closest error returned. The idea here is that the further the parser progresses
 			// without error, the more difficult it is to trace the error back to its root.
-			if err != nil && branch.cursor >= deepestError {
+			if branch.cursor >= deepestError {
 				firstError = err
 				firstValues = value
 				deepestError = branch.cursor

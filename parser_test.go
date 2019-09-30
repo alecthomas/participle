@@ -1059,3 +1059,16 @@ func TestIssue62(t *testing.T) {
 	_, err := Build(&Issue62Foo{})
 	require.NoError(t, err)
 }
+
+// nolint: structcheck
+func TestIssue71(t *testing.T) {
+	type Sub struct {
+		name string `@Ident`
+	}
+	type grammar struct {
+		pattern *Sub `@@`
+	}
+
+	_, err := Build(&grammar{})
+	require.Error(t, err)
+}

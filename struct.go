@@ -110,7 +110,8 @@ func collectFieldIndexes(s reflect.Type) (out [][]int, err error) {
 	defer decorate(&err, s.String)
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
-		if f.Anonymous {
+		switch {
+		case f.Anonymous: // nolint: gocritic
 			children, err := collectFieldIndexes(f.Type)
 			if err != nil {
 				return nil, err
@@ -118,7 +119,11 @@ func collectFieldIndexes(s reflect.Type) (out [][]int, err error) {
 			for _, idx := range children {
 				out = append(out, append(f.Index, idx...))
 			}
-		} else if fieldLexerTag(f) != "" {
+
+		case f.PkgPath != "":
+			continue
+
+		case fieldLexerTag(f) != "":
 			out = append(out, f.Index)
 		}
 	}
