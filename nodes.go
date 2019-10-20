@@ -40,9 +40,11 @@ func decorate(err *error, name func() string) {
 	}
 	switch realError := (*err).(type) {
 	case *lexer.Error:
-		*err = &lexer.Error{Message: name() + ": " + realError.Message, Pos: realError.Pos}
+		*err = &Error{Message: name() + ": " + realError.Message, Pos: realError.Pos}
+	case *Error:
+		*err = &Error{Message: name() + ": " + realError.Message, Pos: realError.Pos}
 	default:
-		*err = fmt.Errorf("%s: %s", name(), realError)
+		*err = &Error{Message: fmt.Sprintf("%s: %s", name(), realError)}
 	}
 }
 
@@ -466,8 +468,8 @@ func sizeOfKind(kind reflect.Kind) int {
 //
 // For all other types, an attempt will be made to convert the string to the corresponding
 // type (int, float32, etc.).
-func setField(pos lexer.Position, strct reflect.Value, field structLexerField, fieldValue []reflect.Value) (err error) { // nolint: gocyclo
-	defer decorate(&err, func() string { return pos.String() + ": " + strct.Type().String() + "." + field.Name })
+func setField(pos lexer.Position, strct reflect.Value, field structLexerField, fieldValue []reflect.Value) (err error) { // nolint: gocognit
+	defer decorate(&err, func() string { return strct.Type().Name() + "." + field.Name })
 
 	f := strct.FieldByIndex(field.Index)
 	switch f.Kind() {
@@ -571,8 +573,3 @@ func setField(pos lexer.Position, strct reflect.Value, field structLexerField, f
 	}
 	return nil
 }
-
-// Error is an error returned by the parser internally to differentiate from non-Participle errors.
-type Error string
-
-func (e Error) Error() string { return string(e) }

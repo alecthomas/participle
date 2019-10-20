@@ -23,7 +23,7 @@ func stringer(n node) string {
 	return stringern(n, 1)
 }
 
-func (s *stringerVisitor) visit(n node, depth int, disjunctions bool) {
+func (s *stringerVisitor) visit(n node, depth int, disjunctions bool) { // nolint: gocognit
 	if s.seen[n] || depth <= 0 {
 		fmt.Fprintf(s, "...")
 		return

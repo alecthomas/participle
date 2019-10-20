@@ -351,7 +351,7 @@ func TestShowNearestError(t *testing.T) {
 	p := mustTestParser(t, &grammar{}, UseLookahead(10))
 	actual := &grammar{}
 	err := p.ParseString(`a b d`, actual)
-	require.EqualError(t, err, `<source>:1:5: unexpected "d" (expected "c")`)
+	require.EqualError(t, err, `1:5: unexpected "d" (expected "c")`)
 }
 
 func TestRewindDisjunction(t *testing.T) {
@@ -399,7 +399,7 @@ func TestRewindRepetition(t *testing.T) {
 	require.Equal(t, &grammar{Ints: []string{"int", "int"}, Ident: "one"}, ast)
 }
 
-//func TestLookaheadErrorReporting(t *testing.T) {
+// func TestLookaheadErrorReporting(t *testing.T) {
 //	type keyvalue struct {
 //		Key   string `@Ident "="`
 //		Value string `@Ident`
@@ -422,4 +422,4 @@ func TestRewindRepetition(t *testing.T) {
 //	ast := &grammar{}
 //	err = p.ParseString(`set ( a `, ast)
 //	require.NoError(t, err)
-//}
+// }

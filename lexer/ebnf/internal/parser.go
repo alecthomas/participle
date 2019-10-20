@@ -41,13 +41,12 @@ func (p *parser) errorExpected(pos scanner.Position, msg string) {
 	p.error(pos, msg)
 }
 
-func (p *parser) expect(tok rune) scanner.Position {
+func (p *parser) expect(tok rune) {
 	pos := p.pos
 	if p.tok != tok {
 		p.errorExpected(pos, scanner.TokenString(tok))
 	}
 	p.next() // make progress in any case
-	return pos
 }
 
 func (p *parser) parseIdentifier() *Name {

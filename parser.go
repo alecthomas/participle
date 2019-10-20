@@ -101,13 +101,16 @@ func Build(grammar interface{}, options ...Option) (parser *Parser, err error) {
 func (p *Parser) Lex(r io.Reader) ([]lexer.Token, error) {
 	lex, err := p.lex.Lex(r)
 	if err != nil {
-		return nil, err
+		return nil, autoError(err)
 	}
-	return lexer.ConsumeAll(lex)
+	tokens, err := lexer.ConsumeAll(lex)
+	return tokens, autoError(err)
 }
 
 // Parse from r into grammar v which must be of the same type as the grammar passed to
 // participle.Build().
+//
+// This may return a participle.Error.
 func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
 	rv := reflect.ValueOf(v)
 	if rv.Kind() == reflect.Interface {
@@ -123,9 +126,12 @@ func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
 	if rt != p.typ {
 		return fmt.Errorf("must parse into value of type %s not %T", p.typ, v)
 	}
+	if rt.Kind() != reflect.Ptr || rt.Elem().Kind() != reflect.Struct {
+		return fmt.Errorf("target must be a pointer to a struct, not %s", rt)
+	}
 	baseLexer, err := p.lex.Lex(r)
 	if err != nil {
-		return err
+		return autoError(err)
 	}
 	lex := lexer.Upgrade(baseLexer)
 	caseInsensitive := map[rune]bool{}
@@ -136,19 +142,16 @@ func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
 	}
 	ctx, err := newParseContext(lex, p.useLookahead, caseInsensitive)
 	if err != nil {
-		return err
+		return autoError(err)
 	}
 	// If the grammar implements Parseable, use it.
 	if parseable, ok := v.(Parseable); ok {
-		return p.rootParseable(ctx, parseable)
-	}
-	if rt.Kind() != reflect.Ptr || rt.Elem().Kind() != reflect.Struct {
-		return fmt.Errorf("target must be a pointer to a struct, not %s", rt)
+		return autoError(p.rootParseable(ctx, parseable))
 	}
 	if stream.IsValid() {
-		return p.parseStreaming(ctx, stream)
+		return autoError(p.parseStreaming(ctx, stream))
 	}
-	return p.parseOne(ctx, rv)
+	return autoError(p.parseOne(ctx, rv))
 }
 
 func (p *Parser) parseStreaming(ctx *parseContext, rv reflect.Value) error {
@@ -214,11 +217,15 @@ func (p *Parser) rootParseable(lex lexer.PeekingLexer, parseable Parseable) erro
 }
 
 // ParseString is a convenience around Parse().
+//
+// This may return a participle.Error.
 func (p *Parser) ParseString(s string, v interface{}) error {
 	return p.Parse(strings.NewReader(s), v)
 }
 
 // ParseBytes is a convenience around Parse().
+//
+// This may return a participle.Error.
 func (p *Parser) ParseBytes(b []byte, v interface{}) error {
 	return p.Parse(bytes.NewReader(b), v)
 }

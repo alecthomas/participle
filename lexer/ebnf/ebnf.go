@@ -1,3 +1,7 @@
+// Package ebnf is an EBNF lexer for Participle.
+//
+// The EBNF grammar syntax is as defined by "golang.org/x/exp/ebnf" with one extension:
+// ranges also support exclusions, eg. "a"…"z"-"f" and "a"…"z"-"f"…"g".
 package ebnf
 
 import (
@@ -114,7 +118,7 @@ nextToken:
 	}
 }
 
-func (e *ebnfLexer) match(name string, expr internal.Expression, out *bytes.Buffer) (bool, error) { // nolint: gocyclo
+func (e *ebnfLexer) match(name string, expr internal.Expression, out *bytes.Buffer) (bool, error) { // nolint: gocyclo, unparam
 	switch n := expr.(type) {
 	case internal.Alternative:
 		for _, an := range n {

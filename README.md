@@ -17,6 +17,7 @@
 10. [Examples](#examples)
 11. [Performance](#performance)
 12. [Concurrency](#concurrency)
+13. [Error reporting](#error-reporting)
 
 <!-- /TOC -->
 
@@ -347,3 +348,14 @@ thrift takes 630ms, which aligns quite closely with the benchmarks.
 ## Concurrency
 
 A compiled `Parser` instance can be used concurrently. A `LexerDefinition` can be used concurrently. A `Lexer` instance cannot be used concurrently.
+
+<a id="markdown-error-reporting" name="error-reporting"></a>
+## Error reporting
+
+There are a few areas where Participle can provide useful feedback to users of your parser.
+
+1. Errors returned by [Parser.Parse()](https://godoc.org/github.com/alecthomas/participle#Parser.Parse) will be of type [Error](https://godoc.org/github.com/alecthomas/participle#Error). This will contain positional information where available. If the source `io.Reader` includes a `Name() string` method (as `os.File` does), the filename will be included.
+2. Participle will make a best effort to return as much of the AST up to the error location as possible. In combination with
+3. Any node in the AST containing a field `Pos lexer.Position` will be automatically populated with the starting location of the first matching token.
+
+These related pieces of information can be combined to provide fairly comprehensive error reporting.
