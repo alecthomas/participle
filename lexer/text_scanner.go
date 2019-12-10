@@ -50,7 +50,9 @@ type textScannerLexer struct {
 //
 // Note that this differs from text/scanner.Scanner in that string tokens will be unquoted.
 func Lex(r io.Reader) Lexer {
-	lexer := lexWithScanner(r, &scanner.Scanner{})
+	s := &scanner.Scanner{}
+	s.Init(r)
+	lexer := lexWithScanner(r, s)
 	lexer.scanner.Error = func(s *scanner.Scanner, msg string) {
 		// This is to support single quoted strings. Hacky.
 		if !strings.HasSuffix(msg, "char literal") {
@@ -72,7 +74,6 @@ func lexWithScanner(r io.Reader, scan *scanner.Scanner) *textScannerLexer {
 		filename: NameOfReader(r),
 		scanner:  scan,
 	}
-	lexer.scanner.Init(r)
 	return lexer
 }
 
