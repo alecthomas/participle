@@ -13,6 +13,7 @@ import (
 	"io/ioutil"
 	"regexp"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/alecthomas/participle/lexer"
@@ -33,7 +34,8 @@ var eolBytes = []byte("\n")
 //     Whitespace = \s+
 //
 // Order is relevant. Comments may only occur at the beginning of a line. The regular
-// expression will have surrounding whitespace trimmed before being parsed.
+// expression will have surrounding whitespace trimmed before being parsed. Lower-case
+// rules are ignored.
 func New(grammar string) (lexer.Definition, error) {
 	rules := []reRule{}
 	symbols := map[string]rune{
@@ -61,7 +63,11 @@ func New(grammar string) (lexer.Definition, error) {
 
 		symbols[name] = lexer.EOF - 1 - rune(i)
 		i++
-		rules = append(rules, reRule{name, re})
+		rules = append(rules, reRule{
+			name:   name,
+			ignore: unicode.IsLower(rune(name[0])),
+			re:     re,
+		})
 	}
 
 	return &reDefinition{
@@ -71,8 +77,9 @@ func New(grammar string) (lexer.Definition, error) {
 }
 
 type reRule struct {
-	name string
-	re   *regexp.Regexp
+	name   string
+	ignore bool
+	re     *regexp.Regexp
 }
 
 type reDefinition struct {
@@ -111,15 +118,15 @@ var _ lexer.Lexer = &reLexer{}
 func (r *reLexer) Next() (lexer.Token, error) {
 	for len(r.data) > 0 {
 		var match []int
-		var rule string
+		var rule *reRule
 		for _, re := range r.rules {
-			rule = re.name
 			match = re.re.FindIndex(r.data)
 			if match != nil {
+				rule = &re // nolint: scopelint
 				break
 			}
 		}
-		if match == nil {
+		if rule == nil || match == nil {
 			rn, _ := utf8.DecodeRune(r.data)
 			return lexer.Token{}, lexer.Errorf(r.pos, "invalid token %q", rn)
 		}
@@ -138,8 +145,11 @@ func (r *reLexer) Next() (lexer.Token, error) {
 		} else {
 			r.pos.Column = utf8.RuneCount(span[bytes.LastIndex(span, eolBytes):])
 		}
+		if rule.ignore {
+			continue
+		}
 		return lexer.Token{
-			Type:  r.symbols[rule],
+			Type:  r.symbols[rule.name],
 			Value: string(span),
 			Pos:   pos,
 		}, nil
