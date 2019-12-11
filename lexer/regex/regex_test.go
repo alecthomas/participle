@@ -1,4 +1,4 @@
-package rerules
+package regex
 
 import (
 	"strings"

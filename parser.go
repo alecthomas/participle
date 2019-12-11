@@ -210,7 +210,11 @@ func (p *Parser) rootParseable(lex lexer.PeekingLexer, parseable Parseable) erro
 	if err == NextMatch {
 		return lexer.Errorf(peek.Pos, "invalid syntax")
 	}
-	if err == nil && !peek.EOF() {
+	peek, err = lex.Peek(0)
+	if err != nil {
+		return err
+	}
+	if !peek.EOF() {
 		return lexer.Errorf(peek.Pos, "unexpected token %q", peek)
 	}
 	return err

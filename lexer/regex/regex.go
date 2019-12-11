@@ -1,10 +1,10 @@
-// Package rerules provides a regex based lexer using a readable list of named patterns.
+// Package regex provides a regex based lexer using a readable list of named patterns.
 //
 // eg.
 //
 //     Ident = [[:ascii:]][\w\d]*
 //     Whitespace = \s+
-package rerules
+package regex
 
 import (
 	"bytes"
@@ -35,7 +35,7 @@ var eolBytes = []byte("\n")
 // Order is relevant. Comments may only occur at the beginning of a line. The regular
 // expression will have surrounding whitespace trimmed before being parsed.
 func New(grammar string) (lexer.Definition, error) {
-	rules := map[string]*regexp.Regexp{}
+	rules := []reRule{}
 	symbols := map[string]rune{
 		"EOF": lexer.EOF,
 	}
@@ -61,7 +61,7 @@ func New(grammar string) (lexer.Definition, error) {
 
 		symbols[name] = lexer.EOF - 1 - rune(i)
 		i++
-		rules[name] = re
+		rules = append(rules, reRule{name, re})
 	}
 
 	return &reDefinition{
@@ -70,9 +70,14 @@ func New(grammar string) (lexer.Definition, error) {
 	}, nil
 }
 
+type reRule struct {
+	name string
+	re   *regexp.Regexp
+}
+
 type reDefinition struct {
 	symbols map[string]rune
-	rules   map[string]*regexp.Regexp
+	rules   []reRule
 }
 
 func (d *reDefinition) Lex(r io.Reader) (lexer.Lexer, error) {
@@ -96,7 +101,7 @@ func (d *reDefinition) Symbols() map[string]rune { return d.symbols }
 
 type reLexer struct {
 	pos     lexer.Position
-	rules   map[string]*regexp.Regexp
+	rules   []reRule
 	symbols map[string]rune
 	data    []byte
 }
@@ -107,9 +112,9 @@ func (r *reLexer) Next() (lexer.Token, error) {
 	for len(r.data) > 0 {
 		var match []int
 		var rule string
-		for name, re := range r.rules {
-			rule = name
-			match = re.FindIndex(r.data)
+		for _, re := range r.rules {
+			rule = re.name
+			match = re.re.FindIndex(r.data)
 			if match != nil {
 				break
 			}

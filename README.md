@@ -194,15 +194,15 @@ streams to tokens.
 Four lexers are provided, varying in speed and flexibility. Configure your parser with a lexer
 via `participle.Lexer()`.
 
-The best combination of speed, flexibility and usability is `lexer/rerules.New()`.
+The best combination of speed, flexibility and usability is `lexer/regex.New()`.
 
 Ordered by speed they are:
 
 1. `lexer.DefaultDefinition` is based on the 
    [text/scanner](https://golang.org/pkg/text/scanner/) package and only allows 
    tokens provided by that package. This is the default lexer.
-2. `lexer.Regexp()` maps regular expression named subgroups to lexer symbols.
-3. `lexer/rerules.New()` is a more readable regex lexer, with each rule in the form `<name> = <regex>`.
+2. `lexer.Regexp()` (legacy) maps regular expression named subgroups to lexer symbols.
+3. `lexer/regex.New()` is a more readable regex lexer, with each rule in the form `<name> = <regex>`.
 4. `lexer/ebnf.New()` is a lexer based on the Go EBNF package. It has a large potential for optimisation
    through code generation, but that is not implemented yet.
 
