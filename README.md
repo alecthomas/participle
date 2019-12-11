@@ -191,10 +191,20 @@ for token := range tokens {
 Participle operates on tokens and thus relies on a lexer to convert character
 streams to tokens.
 
-Three lexers are provided, varying in speed and flexibility. The fastest lexer
-is based on the [text/scanner](https://golang.org/pkg/text/scanner/) package
-but only allows tokens provided by that package. Next fastest is the regexp
-lexer (`lexer.Regexp()`). The slowest is currently the EBNF based lexer, but it has a large potential for optimisation through code generation.
+Four lexers are provided, varying in speed and flexibility. Configure your parser with a lexer
+via `participle.Lexer()`.
+
+The best combination of speed, flexibility and usability is `lexer/rerules.New()`.
+
+Ordered by speed they are:
+
+1. `lexer.DefaultDefinition` is based on the 
+   [text/scanner](https://golang.org/pkg/text/scanner/) package and only allows 
+   tokens provided by that package. This is the default lexer.
+2. `lexer.Regexp()` maps regular expression named subgroups to lexer symbols.
+3. `lexer/rerules.New()` is a more readable regex lexer, with each rule in the form `<name> = <regex>`.
+4. `lexer/ebnf.New()` is a lexer based on the Go EBNF package. It has a large potential for optimisation
+   through code generation, but that is not implemented yet.
 
 To use your own Lexer you will need to implement two interfaces:
 [Definition](https://godoc.org/github.com/alecthomas/participle/lexer#Definition)
