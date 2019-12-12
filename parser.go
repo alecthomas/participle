@@ -107,11 +107,11 @@ func (p *Parser) Lex(r io.Reader) ([]lexer.Token, error) {
 	return tokens, autoError(err)
 }
 
-// Parse from r into grammar v which must be of the same type as the grammar passed to
+// Parse from lex into grammar v which must be of the same type as the grammar passed to
 // participle.Build().
 //
 // This may return a participle.Error.
-func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
+func (p *Parser) ParseLexer(lex lexer.Lexer, v interface{}) error {
 	rv := reflect.ValueOf(v)
 	if rv.Kind() == reflect.Interface {
 		rv = rv.Elem()
@@ -129,18 +129,14 @@ func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
 	if rt.Kind() != reflect.Ptr || rt.Elem().Kind() != reflect.Struct {
 		return fmt.Errorf("target must be a pointer to a struct, not %s", rt)
 	}
-	baseLexer, err := p.lex.Lex(r)
-	if err != nil {
-		return autoError(err)
-	}
-	lex := lexer.Upgrade(baseLexer)
+	lexer := lexer.Upgrade(lex)
 	caseInsensitive := map[rune]bool{}
 	for sym, rn := range p.lex.Symbols() {
 		if p.caseInsensitive[sym] {
 			caseInsensitive[rn] = true
 		}
 	}
-	ctx, err := newParseContext(lex, p.useLookahead, caseInsensitive)
+	ctx, err := newParseContext(lexer, p.useLookahead, caseInsensitive)
 	if err != nil {
 		return autoError(err)
 	}
@@ -152,6 +148,18 @@ func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
 		return autoError(p.parseStreaming(ctx, stream))
 	}
 	return autoError(p.parseOne(ctx, rv))
+}
+
+// Parse from r into grammar v which must be of the same type as the grammar passed to
+// participle.Build().
+//
+// This may return a participle.Error.
+func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
+	lex, err := p.lex.Lex(r)
+	if err != nil {
+		return autoError(err)
+	}
+	return p.ParseLexer(lex, v)
 }
 
 func (p *Parser) parseStreaming(ctx *parseContext, rv reflect.Value) error {
