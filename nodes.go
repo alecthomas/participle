@@ -40,11 +40,11 @@ func decorate(err *error, name func() string) {
 	}
 	switch realError := (*err).(type) {
 	case *lexer.Error:
-		*err = &Error{Message: name() + ": " + realError.Message, Pos: realError.Pos}
-	case *Error:
-		*err = &Error{Message: name() + ": " + realError.Message, Pos: realError.Pos}
+		*err = &parseError{Message: name() + ": " + realError.Message, Pos: realError.Pos}
+	case *parseError:
+		*err = &parseError{Message: name() + ": " + realError.Message, Pos: realError.Pos}
 	default:
-		*err = &Error{Message: fmt.Sprintf("%s: %s", name(), realError)}
+		*err = &parseError{Message: fmt.Sprintf("%s: %s", name(), realError)}
 	}
 }
 

@@ -1,5 +1,12 @@
 // Package main shows an example of how to add precedence climbing to a Participle parser.
 //
+// Precedence climbing is an approach to parsing expressions that efficiently
+// produces compact parse trees.
+//
+// In contrast, naive recursive descent expression parsers produce parse trees proportional in
+// complexity to the number of operators supported. This impacts both readability and
+// performance.
+//
 // It is based on https://eli.thegreenplace.net/2012/08/02/parsing-expressions-by-precedence-climbing
 package main
 

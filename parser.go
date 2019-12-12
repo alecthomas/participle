@@ -101,13 +101,13 @@ func Build(grammar interface{}, options ...Option) (parser *Parser, err error) {
 func (p *Parser) Lex(r io.Reader) ([]lexer.Token, error) {
 	lex, err := p.lex.Lex(r)
 	if err != nil {
-		return nil, autoError(err)
+		return nil, err
 	}
 	tokens, err := lexer.ConsumeAll(lex)
-	return tokens, autoError(err)
+	return tokens, err
 }
 
-// Parse from lex into grammar v which must be of the same type as the grammar passed to
+// ParseLexer into grammar v which must be of the same type as the grammar passed to
 // participle.Build().
 //
 // This may return a participle.Error.
@@ -138,16 +138,16 @@ func (p *Parser) ParseLexer(lex lexer.Lexer, v interface{}) error {
 	}
 	ctx, err := newParseContext(lexer, p.useLookahead, caseInsensitive)
 	if err != nil {
-		return autoError(err)
+		return err
 	}
 	// If the grammar implements Parseable, use it.
 	if parseable, ok := v.(Parseable); ok {
-		return autoError(p.rootParseable(ctx, parseable))
+		return p.rootParseable(ctx, parseable)
 	}
 	if stream.IsValid() {
-		return autoError(p.parseStreaming(ctx, stream))
+		return p.parseStreaming(ctx, stream)
 	}
-	return autoError(p.parseOne(ctx, rv))
+	return p.parseOne(ctx, rv)
 }
 
 // Parse from r into grammar v which must be of the same type as the grammar passed to
@@ -157,7 +157,7 @@ func (p *Parser) ParseLexer(lex lexer.Lexer, v interface{}) error {
 func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
 	lex, err := p.lex.Lex(r)
 	if err != nil {
-		return autoError(err)
+		return err
 	}
 	return p.ParseLexer(lex, v)
 }
@@ -186,7 +186,7 @@ func (p *Parser) parseOne(ctx *parseContext, rv reflect.Value) error {
 	if err != nil {
 		return err
 	} else if !token.EOF() {
-		return lexer.Errorf(token.Pos, "unexpected token %q", token)
+		return UnexpectedTokenError{token}
 	}
 	return nil
 }
@@ -204,7 +204,7 @@ func (p *Parser) parseInto(ctx *parseContext, rv reflect.Value) error {
 	}
 	if pv == nil {
 		token, _ := ctx.Peek(0)
-		return lexer.Errorf(token.Pos, "invalid syntax")
+		return Errorf(token.Pos, "invalid syntax")
 	}
 	return nil
 }
@@ -223,7 +223,7 @@ func (p *Parser) rootParseable(lex lexer.PeekingLexer, parseable Parseable) erro
 		return err
 	}
 	if !peek.EOF() {
-		return lexer.Errorf(peek.Pos, "unexpected token %q", peek)
+		return UnexpectedTokenError{peek}
 	}
 	return err
 }

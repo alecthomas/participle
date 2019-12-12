@@ -16,11 +16,26 @@ func Errorf(pos Position, format string, args ...interface{}) *Error {
 	}
 }
 
+func (e *Error) Position() Position { return e.Pos } // nolint: golint
+
 // Error complies with the error interface and reports the position of an error.
 func (e *Error) Error() string {
-	filename := e.Pos.Filename
-	if filename == "" {
-		filename = "<source>"
+	return FormatError(e.Pos, e.Message)
+}
+
+// FormatError formats an error in the form "[<filename>:][<line>:<pos>:] <message>"
+func FormatError(pos Position, message string) string {
+	msg := ""
+	if pos.Filename != "" {
+		msg += pos.Filename + ":"
 	}
-	return fmt.Sprintf("%s:%d:%d: %s", filename, e.Pos.Line, e.Pos.Column, e.Message)
+	if pos.Line != 0 || pos.Column != 0 {
+		msg += fmt.Sprintf("%d:%d:", pos.Line, pos.Column)
+	}
+	if msg != "" {
+		msg += " " + message
+	} else {
+		msg = message
+	}
+	return msg
 }
