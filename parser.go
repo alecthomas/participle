@@ -111,7 +111,7 @@ func (p *Parser) Lex(r io.Reader) ([]lexer.Token, error) {
 // participle.Build().
 //
 // This may return a participle.Error.
-func (p *Parser) ParseLexer(lex lexer.Lexer, v interface{}) error {
+func (p *Parser) ParseLexer(lex lexer.PeekingLexer, v interface{}) error {
 	rv := reflect.ValueOf(v)
 	if rv.Kind() == reflect.Interface {
 		rv = rv.Elem()
@@ -129,14 +129,13 @@ func (p *Parser) ParseLexer(lex lexer.Lexer, v interface{}) error {
 	if rt.Kind() != reflect.Ptr || rt.Elem().Kind() != reflect.Struct {
 		return fmt.Errorf("target must be a pointer to a struct, not %s", rt)
 	}
-	lexer := lexer.Upgrade(lex)
 	caseInsensitive := map[rune]bool{}
 	for sym, rn := range p.lex.Symbols() {
 		if p.caseInsensitive[sym] {
 			caseInsensitive[rn] = true
 		}
 	}
-	ctx, err := newParseContext(lexer, p.useLookahead, caseInsensitive)
+	ctx, err := newParseContext(lex, p.useLookahead, caseInsensitive)
 	if err != nil {
 		return err
 	}
@@ -159,7 +158,7 @@ func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
 	if err != nil {
 		return err
 	}
-	return p.ParseLexer(lex, v)
+	return p.ParseLexer(lexer.Upgrade(lex), v)
 }
 
 func (p *Parser) parseStreaming(ctx *parseContext, rv reflect.Value) error {
