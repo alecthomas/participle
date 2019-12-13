@@ -659,7 +659,7 @@ type parseableStruct struct {
 	Tokens []string
 }
 
-func (p *parseableStruct) Parse(lex lexer.PeekingLexer) error {
+func (p *parseableStruct) Parse(lex *lexer.PeekingLexer) error {
 	tokens, err := lexer.ConsumeAll(lex)
 	if err != nil {
 		return err
@@ -1042,7 +1042,7 @@ type Issue62Bar struct {
 	A int
 }
 
-func (x *Issue62Bar) Parse(lex lexer.PeekingLexer) error {
+func (x *Issue62Bar) Parse(lex *lexer.PeekingLexer) error {
 	token, err := lex.Next()
 	if err != nil {
 		return err

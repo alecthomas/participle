@@ -227,7 +227,7 @@ var stringToScalar = map[string]Scalar{
 	"sfixed64": SFixed64, "bool": Bool, "string": String, "bytes": Bytes,
 }
 
-func (s *Scalar) Parse(lex lexer.PeekingLexer) error {
+func (s *Scalar) Parse(lex *lexer.PeekingLexer) error {
 	token, err := lex.Peek(0)
 	if err != nil {
 		return err

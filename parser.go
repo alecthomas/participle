@@ -111,7 +111,7 @@ func (p *Parser) Lex(r io.Reader) ([]lexer.Token, error) {
 // participle.Build().
 //
 // This may return a participle.Error.
-func (p *Parser) ParseLexer(lex lexer.PeekingLexer, v interface{}) error {
+func (p *Parser) ParseLexer(lex *lexer.PeekingLexer, v interface{}) error {
 	rv := reflect.ValueOf(v)
 	if rv.Kind() == reflect.Interface {
 		rv = rv.Elem()
@@ -141,7 +141,7 @@ func (p *Parser) ParseLexer(lex lexer.PeekingLexer, v interface{}) error {
 	}
 	// If the grammar implements Parseable, use it.
 	if parseable, ok := v.(Parseable); ok {
-		return p.rootParseable(ctx, parseable)
+		return p.rootParseable(ctx.PeekingLexer, parseable)
 	}
 	if stream.IsValid() {
 		return p.parseStreaming(ctx, stream)
@@ -158,7 +158,11 @@ func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
 	if err != nil {
 		return err
 	}
-	return p.ParseLexer(lexer.Upgrade(lex), v)
+	peeker, err := lexer.Upgrade(lex)
+	if err != nil {
+		return err
+	}
+	return p.ParseLexer(peeker, v)
 }
 
 func (p *Parser) parseStreaming(ctx *parseContext, rv reflect.Value) error {
@@ -208,7 +212,7 @@ func (p *Parser) parseInto(ctx *parseContext, rv reflect.Value) error {
 	return nil
 }
 
-func (p *Parser) rootParseable(lex lexer.PeekingLexer, parseable Parseable) error {
+func (p *Parser) rootParseable(lex *lexer.PeekingLexer, parseable Parseable) error {
 	peek, err := lex.Peek(0)
 	if err != nil {
 		return err

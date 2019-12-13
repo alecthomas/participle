@@ -49,13 +49,13 @@ func (e *Expr) String() string {
 	return fmt.Sprintf("%d", *e.Terminal)
 }
 
-func (e *Expr) Parse(lex lexer.PeekingLexer) error {
+func (e *Expr) Parse(lex *lexer.PeekingLexer) error {
 	*e = *parseExpr(lex, 0)
 	return nil
 }
 
 // (1 + 2) * 3
-func parseExpr(lex lexer.PeekingLexer, minPrec int) *Expr {
+func parseExpr(lex *lexer.PeekingLexer, minPrec int) *Expr {
 	lhs := next(lex)
 	for {
 		op := peek(lex)
@@ -79,7 +79,7 @@ func parseOp(op *Expr, lhs *Expr, rhs *Expr) *Expr {
 	return op
 }
 
-func next(lex lexer.PeekingLexer) *Expr {
+func next(lex *lexer.PeekingLexer) *Expr {
 	e := peek(lex)
 	if e == nil {
 		return e
@@ -92,7 +92,7 @@ func next(lex lexer.PeekingLexer) *Expr {
 	return e
 }
 
-func peek(lex lexer.PeekingLexer) *Expr {
+func peek(lex *lexer.PeekingLexer) *Expr {
 	t, err := lex.Peek(0)
 	if err != nil {
 		panic(err)

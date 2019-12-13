@@ -15,5 +15,5 @@ type Parseable interface {
 	//
 	// Should return NextMatch if no tokens matched and parsing should continue.
 	// Nil should be returned if parsing was successful.
-	Parse(lex lexer.PeekingLexer) error
+	Parse(lex *lexer.PeekingLexer) error
 }

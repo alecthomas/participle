@@ -1,37 +1,56 @@
 package lexer
 
+// PeekingLexer supports arbitrary lookahead as well as cloning.
+type PeekingLexer struct {
+	cursor int
+	eof    Token
+	tokens []Token
+}
+
 // Upgrade a Lexer to a PeekingLexer with arbitrary lookahead.
-func Upgrade(lexer Lexer) PeekingLexer {
-	if peeking, ok := lexer.(PeekingLexer); ok {
-		return peeking
-	}
-	return &lookaheadLexer{Lexer: lexer}
-}
-
-type lookaheadLexer struct {
-	Lexer
-	peeked []Token
-}
-
-func (l *lookaheadLexer) Peek(n int) (Token, error) {
-	for len(l.peeked) <= n {
-		t, err := l.Lexer.Next()
+func Upgrade(lex Lexer) (*PeekingLexer, error) {
+	r := &PeekingLexer{}
+	for {
+		t, err := lex.Next()
 		if err != nil {
-			return Token{}, err
+			return nil, err
 		}
 		if t.EOF() {
-			return t, nil
+			r.eof = t
+			break
 		}
-		l.peeked = append(l.peeked, t)
+		r.tokens = append(r.tokens, t)
 	}
-	return l.peeked[n], nil
+	return r, nil
 }
 
-func (l *lookaheadLexer) Next() (Token, error) {
-	if len(l.peeked) > 0 {
-		t := l.peeked[0]
-		l.peeked = l.peeked[1:]
-		return t, nil
+// Cursor position in tokens.
+func (p *PeekingLexer) Cursor() int {
+	return p.cursor
+}
+
+// Next consumes and returns the next token.
+func (p *PeekingLexer) Next() (Token, error) {
+	if p.cursor >= len(p.tokens) {
+		return p.eof, nil
 	}
-	return l.Lexer.Next()
+	p.cursor++
+	return p.tokens[p.cursor-1], nil
+}
+
+// Peek ahead at the n+1 token. ie. Peek(0) will peek at the next token.
+func (p *PeekingLexer) Peek(n int) (Token, error) {
+	i := p.cursor + n
+	if i >= len(p.tokens) {
+		return p.eof, nil
+	}
+	return p.tokens[i], nil
+}
+
+// Clone creates a clone of this PeekingLexer at its current token.
+//
+// The parent and clone are completely independent.
+func (p *PeekingLexer) Clone() *PeekingLexer {
+	clone := *p
+	return &clone
 }

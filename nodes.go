@@ -58,7 +58,7 @@ func (p *parseable) String() string { return stringer(p) }
 func (p *parseable) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	rv := reflect.New(p.t)
 	v := rv.Interface().(Parseable)
-	err = v.Parse(ctx)
+	err = v.Parse(ctx.PeekingLexer)
 	if err != nil {
 		if err == NextMatch {
 			return nil, nil
@@ -201,10 +201,10 @@ func (d *disjunction) Parse(ctx *parseContext, parent reflect.Value) (out []refl
 			}
 			// Show the closest error returned. The idea here is that the further the parser progresses
 			// without error, the more difficult it is to trace the error back to its root.
-			if branch.cursor >= deepestError {
+			if branch.Cursor() >= deepestError {
 				firstError = err
 				firstValues = value
-				deepestError = branch.cursor
+				deepestError = branch.Cursor()
 			}
 		} else if value != nil {
 			ctx.Accept(branch)

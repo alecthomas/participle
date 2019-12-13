@@ -22,7 +22,8 @@ func (s *staticLexer) Next() (Token, error) {
 func TestUpgrade(t *testing.T) {
 	t0 := Token{Type: 1, Value: "moo"}
 	t1 := Token{Type: 2, Value: "blah"}
-	l := Upgrade(&staticLexer{tokens: []Token{t0, t1}})
+	l, err := Upgrade(&staticLexer{tokens: []Token{t0, t1}})
+	require.NoError(t, err)
 	require.Equal(t, t0, mustPeek(t, l, 0))
 	require.Equal(t, t0, mustPeek(t, l, 0))
 	require.Equal(t, t1, mustPeek(t, l, 1))
@@ -31,7 +32,7 @@ func TestUpgrade(t *testing.T) {
 	require.True(t, mustPeek(t, l, 3).EOF())
 }
 
-func mustPeek(t *testing.T, lexer PeekingLexer, n int) Token {
+func mustPeek(t *testing.T, lexer *PeekingLexer, n int) Token {
 	token, err := lexer.Peek(n)
 	require.NoError(t, err)
 	return token

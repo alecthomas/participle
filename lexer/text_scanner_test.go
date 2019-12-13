@@ -9,7 +9,8 @@ import (
 )
 
 func TestLexer(t *testing.T) {
-	lexer := Upgrade(LexString("hello world"))
+	lexer, err := Upgrade(LexString("hello world"))
+	require.NoError(t, err)
 	helloPos := Position{Offset: 0, Line: 1, Column: 1}
 	worldPos := Position{Offset: 6, Line: 1, Column: 7}
 	eofPos := Position{Offset: 11, Line: 1, Column: 12}

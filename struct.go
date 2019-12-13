@@ -12,7 +12,7 @@ type structLexer struct {
 	s       reflect.Type
 	field   int
 	indexes [][]int
-	lexer   lexer.PeekingLexer
+	lexer   *lexer.PeekingLexer
 }
 
 func lexStruct(s reflect.Type) (*structLexer, error) {
@@ -26,7 +26,10 @@ func lexStruct(s reflect.Type) (*structLexer, error) {
 	}
 	if len(slex.indexes) > 0 {
 		tag := fieldLexerTag(slex.Field().StructField)
-		slex.lexer = lexer.Upgrade(lexer.LexString(tag))
+		slex.lexer, err = lexer.Upgrade(lexer.LexString(tag))
+		if err != nil {
+			return nil, err
+		}
 	}
 	return slex, nil
 }
@@ -73,7 +76,10 @@ func (s *structLexer) Peek() (lexer.Token, error) {
 			return lexer.EOFToken(token.Pos), nil
 		}
 		tag := fieldLexerTag(s.GetField(field).StructField)
-		lex = lexer.Upgrade(lexer.LexString(tag))
+		lex, err = lexer.Upgrade(lexer.LexString(tag))
+		if err != nil {
+			return token, err
+		}
 	}
 }
 
@@ -91,7 +97,10 @@ func (s *structLexer) Next() (lexer.Token, error) {
 	}
 	s.field++
 	tag := fieldLexerTag(s.Field().StructField)
-	s.lexer = lexer.Upgrade(lexer.LexString(tag))
+	s.lexer, err = lexer.Upgrade(lexer.LexString(tag))
+	if err != nil {
+		return token, err
+	}
 	return s.Next()
 }
 

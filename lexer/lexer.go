@@ -31,13 +31,6 @@ type Lexer interface {
 	Next() (Token, error)
 }
 
-// A PeekingLexer returns tokens from a source and allows peeking.
-type PeekingLexer interface {
-	Lexer
-	// Peek at the next token.
-	Peek(n int) (Token, error)
-}
-
 // SymbolsByRune returns a map of lexer symbol names keyed by rune.
 func SymbolsByRune(def Definition) map[rune]string {
 	out := map[rune]string{}
@@ -99,7 +92,7 @@ func (p Position) GoString() string {
 func (p Position) String() string {
 	filename := p.Filename
 	if filename == "" {
-		filename = "<source>"
+		return fmt.Sprintf("%d:%d", p.Line, p.Column)
 	}
 	return fmt.Sprintf("%s:%d:%d", filename, p.Line, p.Column)
 }
@@ -130,7 +123,10 @@ func (t Token) String() string {
 }
 
 func (t Token) GoString() string {
-	return fmt.Sprintf("Token{%d, %q}", t.Type, t.Value)
+	if t.Pos == (Position{}) {
+		return fmt.Sprintf("Token{%d, %q}", t.Type, t.Value)
+	}
+	return fmt.Sprintf("Token@%s{%d, %q}", t.Pos.String(), t.Type, t.Value)
 }
 
 // MakeSymbolTable builds a lookup table for checking token ID existence.
