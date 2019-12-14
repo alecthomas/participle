@@ -19,18 +19,15 @@ type parseContext struct {
 	lookahead       int
 	caseInsensitive map[rune]bool
 	apply           []*contextFieldSet
+	allowTrailing   bool
 }
 
-func newParseContext(lex lexer.Lexer, lookahead int, caseInsensitive map[rune]bool) (*parseContext, error) {
-	peeker, err := lexer.Upgrade(lex)
-	if err != nil {
-		return nil, err
-	}
+func newParseContext(lex *lexer.PeekingLexer, lookahead int, caseInsensitive map[rune]bool) *parseContext {
 	return &parseContext{
-		PeekingLexer:    peeker,
+		PeekingLexer:    lex,
 		caseInsensitive: caseInsensitive,
 		lookahead:       lookahead,
-	}, nil
+	}
 }
 
 // Defer adds a function to be applied once a branch has been picked.

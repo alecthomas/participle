@@ -37,3 +37,15 @@ func CaseInsensitive(tokens ...string) Option {
 		return nil
 	}
 }
+
+// ParseOption modifies how an individual parse is applied.
+type ParseOption func(p *parseContext)
+
+// AllowTrailing tokens without erroring.
+//
+// That is, do not error if a full parse completes but additional tokens remain.
+func AllowTrailing(ok bool) ParseOption {
+	return func(p *parseContext) {
+		p.allowTrailing = ok
+	}
+}

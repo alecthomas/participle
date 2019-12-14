@@ -1072,3 +1072,19 @@ func TestIssue71(t *testing.T) {
 	_, err := Build(&grammar{})
 	require.Error(t, err)
 }
+
+func TestAllowTrailing(t *testing.T) {
+	type G struct {
+		Name string `@Ident`
+	}
+
+	p, err := Build(&G{})
+	require.NoError(t, err)
+
+	g := &G{}
+	err = p.ParseString(`hello world`, g)
+	require.Error(t, err)
+	err = p.ParseString(`hello world`, g, AllowTrailing(true))
+	require.NoError(t, err)
+	require.Equal(t, &G{"hello"}, g)
+}

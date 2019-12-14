@@ -107,11 +107,11 @@ func (p *Parser) Lex(r io.Reader) ([]lexer.Token, error) {
 	return tokens, err
 }
 
-// ParseLexer into grammar v which must be of the same type as the grammar passed to
+// ParseFromLexer into grammar v which must be of the same type as the grammar passed to
 // participle.Build().
 //
 // This may return a participle.Error.
-func (p *Parser) ParseLexer(lex *lexer.PeekingLexer, v interface{}) error {
+func (p *Parser) ParseFromLexer(lex *lexer.PeekingLexer, v interface{}, options ...ParseOption) error {
 	rv := reflect.ValueOf(v)
 	if rv.Kind() == reflect.Interface {
 		rv = rv.Elem()
@@ -135,13 +135,13 @@ func (p *Parser) ParseLexer(lex *lexer.PeekingLexer, v interface{}) error {
 			caseInsensitive[rn] = true
 		}
 	}
-	ctx, err := newParseContext(lex, p.useLookahead, caseInsensitive)
-	if err != nil {
-		return err
+	ctx := newParseContext(lex, p.useLookahead, caseInsensitive)
+	for _, option := range options {
+		option(ctx)
 	}
 	// If the grammar implements Parseable, use it.
 	if parseable, ok := v.(Parseable); ok {
-		return p.rootParseable(ctx.PeekingLexer, parseable)
+		return p.rootParseable(ctx, parseable)
 	}
 	if stream.IsValid() {
 		return p.parseStreaming(ctx, stream)
@@ -153,7 +153,7 @@ func (p *Parser) ParseLexer(lex *lexer.PeekingLexer, v interface{}) error {
 // participle.Build().
 //
 // This may return a participle.Error.
-func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
+func (p *Parser) Parse(r io.Reader, v interface{}, options ...ParseOption) (err error) {
 	lex, err := p.lex.Lex(r)
 	if err != nil {
 		return err
@@ -162,7 +162,7 @@ func (p *Parser) Parse(r io.Reader, v interface{}) (err error) {
 	if err != nil {
 		return err
 	}
-	return p.ParseLexer(peeker, v)
+	return p.ParseFromLexer(peeker, v, options...)
 }
 
 func (p *Parser) parseStreaming(ctx *parseContext, rv reflect.Value) error {
@@ -188,7 +188,7 @@ func (p *Parser) parseOne(ctx *parseContext, rv reflect.Value) error {
 	token, err := ctx.Peek(0)
 	if err != nil {
 		return err
-	} else if !token.EOF() {
+	} else if !token.EOF() && !ctx.allowTrailing {
 		return UnexpectedTokenError{token}
 	}
 	return nil
@@ -207,42 +207,43 @@ func (p *Parser) parseInto(ctx *parseContext, rv reflect.Value) error {
 	}
 	if pv == nil {
 		token, _ := ctx.Peek(0)
-		return Errorf(token.Pos, "invalid syntax")
+		return UnexpectedTokenError{token}
 	}
 	return nil
 }
 
-func (p *Parser) rootParseable(lex *lexer.PeekingLexer, parseable Parseable) error {
-	peek, err := lex.Peek(0)
+func (p *Parser) rootParseable(ctx *parseContext, parseable Parseable) error {
+	peek, err := ctx.Peek(0)
 	if err != nil {
 		return err
 	}
-	err = parseable.Parse(lex)
+	err = parseable.Parse(ctx.PeekingLexer)
 	if err == NextMatch {
-		return lexer.Errorf(peek.Pos, "invalid syntax")
+		token, _ := ctx.Peek(0)
+		return UnexpectedTokenError{token}
 	}
-	peek, err = lex.Peek(0)
+	peek, err = ctx.Peek(0)
 	if err != nil {
 		return err
 	}
-	if !peek.EOF() {
+	if !peek.EOF() && !ctx.allowTrailing {
 		return UnexpectedTokenError{peek}
 	}
-	return err
+	return nil
 }
 
 // ParseString is a convenience around Parse().
 //
 // This may return a participle.Error.
-func (p *Parser) ParseString(s string, v interface{}) error {
-	return p.Parse(strings.NewReader(s), v)
+func (p *Parser) ParseString(s string, v interface{}, options ...ParseOption) error {
+	return p.Parse(strings.NewReader(s), v, options...)
 }
 
 // ParseBytes is a convenience around Parse().
 //
 // This may return a participle.Error.
-func (p *Parser) ParseBytes(b []byte, v interface{}) error {
-	return p.Parse(bytes.NewReader(b), v)
+func (p *Parser) ParseBytes(b []byte, v interface{}, options ...ParseOption) error {
+	return p.Parse(bytes.NewReader(b), v, options...)
 }
 
 // String representation of the grammar.
