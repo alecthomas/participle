@@ -136,6 +136,7 @@ func (p *Parser) ParseFromLexer(lex *lexer.PeekingLexer, v interface{}, options 
 		}
 	}
 	ctx := newParseContext(lex, p.useLookahead, caseInsensitive)
+	defer func() { *lex = *ctx.PeekingLexer }()
 	for _, option := range options {
 		option(ctx)
 	}
