@@ -6,17 +6,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type LAT1Module struct {
-	Decls []*LAT1Decl `{ @@ }`
-}
-
-type LAT1Decl struct {
-	SourceFilename string `  "source_filename" "=" @String`
-	DataLayout     string `| "target" "datalayout" "=" @String`
-	TargetTriple   string `| "target" "triple" "=" @String`
-}
-
 func TestIssue3Example1(t *testing.T) {
+	type LAT1Decl struct {
+		SourceFilename string `  "source_filename" "=" @String`
+		DataLayout     string `| "target" "datalayout" "=" @String`
+		TargetTriple   string `| "target" "triple" "=" @String`
+	}
+
+	type LAT1Module struct {
+		Decls []*LAT1Decl `{ @@ }`
+	}
+
 	g := &LAT1Module{}
 	p := mustTestParser(t, g, UseLookahead(5))
 	err := p.ParseString(`
@@ -399,27 +399,25 @@ func TestRewindRepetition(t *testing.T) {
 	require.Equal(t, &grammar{Ints: []string{"int", "int"}, Ident: "one"}, ast)
 }
 
-// func TestLookaheadErrorReporting(t *testing.T) {
-//	type keyvalue struct {
-//		Key   string `@Ident "="`
-//		Value string `@Ident`
-//	}
-//	type expr struct {
-//		KV   keyvalue `  @@`
-//		Pair string   `| @Ident "," @Ident`
-//	}
-//	type grammar struct {
-//		SubExpr expr `"set" "(" @@ ")"`
-//	}
-//	p := mustTestParser(t, &grammar{}, UseLookahead(3))
-//
-//	tokens, err := lexer.ConsumeAll(lexer.LexString(`set ( a`))
-//	require.NoError(t, err)
-//	for _, token := range tokens {
-//		fmt.Println(token.Value, token.Pos)
-//	}
-//
-//	ast := &grammar{}
-//	err = p.ParseString(`set ( a `, ast)
-//	require.NoError(t, err)
-// }
+func TestLookaheadErrorReporting(t *testing.T) {
+	type cls struct {
+		Class string `"class" @Ident`
+	}
+	type union struct {
+		Union string `"union" @Ident`
+	}
+	type decl struct {
+		Visibility string `@"public"?`
+
+		Class *cls   `(  @@`
+		Union *union ` | @@ )`
+	}
+	type grammar struct {
+		Decls []*decl `( @@ ";" )*`
+	}
+	p := mustTestParser(t, &grammar{}, UseLookahead(1))
+
+	ast := &grammar{}
+	err := p.ParseString(`public struct Bar;`, ast)
+	require.EqualError(t, err, `1:8: unexpected "struct" (expected ("class" ... | "union" ...))`)
+}

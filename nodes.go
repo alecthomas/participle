@@ -153,7 +153,7 @@ func (g *group) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Va
 		out = append(out, v...)
 		if err != nil {
 			// Optional part failed to match.
-			if ctx.Stop(branch) {
+			if ctx.Stop(err, branch) {
 				return out, err
 			}
 			break
@@ -196,7 +196,7 @@ func (d *disjunction) Parse(ctx *parseContext, parent reflect.Value) (out []refl
 		branch := ctx.Branch()
 		if value, err := a.Parse(branch, parent); err != nil {
 			// If this branch progressed too far and still didn't match, error out.
-			if ctx.Stop(branch) {
+			if ctx.Stop(err, branch) {
 				return value, err
 			}
 			// Show the closest error returned. The idea here is that the further the parser progresses
@@ -308,7 +308,7 @@ func (o *optional) Parse(ctx *parseContext, parent reflect.Value) (out []reflect
 	out, err = o.node.Parse(branch, parent)
 	if err != nil {
 		// Optional part failed to match.
-		if ctx.Stop(branch) {
+		if ctx.Stop(err, branch) {
 			return out, err
 		}
 	} else {
@@ -337,7 +337,7 @@ func (r *repetition) Parse(ctx *parseContext, parent reflect.Value) (out []refle
 		out = append(out, v...)
 		if err != nil {
 			// Optional part failed to match.
-			if ctx.Stop(branch) {
+			if ctx.Stop(err, branch) {
 				return out, err
 			}
 			break

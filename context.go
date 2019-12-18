@@ -16,10 +16,12 @@ type contextFieldSet struct {
 // Context for a single parse.
 type parseContext struct {
 	*lexer.PeekingLexer
-	lookahead       int
-	caseInsensitive map[rune]bool
-	apply           []*contextFieldSet
-	allowTrailing   bool
+	deepestError      error
+	deepestErrorDepth int
+	lookahead         int
+	caseInsensitive   map[rune]bool
+	apply             []*contextFieldSet
+	allowTrailing     bool
 }
 
 func newParseContext(lex *lexer.PeekingLexer, lookahead int, caseInsensitive map[rune]bool) *parseContext {
@@ -28,6 +30,16 @@ func newParseContext(lex *lexer.PeekingLexer, lookahead int, caseInsensitive map
 		caseInsensitive: caseInsensitive,
 		lookahead:       lookahead,
 	}
+}
+
+func (p *parseContext) DeepestError(err error) error {
+	if p.PeekingLexer.Cursor() >= p.deepestErrorDepth {
+		return err
+	}
+	if p.deepestError != nil {
+		return p.deepestError
+	}
+	return err
 }
 
 // Defer adds a function to be applied once a branch has been picked.
@@ -62,7 +74,15 @@ func (p *parseContext) Branch() *parseContext {
 }
 
 // Stop returns true if parsing should terminate after the given "branch" failed to match.
-func (p *parseContext) Stop(branch *parseContext) bool {
+//
+// Additionally, "err" should be the branch error, if any. This will be tracked to
+// aid in error reporting under the assumption that the deepest occurring error is more
+// useful than errors further up.
+func (p *parseContext) Stop(err error, branch *parseContext) bool {
+	if branch.PeekingLexer.Cursor() >= p.deepestErrorDepth {
+		p.deepestError = err
+		p.deepestErrorDepth = branch.PeekingLexer.Cursor()
+	}
 	if branch.PeekingLexer.Cursor() > p.PeekingLexer.Cursor()+p.lookahead {
 		p.Accept(branch)
 		return true
