@@ -419,5 +419,5 @@ func TestLookaheadErrorReporting(t *testing.T) {
 
 	ast := &grammar{}
 	err := p.ParseString(`public struct Bar;`, ast)
-	require.EqualError(t, err, `1:8: unexpected "struct" (expected ("class" ... | "union" ...))`)
+	require.EqualError(t, err, `1:8: unexpected "struct" (expected "class" | "union")`)
 }
