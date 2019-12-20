@@ -11,6 +11,9 @@ import (
 // The error will contain positional information if available.
 type Error interface {
 	error
+	// Unadorned message.
+	Message() string
+	// Position error occurred.
 	Position() lexer.Position
 }
 
@@ -20,9 +23,12 @@ type Error interface {
 type UnexpectedTokenError struct{ lexer.Token }
 
 func (u UnexpectedTokenError) Error() string {
-	return lexer.FormatError(u.Pos, fmt.Sprintf("unexpected token %q", u.Value))
+	return lexer.FormatError(u.Pos, u.Message())
 }
 
+func (u UnexpectedTokenError) Message() string { // nolint: golint
+	return fmt.Sprintf("unexpected token %q", u.Value)
+}
 func (u UnexpectedTokenError) Position() lexer.Position { return u.Pos } // nolint: golint
 
 type parseError struct {

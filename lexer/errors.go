@@ -4,23 +4,24 @@ import "fmt"
 
 // Error represents an error while parsing.
 type Error struct {
-	Message string
-	Pos     Position
+	Msg string
+	Pos Position
 }
 
 // Errorf creats a new Error at the given position.
 func Errorf(pos Position, format string, args ...interface{}) *Error {
 	return &Error{
-		Message: fmt.Sprintf(format, args...),
-		Pos:     pos,
+		Msg: fmt.Sprintf(format, args...),
+		Pos: pos,
 	}
 }
 
+func (e *Error) Message() string    { return e.Msg } // nolint: golint
 func (e *Error) Position() Position { return e.Pos } // nolint: golint
 
 // Error complies with the error interface and reports the position of an error.
 func (e *Error) Error() string {
-	return FormatError(e.Pos, e.Message)
+	return FormatError(e.Pos, e.Msg)
 }
 
 // FormatError formats an error in the form "[<filename>:][<line>:<pos>:] <message>"
