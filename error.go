@@ -20,16 +20,23 @@ type Error interface {
 // UnexpectedTokenError is returned by Parse when an unexpected token is encountered.
 //
 // This is useful for composing parsers in order to detect when a sub-parser has terminated.
-type UnexpectedTokenError struct{ lexer.Token }
+type UnexpectedTokenError struct {
+	Unexpected lexer.Token
+	Expected   string
+}
 
 func (u UnexpectedTokenError) Error() string {
-	return lexer.FormatError(u.Pos, u.Message())
+	return lexer.FormatError(u.Unexpected.Pos, u.Message())
 }
 
 func (u UnexpectedTokenError) Message() string { // nolint: golint
-	return fmt.Sprintf("unexpected token %q", u.Value)
+	var expected string
+	if u.Expected != "" {
+		expected = fmt.Sprintf(" (expected %s)", u.Expected)
+	}
+	return fmt.Sprintf("unexpected token %q%s", u.Unexpected.Value, expected)
 }
-func (u UnexpectedTokenError) Position() lexer.Position { return u.Pos } // nolint: golint
+func (u UnexpectedTokenError) Position() lexer.Position { return u.Unexpected.Pos } // nolint: golint
 
 type parseError struct {
 	Message string
