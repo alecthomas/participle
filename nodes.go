@@ -242,7 +242,7 @@ func (s *sequence) Parse(ctx *parseContext, parent reflect.Value) (out []reflect
 			if err != nil {
 				return nil, err
 			}
-			return out, lexer.Errorf(token.Pos, "unexpected %q (expected %s)", token, n)
+			return out, UnexpectedTokenError{token, n.String()}
 		}
 	}
 	return out, nil
