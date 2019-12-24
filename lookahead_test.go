@@ -351,7 +351,7 @@ func TestShowNearestError(t *testing.T) {
 	p := mustTestParser(t, &grammar{}, UseLookahead(10))
 	actual := &grammar{}
 	err := p.ParseString(`a b d`, actual)
-	require.EqualError(t, err, `1:5: unexpected "d" (expected "c")`)
+	require.EqualError(t, err, `1:5: unexpected token "d" (expected "c")`)
 }
 
 func TestRewindDisjunction(t *testing.T) {
@@ -419,5 +419,5 @@ func TestLookaheadErrorReporting(t *testing.T) {
 
 	ast := &grammar{}
 	err := p.ParseString(`public struct Bar;`, ast)
-	require.EqualError(t, err, `1:8: unexpected "struct" (expected "class" | "union")`)
+	require.EqualError(t, err, `1:8: unexpected token "struct" (expected "class" | "union")`)
 }
