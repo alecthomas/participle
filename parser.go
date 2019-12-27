@@ -97,6 +97,11 @@ func Build(grammar interface{}, options ...Option) (parser *Parser, err error) {
 	return p, nil
 }
 
+// Lexer returns the parser's builtin lexer.
+func (p *Parser) Lexer() lexer.Definition {
+	return p.lex
+}
+
 // Lex uses the parser's lexer to tokenise input.
 func (p *Parser) Lex(r io.Reader) ([]lexer.Token, error) {
 	lex, err := p.lex.Lex(r)
