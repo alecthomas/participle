@@ -29,6 +29,11 @@ func (p *PeekingLexer) Cursor() int {
 	return p.cursor
 }
 
+// Length returns the number of tokens consumed by the lexer.
+func (p *PeekingLexer) Length() int {
+	return len(p.tokens)
+}
+
 // Next consumes and returns the next token.
 func (p *PeekingLexer) Next() (Token, error) {
 	if p.cursor >= len(p.tokens) {
