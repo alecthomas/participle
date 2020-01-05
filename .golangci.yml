@@ -18,6 +18,8 @@ linters:
     - whitespace
     - godox
     - funlen
+    - gocognit
+    - gomnd
 
 linters-settings:
   govet:

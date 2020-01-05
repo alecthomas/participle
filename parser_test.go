@@ -1088,3 +1088,18 @@ func TestAllowTrailing(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, &G{"hello"}, g)
 }
+
+func TestDisjunctionErrorReporting(t *testing.T) {
+	type statement struct {
+		Add    bool `  @"add"`
+		Remove bool `| @"remove"`
+	}
+	type grammar struct {
+		Statements []*statement `"{" ( @@ )* "}"`
+	}
+	p := mustTestParser(t, &grammar{})
+	ast := &grammar{}
+	err := p.ParseString(`{ add foo }`, ast)
+	// TODO: This should produce a more useful error. This is returned by sequence.Parse().
+	require.EqualError(t, err, `1:7: unexpected token "foo" (expected "}")`)
+}

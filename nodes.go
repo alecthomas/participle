@@ -40,11 +40,11 @@ func decorate(err *error, name func() string) {
 	}
 	switch realError := (*err).(type) {
 	case *lexer.Error:
-		*err = &parseError{Message: name() + ": " + realError.Msg, Pos: realError.Pos}
+		*err = &parseError{Msg: name() + ": " + realError.Msg, Pos: realError.Pos}
 	case *parseError:
-		*err = &parseError{Message: name() + ": " + realError.Message, Pos: realError.Pos}
+		*err = &parseError{Msg: name() + ": " + realError.Msg, Pos: realError.Pos}
 	default:
-		*err = &parseError{Message: fmt.Sprintf("%s: %s", name(), realError)}
+		*err = &parseError{Msg: fmt.Sprintf("%s: %s", name(), realError)}
 	}
 }
 
@@ -242,7 +242,7 @@ func (s *sequence) Parse(ctx *parseContext, parent reflect.Value) (out []reflect
 			if err != nil {
 				return nil, err
 			}
-			return out, UnexpectedTokenError{token, n.String()}
+			return out, UnexpectedTokenError{Unexpected: token, Expected: n.String()}
 		}
 	}
 	return out, nil

@@ -97,7 +97,7 @@ func (s *stringerVisitor) visit(n node, depth int) { // nolint: gocognit
 		}
 
 	case *group:
-		composite := n.mode != groupMatchOnce && compositeNode(map[node]bool{}, n)
+		composite := (n.mode != groupMatchOnce) && compositeNode(map[node]bool{}, n)
 
 		if composite {
 			fmt.Fprint(s, "(")
