@@ -40,9 +40,9 @@ func decorate(err *error, name func() string) {
 	}
 	switch realError := (*err).(type) {
 	case *lexer.Error:
-		*err = &parseError{Msg: name() + ": " + realError.Msg, Pos: realError.Pos}
+		*err = &parseError{Msg: name() + ": " + realError.Msg, Tok: realError.Token()}
 	case *parseError:
-		*err = &parseError{Msg: name() + ": " + realError.Msg, Pos: realError.Pos}
+		*err = &parseError{Msg: name() + ": " + realError.Msg, Tok: realError.Token()}
 	default:
 		*err = &parseError{Msg: fmt.Sprintf("%s: %s", name(), realError)}
 	}
@@ -132,7 +132,7 @@ func (g *group) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Va
 		}
 		if len(out) == 0 {
 			t, _ := ctx.Peek(0)
-			return out, lexer.Errorf(t.Pos, "sub-expression %s cannot be empty", g)
+			return out, lexer.ErrorWithTokenf(t, "sub-expression %s cannot be empty", g)
 		}
 		return out, nil
 	case groupMatchOnce:
@@ -167,10 +167,10 @@ func (g *group) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Va
 	// fmt.Printf("%d < %d < %d: out == nil? %v\n", min, matches, max, out == nil)
 	t, _ := ctx.Peek(0)
 	if matches >= MaxIterations {
-		panic(lexer.Errorf(t.Pos, "too many iterations of %s (> %d)", g, MaxIterations))
+		panic(lexer.ErrorWithTokenf(t, "too many iterations of %s (> %d)", g, MaxIterations))
 	}
 	if matches < min {
-		return out, lexer.Errorf(t.Pos, "sub-expression %s must match at least once", g)
+		return out, lexer.ErrorWithTokenf(t, "sub-expression %s must match at least once", g)
 	}
 	// The idea here is that something like "a"? is a successful match and that parsing should proceed.
 	if min == 0 && out == nil {
@@ -350,7 +350,7 @@ func (r *repetition) Parse(ctx *parseContext, parent reflect.Value) (out []refle
 	}
 	if i >= MaxIterations {
 		t, _ := ctx.Peek(0)
-		panic(lexer.Errorf(t.Pos, "too many iterations of %s (> %d)", r, MaxIterations))
+		panic(lexer.ErrorWithTokenf(t, "too many iterations of %s (> %d)", r, MaxIterations))
 	}
 	if out == nil {
 		out = []reflect.Value{}

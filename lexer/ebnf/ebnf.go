@@ -114,7 +114,8 @@ nextToken:
 				}, nil
 			}
 		}
-		return lexer.Token{}, lexer.Errorf(pos, "no match found for %c", rn)
+		token := lexer.Token{Pos: pos, Value: string(rn)}
+		return token, lexer.ErrorWithTokenf(token, "no match found for %c", rn)
 	}
 }
 
@@ -380,7 +381,8 @@ func validate(grammar internal.Grammar, expr internal.Expression) error { // nol
 
 	case *internal.Name:
 		if grammar.Index[n.String] == nil {
-			return lexer.Errorf(lexer.Position(n.Pos()), "unknown production %q", n.String)
+			token := lexer.Token{Pos: lexer.Position(n.Pos()), Value: n.String}
+			return lexer.ErrorWithTokenf(token, "unknown production %q", n.String)
 		}
 		return nil
 
@@ -389,10 +391,12 @@ func validate(grammar internal.Grammar, expr internal.Expression) error { // nol
 
 	case *internal.Range:
 		if utf8.RuneCountInString(n.Begin.String) != 1 {
-			return lexer.Errorf(lexer.Position(n.Pos()), "start of range must be a single rune")
+			token := lexer.Token{Pos: lexer.Position(n.Pos()), Value: n.Begin.String}
+			return lexer.ErrorWithTokenf(token, "start of range must be a single rune")
 		}
 		if utf8.RuneCountInString(n.End.String) != 1 {
-			return lexer.Errorf(lexer.Position(n.Pos()), "end of range must be a single rune")
+			token := lexer.Token{Pos: lexer.Position(n.Pos()), Value: n.End.String}
+			return lexer.ErrorWithTokenf(token, "end of range must be a single rune")
 		}
 		return nil
 

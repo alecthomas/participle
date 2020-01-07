@@ -128,7 +128,8 @@ func (r *reLexer) Next() (lexer.Token, error) {
 		}
 		if rule == nil || match == nil {
 			rn, _ := utf8.DecodeRune(r.data)
-			return lexer.Token{}, lexer.Errorf(r.pos, "invalid token %q", rn)
+			token := lexer.Token{Pos: r.pos, Value: string(rn)}
+			return token, lexer.ErrorWithTokenf(token, "invalid token %q", rn)
 		}
 
 		span := r.data[match[0]:match[1]]
