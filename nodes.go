@@ -15,6 +15,7 @@ var (
 	MaxIterations = 1000000
 
 	positionType  = reflect.TypeOf(lexer.Position{})
+	tokenType     = reflect.TypeOf(lexer.Token{})
 	captureType   = reflect.TypeOf((*Capture)(nil)).Elem()
 	parseableType = reflect.TypeOf((*Parseable)(nil)).Elem()
 
@@ -68,6 +69,7 @@ func (p *parseable) Parse(ctx *parseContext, parent reflect.Value) (out []reflec
 	return []reflect.Value{rv.Elem()}, nil
 }
 
+// @@
 type strct struct {
 	typ  reflect.Type
 	expr node
@@ -75,9 +77,11 @@ type strct struct {
 
 func (s *strct) String() string { return stringer(s) }
 
-func (s *strct) maybeInjectPos(pos lexer.Position, v reflect.Value) {
+func (s *strct) maybeInjectToken(token lexer.Token, v reflect.Value) {
 	if f := v.FieldByName("Pos"); f.IsValid() && f.Type() == positionType {
-		f.Set(reflect.ValueOf(pos))
+		f.Set(reflect.ValueOf(token.Pos))
+	} else if f := v.FieldByName("Tok"); f.IsValid() && f.Type() == tokenType {
+		f.Set(reflect.ValueOf(token))
 	}
 }
 
@@ -87,9 +91,10 @@ func (s *strct) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Va
 	if err != nil {
 		return nil, err
 	}
-	s.maybeInjectPos(t.Pos, sv)
+	s.maybeInjectToken(t, sv)
 	if out, err = s.expr.Parse(ctx, sv); err != nil {
-		_ = ctx.Apply()
+		_ = ctx.Apply() // Best effort to give partial AST.
+		ctx.MaybeUpdateError(err)
 		return []reflect.Value{sv}, err
 	} else if out == nil {
 		return nil, nil
@@ -152,6 +157,7 @@ func (g *group) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Va
 		v, err := g.expr.Parse(branch, parent)
 		out = append(out, v...)
 		if err != nil {
+			ctx.MaybeUpdateError(err)
 			// Optional part failed to match.
 			if ctx.Stop(err, branch) {
 				return out, err
@@ -212,6 +218,7 @@ func (d *disjunction) Parse(ctx *parseContext, parent reflect.Value) (out []refl
 		}
 	}
 	if firstError != nil {
+		ctx.MaybeUpdateError(firstError)
 		return firstValues, firstError
 	}
 	return nil, nil

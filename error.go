@@ -13,7 +13,7 @@ type Error interface {
 	error
 	// Unadorned message.
 	Message() string
-	// Position error occurred.
+	// Closest token to error location.
 	Token() lexer.Token
 }
 

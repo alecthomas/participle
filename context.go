@@ -62,6 +62,10 @@ func (p *parseContext) Apply() error {
 func (p *parseContext) Accept(branch *parseContext) {
 	p.apply = append(p.apply, branch.apply...)
 	p.PeekingLexer = branch.PeekingLexer
+	if branch.deepestErrorDepth >= p.deepestErrorDepth {
+		p.deepestErrorDepth = branch.deepestErrorDepth
+		p.deepestError = branch.deepestError
+	}
 }
 
 // Branch starts a new lookahead branch.
@@ -73,6 +77,13 @@ func (p *parseContext) Branch() *parseContext {
 	return branch
 }
 
+func (p *parseContext) MaybeUpdateError(err error) {
+	if p.PeekingLexer.Cursor() >= p.deepestErrorDepth {
+		p.deepestError = err
+		p.deepestErrorDepth = p.PeekingLexer.Cursor()
+	}
+}
+
 // Stop returns true if parsing should terminate after the given "branch" failed to match.
 //
 // Additionally, "err" should be the branch error, if any. This will be tracked to
@@ -81,11 +92,18 @@ func (p *parseContext) Branch() *parseContext {
 func (p *parseContext) Stop(err error, branch *parseContext) bool {
 	if branch.PeekingLexer.Cursor() >= p.deepestErrorDepth {
 		p.deepestError = err
-		p.deepestErrorDepth = branch.PeekingLexer.Cursor()
+		p.deepestErrorDepth = maxInt(branch.PeekingLexer.Cursor(), branch.deepestErrorDepth)
 	}
 	if branch.PeekingLexer.Cursor() > p.PeekingLexer.Cursor()+p.lookahead {
 		p.Accept(branch)
 		return true
 	}
 	return false
+}
+
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
