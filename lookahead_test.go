@@ -398,26 +398,3 @@ func TestRewindRepetition(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, &grammar{Ints: []string{"int", "int"}, Ident: "one"}, ast)
 }
-
-func TestLookaheadErrorReporting(t *testing.T) {
-	type cls struct {
-		Class string `"class" @Ident`
-	}
-	type union struct {
-		Union string `"union" @Ident`
-	}
-	type decl struct {
-		Visibility string `@"public"?`
-
-		Class *cls   `(  @@`
-		Union *union ` | @@ )`
-	}
-	type grammar struct {
-		Decls []*decl `( @@ ";" )*`
-	}
-	p := mustTestParser(t, &grammar{}, UseLookahead(1))
-
-	ast := &grammar{}
-	err := p.ParseString(`public struct Bar;`, ast)
-	require.EqualError(t, err, `1:8: unexpected token "struct" (expected "class" | "union")`)
-}
