@@ -34,7 +34,7 @@ func (u UnexpectedTokenError) Message() string { // nolint: golint
 	if u.Expected != "" {
 		expected = fmt.Sprintf(" (expected %s)", u.Expected)
 	}
-	return fmt.Sprintf("unexpected token %q%s", u.Unexpected.Value, expected)
+	return fmt.Sprintf("unexpected token %q%s", u.Unexpected, expected)
 }
 func (u UnexpectedTokenError) Token() lexer.Token { return u.Unexpected } // nolint: golint
 
