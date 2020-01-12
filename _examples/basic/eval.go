@@ -80,7 +80,7 @@ func (o *OpFactor) Evaluate(ctx *Context, lhs interface{}) (interface{}, error) 
 	case "*":
 		return lhsNumber * rhsNumber, nil
 	case "/":
-		return lhsNumber * rhsNumber, nil
+		return lhsNumber / rhsNumber, nil
 	}
 	panic("unreachable")
 }
