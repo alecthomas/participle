@@ -13,7 +13,7 @@ func Upgrade(lex Lexer) (*PeekingLexer, error) {
 	for {
 		t, err := lex.Next()
 		if err != nil {
-			return nil, err
+			return r, err
 		}
 		if t.EOF() {
 			r.eof = t
