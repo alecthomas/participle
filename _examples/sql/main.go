@@ -50,11 +50,11 @@ type AliasedExpression struct {
 }
 
 type Expression struct {
-	And []*AndCondition `@@ { "OR" @@ }`
+	Or []*OrCondition `@@ { "OR" @@ }`
 }
 
-type AndCondition struct {
-	Or []*Condition `@@ { "AND" @@ }`
+type OrCondition struct {
+	And []*Condition `@@ { "AND" @@ }`
 }
 
 type Condition struct {
