@@ -162,6 +162,10 @@ Custom control of how values are captured into fields can be achieved by a
 field type implementing the `Capture` interface (`Capture(values []string)
 error`).
 
+Additionally, any field implementing the `encoding.TextUnmarshaler` interface
+will be capturable too. One caveat is that `UnmarshalText()` will be called once
+for each captured token, so eg. `@(Ident Ident Ident)` will be called three times.
+
 <a id="markdown-streaming" name="streaming"></a>
 ## Streaming
 
