@@ -44,7 +44,7 @@ type Expr struct {
 
 func (e *Expr) String() string {
 	if e.Left != nil {
-		return fmt.Sprintf("%s %s %s", e.Left, e.Op, e.Right)
+		return fmt.Sprintf("(%s %s %s)", e.Left, e.Op, e.Right)
 	}
 	return fmt.Sprintf("%d", *e.Terminal)
 }

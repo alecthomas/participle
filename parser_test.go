@@ -614,6 +614,26 @@ func TestCaptureInterface(t *testing.T) {
 	require.Equal(t, expected, actual)
 }
 
+type unmarshallableCount int
+
+func (u *unmarshallableCount) UnmarshalText(text []byte) error {
+	*u += unmarshallableCount(len(text))
+	return nil
+}
+
+func TestTextUnmarshalerInterface(t *testing.T) {
+	type grammar struct {
+		Count unmarshallableCount `{ @"a" }`
+	}
+
+	parser := mustTestParser(t, &grammar{})
+	actual := &grammar{}
+	expected := &grammar{Count: 3}
+	err := parser.ParseString("a a a", actual)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
+}
+
 func TestLiteralTypeConstraint(t *testing.T) {
 	type grammar struct {
 		Literal string `@"123456":String`

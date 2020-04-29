@@ -1,6 +1,7 @@
 package participle
 
 import (
+	"encoding"
 	"errors"
 	"fmt"
 	"reflect"
@@ -14,10 +15,11 @@ var (
 	// MaxIterations limits the number of elements capturable by {}.
 	MaxIterations = 1000000
 
-	positionType  = reflect.TypeOf(lexer.Position{})
-	tokenType     = reflect.TypeOf(lexer.Token{})
-	captureType   = reflect.TypeOf((*Capture)(nil)).Elem()
-	parseableType = reflect.TypeOf((*Parseable)(nil)).Elem()
+	positionType        = reflect.TypeOf(lexer.Position{})
+	tokenType           = reflect.TypeOf(lexer.Token{})
+	captureType         = reflect.TypeOf((*Capture)(nil)).Elem()
+	textUnmarshalerType = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
+	parseableType       = reflect.TypeOf((*Parseable)(nil)).Elem()
 
 	// NextMatch should be returned by Parseable.Parse() method implementations to indicate
 	// that the node did not match and that other matches should be attempted, if appropriate.
@@ -512,11 +514,13 @@ func setField(pos lexer.Position, strct reflect.Value, field structLexerField, f
 			for _, v := range fieldValue {
 				ifv = append(ifv, v.Interface().(string))
 			}
-			err := d.Capture(ifv)
-			if err != nil {
-				return err
+			return d.Capture(ifv)
+		} else if d, ok := f.Addr().Interface().(encoding.TextUnmarshaler); ok {
+			ifv := []string{}
+			for _, v := range fieldValue {
+				ifv = append(ifv, v.Interface().(string))
 			}
-			return nil
+			return d.UnmarshalText([]byte(strings.Join(ifv, "")))
 		}
 	}
 
