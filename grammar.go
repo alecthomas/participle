@@ -203,8 +203,8 @@ func (g *generatorContext) parseCapture(slexer *structLexer) (node, error) {
 		}
 		return &capture{field, n}, nil
 	}
-	if indirectType(field.Type).Kind() == reflect.Struct && !field.Type.Implements(captureType) {
-		return nil, fmt.Errorf("structs can only be parsed with @@ or by implementing the Capture interface")
+	if indirectType(field.Type).Kind() == reflect.Struct && !field.Type.Implements(captureType) && !field.Type.Implements(textUnmarshalerType) {
+		return nil, fmt.Errorf("structs can only be parsed with @@ or by implementing the Capture or encoding.TextUnmarshaler interfaces")
 	}
 	n, err := g.parseTermNoModifiers(slexer)
 	if err != nil {
