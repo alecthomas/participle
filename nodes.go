@@ -516,11 +516,12 @@ func setField(pos lexer.Position, strct reflect.Value, field structLexerField, f
 			}
 			return d.Capture(ifv)
 		} else if d, ok := f.Addr().Interface().(encoding.TextUnmarshaler); ok {
-			ifv := []string{}
 			for _, v := range fieldValue {
-				ifv = append(ifv, v.Interface().(string))
+				if err := d.UnmarshalText([]byte(v.Interface().(string))); err != nil {
+					return err
+				}
 			}
-			return d.UnmarshalText([]byte(strings.Join(ifv, "")))
+			return nil
 		}
 	}
 
