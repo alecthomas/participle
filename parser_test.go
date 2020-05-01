@@ -1103,3 +1103,53 @@ func TestDisjunctionErrorReporting(t *testing.T) {
 	// TODO: This should produce a more useful error. This is returned by sequence.Parse().
 	require.EqualError(t, err, `1:7: unexpected token "foo" (expected "}")`)
 }
+
+func TestCustomInt(t *testing.T) {
+	type MyInt int
+	type G struct {
+		Value MyInt `@Int`
+	}
+
+	p, err := Build(&G{})
+	require.NoError(t, err)
+
+	g := &G{}
+	err = p.ParseString(`42`, g)
+	require.NoError(t, err)
+	require.Equal(t, &G{42}, g)
+}
+
+func TestBoolIfSet(t *testing.T) {
+	type G struct {
+		Value bool `@"true"?`
+	}
+
+	p, err := Build(&G{})
+	require.NoError(t, err)
+
+	g := &G{}
+	err = p.ParseString(`true`, g)
+	require.NoError(t, err)
+	require.Equal(t, &G{true}, g)
+	err = p.ParseString(``, g)
+	require.NoError(t, err)
+	require.Equal(t, &G{false}, g)
+}
+
+func TestCustomBoolIfSet(t *testing.T) {
+	type MyBool bool
+	type G struct {
+		Value MyBool `@"true"?`
+	}
+
+	p, err := Build(&G{})
+	require.NoError(t, err)
+
+	g := &G{}
+	err = p.ParseString(`true`, g)
+	require.NoError(t, err)
+	require.Equal(t, &G{true}, g)
+	err = p.ParseString(``, g)
+	require.NoError(t, err)
+	require.Equal(t, &G{false}, g)
+}
