@@ -68,9 +68,9 @@ func ErrorWithTokenf(tok lexer.Token, format string, args ...interface{}) error 
 }
 
 // Wrapf attempts to wrap an existing participle.Error in a new message.
-func Wrapf(err error, format string, args ...interface{}) error {
+func Wrapf(pos lexer.Position, err error, format string, args ...interface{}) error {
 	if perr, ok := err.(Error); ok {
 		return Errorf(perr.Token().Pos, "%s: %s", fmt.Sprintf(format, args...), perr.Message())
 	}
-	return fmt.Errorf("%s: %s", fmt.Sprintf(format, args...), err.Error())
+	return Errorf(pos, "%s: %s", fmt.Sprintf(format, args...), err.Error())
 }
