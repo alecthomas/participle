@@ -563,6 +563,10 @@ func setField(pos lexer.Position, strct reflect.Value, field structLexerField, f
 		}
 
 	case reflect.Bool, reflect.Struct:
+		if f.Kind() == reflect.Bool && fv.Kind() == reflect.Bool {
+			f.SetBool(fv.Bool())
+			break
+		}
 		if fv.Type() != f.Type() {
 			return fmt.Errorf("value %q is not correct type %s", fv, f.Type())
 		}
