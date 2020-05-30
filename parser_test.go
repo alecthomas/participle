@@ -1153,3 +1153,28 @@ func TestCustomBoolIfSet(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, &G{false}, g)
 }
+
+func TestPointerToList(t *testing.T) {
+	type grammar struct {
+		List *[]string `@Ident*`
+	}
+	p := mustTestParser(t, &grammar{})
+	ast := &grammar{}
+	err := p.ParseString(`foo bar`, ast)
+	require.NoError(t, err)
+	l := []string{"foo", "bar"}
+	require.Equal(t, &grammar{List: &l}, ast)
+}
+
+// I'm not sure if this is a problem that should be solved like this.
+
+// func TestMatchHydratesNullFields(t *testing.T) {
+// 	type grammar struct {
+// 		List []string `"{" @Ident* "}"`
+// 	}
+// 	p := mustTestParser(t, &grammar{})
+// 	ast := &grammar{}
+// 	err := p.ParseString(`{}`, ast)
+// 	require.NoError(t, err)
+// 	require.NotNil(t, ast.List)
+// }

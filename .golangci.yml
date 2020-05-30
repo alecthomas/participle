@@ -20,6 +20,11 @@ linters:
     - funlen
     - gocognit
     - gomnd
+    - goerr113
+    - godot
+    - nestif
+    - testpackage
+    - nolintlint
 
 linters-settings:
   govet:

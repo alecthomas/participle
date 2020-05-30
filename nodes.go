@@ -472,16 +472,9 @@ func setField(pos lexer.Position, strct reflect.Value, field structLexerField, f
 	defer decorate(&err, func() string { return strct.Type().Name() + "." + field.Name })
 
 	f := strct.FieldByIndex(field.Index)
-	switch f.Kind() {
-	case reflect.Slice:
-		fieldValue, err = conform(f.Type().Elem(), fieldValue)
-		if err != nil {
-			return err
-		}
-		f.Set(reflect.Append(f, fieldValue...))
-		return nil
 
-	case reflect.Ptr:
+	// Any kind of pointer, hydrate it first.
+	if f.Kind() == reflect.Ptr {
 		if f.IsNil() {
 			fv := reflect.New(f.Type().Elem()).Elem()
 			f.Set(fv.Addr())
@@ -489,6 +482,15 @@ func setField(pos lexer.Position, strct reflect.Value, field structLexerField, f
 		} else {
 			f = f.Elem()
 		}
+	}
+
+	if f.Kind() == reflect.Slice {
+		fieldValue, err = conform(f.Type().Elem(), fieldValue)
+		if err != nil {
+			return err
+		}
+		f.Set(reflect.Append(f, fieldValue...))
+		return nil
 	}
 
 	if f.Kind() == reflect.Struct {
