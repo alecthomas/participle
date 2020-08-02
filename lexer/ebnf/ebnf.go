@@ -104,6 +104,9 @@ nextToken:
 			if ok, err := e.match(name, production.Expr, e.buf); err != nil {
 				return lexer.Token{}, err
 			} else if ok {
+				if len(e.buf.String()) == 0 {
+					return lexer.Token{}, fmt.Errorf("rule %q matched, but did not consume any input", name)
+				}
 				if e.def.elide[name] {
 					continue nextToken
 				}

@@ -123,6 +123,9 @@ func (r *reLexer) Next() (lexer.Token, error) {
 			match = re.re.FindIndex(r.data)
 			if match != nil {
 				rule = &re // nolint: scopelint
+				if match[0] == 0 && match[1] == 0 {
+					return lexer.Token{}, fmt.Errorf("rule %q matched, but did not consume any input", rule.name)
+				}
 				break
 			}
 		}
