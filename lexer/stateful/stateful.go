@@ -122,7 +122,7 @@ func New(rules Rules) (*Definition, error) {
 			pattern := "^(?:" + rule.Pattern + ")"
 			re, err := regexp.Compile(pattern)
 			if err != nil {
-				return nil, fmt.Errorf("%s.%d: %w", key, i, err)
+				return nil, fmt.Errorf("%s.%d: %s", key, i, err)
 			}
 			compiled[key] = append(compiled[key], CompiledRule{rule, re})
 		}
@@ -132,7 +132,7 @@ restart:
 		for i, rule := range rules {
 			if mutator, ok := rule.Mutator.(RulesMutator); ok {
 				if err := mutator.MutateRules(state, i, compiled); err != nil {
-					return nil, fmt.Errorf("%s.%d: %w", state, i, err)
+					return nil, fmt.Errorf("%s.%d: %s", state, i, err)
 				}
 				goto restart
 			}
