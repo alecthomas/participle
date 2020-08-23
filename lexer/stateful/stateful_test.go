@@ -139,7 +139,7 @@ func ExampleNew() {
 		},
 		"Expr": {
 			Include("Root"),
-			{`Whitespace`, `\s+`, nil},
+			{`whitespace`, `\s+`, nil},
 			{`Oper`, `[-+/*%]`, nil},
 			{"Ident", `\w+`, nil},
 			{"End", `}`, Pop()},
@@ -148,8 +148,7 @@ func ExampleNew() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	parser, err := participle.Build(&String{}, participle.Lexer(def),
-		participle.Elide("ExprWhitespace"))
+	parser, err := participle.Build(&String{}, participle.Lexer(def))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -196,15 +195,14 @@ func TestStateful(t *testing.T) {
 		},
 		"Expr": {
 			Include("Root"),
-			{`Whitespace`, `\s+`, nil},
+			{`whitespace`, `\s+`, nil},
 			{`Oper`, `[-+/*%]`, nil},
 			{"Ident", `\w+`, nil},
 			{"End", `}`, Pop()},
 		},
 	})
 	require.NoError(t, err)
-	parser, err := participle.Build(&String{}, participle.Lexer(def),
-		participle.Elide("ExprWhitespace"))
+	parser, err := participle.Build(&String{}, participle.Lexer(def))
 	require.NoError(t, err)
 
 	actual := &String{}
@@ -250,14 +248,13 @@ func TestHereDoc(t *testing.T) {
 			Include("Common"),
 		},
 		"Common": {
-			{"Whitespace", `\s+`, nil},
+			{"whitespace", `\s+`, nil},
 			{"Ident", `\w+`, nil},
 		},
 	})
 	require.NoError(t, err)
 	parser, err := participle.Build(&AST{},
 		participle.Lexer(def),
-		participle.Elide("HeredocWhitespace", "RootWhitespace"),
 	)
 	require.NoError(t, err)
 

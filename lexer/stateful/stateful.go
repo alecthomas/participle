@@ -5,6 +5,8 @@
 // The lexer is a state machine defined by a map of rules keyed by state. Each rule
 // is a named regex and optional operation to apply when the rule matches.
 //
+// As a convenience, any Rule starting with a lowercase letter will be elided from output.
+//
 // Lexing starts in the "Root" group. Each rule is matched in order, with the first
 // successful match producing a lexeme. If the matching rule has an associated Mutator
 // it will be executed. The name of each rule is prefixed with the name of its group
@@ -30,6 +32,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/alecthomas/participle"
@@ -54,7 +57,8 @@ type Rules map[string][]Rule
 // compiledRule is a Rule with its pattern compiled.
 type compiledRule struct {
 	Rule
-	RE *regexp.Regexp
+	ignore bool
+	RE     *regexp.Regexp
 }
 
 // compiledRules grouped by name.
@@ -139,8 +143,9 @@ func New(rules Rules) (*Definition, error) {
 				}
 			}
 			compiled[key] = append(compiled[key], compiledRule{
-				Rule: rule,
-				RE:   re,
+				Rule:   rule,
+				ignore: len(rule.Name) > 0 && unicode.IsLower(rune(rule.Name[0])),
+				RE:     re,
 			})
 		}
 	}
@@ -262,6 +267,9 @@ func (l *Lexer) Next() (lexer.Token, error) { // nolint: golint
 			l.pos.Column += utf8.RuneCount(span)
 		} else {
 			l.pos.Column = utf8.RuneCount(span[bytes.LastIndex(span, eolBytes):])
+		}
+		if rule.ignore {
+			continue
 		}
 		return lexer.Token{
 			Type:  l.def.symbols[rule.Name],
