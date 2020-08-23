@@ -25,13 +25,17 @@ import (
 	"io/ioutil"
 	"regexp"
 	"sort"
+	"strconv"
 	"unicode/utf8"
 
 	"github.com/alecthomas/participle"
 	"github.com/alecthomas/participle/lexer"
 )
 
-var eolBytes = []byte("\n")
+var (
+	eolBytes       = []byte("\n")
+	backrefReplace = regexp.MustCompile(`\\(\d)`)
+)
 
 // A Rule matching input and possibly changing state.
 type Rule struct {
@@ -43,35 +47,35 @@ type Rule struct {
 // Rules grouped by name.
 type Rules map[string][]Rule
 
-// CompiledRule is a Rule with its pattern compiled.
-type CompiledRule struct {
+// compiledRule is a Rule with its pattern compiled.
+type compiledRule struct {
 	Rule
 	RE *regexp.Regexp
 }
 
-// CompiledRules grouped by name.
-type CompiledRules map[string][]CompiledRule
+// compiledRules grouped by name.
+type compiledRules map[string][]compiledRule
 
 // A Mutator mutates the state of the Lexer
 type Mutator interface {
-	MutateLexer(lexer *Lexer) error
+	mutateLexer(lexer *Lexer, groups []string) error
 }
 
 // RulesMutator is an optional interface that Mutators can implement.
 //
 // It is applied during rule construction to mutate the rule map.
 type RulesMutator interface {
-	MutateRules(state string, rule int, rules CompiledRules) error
+	mutateRules(state string, rule int, rules compiledRules) error
 }
 
 // MutatorFunc is a function that is also a Mutator.
-type MutatorFunc func(*Lexer) error
+type MutatorFunc func(*Lexer, []string) error
 
-func (m MutatorFunc) MutateLexer(lexer *Lexer) error { return m(lexer) } // nolint: golint
+func (m MutatorFunc) mutateLexer(lexer *Lexer, groups []string) error { return m(lexer, groups) } // nolint: golint
 
 // Pop to the previous state.
 func Pop() Mutator {
-	return MutatorFunc(func(lexer *Lexer) error {
+	return MutatorFunc(func(lexer *Lexer, groups []string) error {
 		lexer.stack = lexer.stack[:len(lexer.stack)-1]
 		return nil
 	})
@@ -82,22 +86,22 @@ func Pop() Mutator {
 // The target state will then be the set of rules used for matching
 // until another Push or Pop is encountered.
 func Push(state string) Mutator {
-	return MutatorFunc(func(lexer *Lexer) error {
-		lexer.stack = append(lexer.stack, state)
+	return MutatorFunc(func(lexer *Lexer, groups []string) error {
+		lexer.stack = append(lexer.stack, lexerState{name: state, groups: groups})
 		return nil
 	})
 }
 
 type include struct{ state string }
 
-func (i include) MutateLexer(lexer *Lexer) error { panic("should not be called") }
+func (i include) mutateLexer(lexer *Lexer, groups []string) error { panic("should not be called") }
 
-func (i include) MutateRules(state string, rule int, rules CompiledRules) error {
+func (i include) mutateRules(state string, rule int, rules compiledRules) error {
 	includedRules, ok := rules[i.state]
 	if !ok {
 		return fmt.Errorf("invalid include state %q", i.state)
 	}
-	clone := make([]CompiledRule, len(includedRules))
+	clone := make([]compiledRule, len(includedRules))
 	copy(clone, includedRules)
 	rules[state] = append(rules[state][:rule], append(clone, rules[state][rule+1:]...)...)
 	return nil
@@ -110,28 +114,37 @@ func Include(state string) Rule {
 
 // Definition is the lexer.Definition.
 type Definition struct {
-	rules   CompiledRules
+	rules   compiledRules
 	symbols map[string]rune
 }
 
 // New constructs a new stateful lexer from rules.
 func New(rules Rules) (*Definition, error) {
-	compiled := CompiledRules{}
+	compiled := compiledRules{}
 	for key, set := range rules {
 		for i, rule := range set {
 			pattern := "^(?:" + rule.Pattern + ")"
-			re, err := regexp.Compile(pattern)
-			if err != nil {
-				return nil, fmt.Errorf("%s.%d: %s", key, i, err)
+			var (
+				re  *regexp.Regexp
+				err error
+			)
+			if backrefReplace.FindString(rule.Pattern) == "" {
+				re, err = regexp.Compile(pattern)
+				if err != nil {
+					return nil, fmt.Errorf("%s.%d: %s", key, i, err)
+				}
 			}
-			compiled[key] = append(compiled[key], CompiledRule{rule, re})
+			compiled[key] = append(compiled[key], compiledRule{
+				Rule: rule,
+				RE:   re,
+			})
 		}
 	}
 restart:
 	for state, rules := range compiled {
 		for i, rule := range rules {
 			if mutator, ok := rule.Mutator.(RulesMutator); ok {
-				if err := mutator.MutateRules(state, i, compiled); err != nil {
+				if err := mutator.mutateRules(state, i, compiled); err != nil {
 					return nil, fmt.Errorf("%s.%d: %s", state, i, err)
 				}
 				goto restart
@@ -169,7 +182,7 @@ func (d *Definition) Lex(r io.Reader) (lexer.Lexer, error) { // nolint: golint
 	return &Lexer{
 		def:   d,
 		data:  data,
-		stack: []string{"Root"},
+		stack: []lexerState{{name: "Root"}},
 		pos: lexer.Position{
 			Filename: lexer.NameOfReader(r),
 			Line:     1,
@@ -182,24 +195,35 @@ func (d *Definition) Symbols() map[string]rune { // nolint: golint
 	return d.symbols
 }
 
+type lexerState struct {
+	name   string
+	groups []string
+}
+
 // Lexer implementation.
 type Lexer struct {
-	stack []string
+	stack []lexerState
 	def   *Definition
 	data  []byte
 	pos   lexer.Position
 }
 
 func (l *Lexer) Next() (lexer.Token, error) { // nolint: golint
-	ruleKey := l.stack[len(l.stack)-1]
-	rules := l.def.rules[ruleKey]
+	parent := l.stack[len(l.stack)-1]
+	rules := l.def.rules[parent.name]
 	for len(l.data) > 0 {
-		var match []int
-		var rule *CompiledRule
-		for _, re := range rules {
-			match = re.RE.FindIndex(l.data)
+		var (
+			rule  *compiledRule
+			match []int
+		)
+		for _, candidate := range rules {
+			re, err := l.getPattern(candidate)
+			if err != nil {
+				return lexer.Token{}, participle.Wrapf(l.pos, err, "rule %q", candidate.Name)
+			}
+			match = re.FindSubmatchIndex(l.data)
 			if match != nil {
-				rule = &re // nolint: scopelint
+				rule = &candidate // nolint: scopelint
 				if match[0] == 0 && match[1] == 0 {
 					return lexer.Token{}, fmt.Errorf("rule %q matched, but did not consume any input", rule.Name)
 				}
@@ -211,13 +235,18 @@ func (l *Lexer) Next() (lexer.Token, error) { // nolint: golint
 		}
 
 		if rule.Mutator != nil {
-			if err := rule.Mutator.MutateLexer(l); err != nil {
+			groups := make([]string, 0, len(match)/2)
+			for i := 0; i < len(match); i += 2 {
+				groups = append(groups, string(l.data[match[i]:match[i+1]]))
+			}
+			if err := rule.Mutator.mutateLexer(l, groups); err != nil {
 				return lexer.Token{}, participle.Errorf(l.pos, "rule %q mutator returned an error", rule.Name)
 			}
 		}
 
 		span := l.data[match[0]:match[1]]
 		l.data = l.data[match[1]:]
+		// l.groups = groups
 
 		// Update position.
 		pos := l.pos
@@ -237,4 +266,38 @@ func (l *Lexer) Next() (lexer.Token, error) { // nolint: golint
 		}, nil
 	}
 	return lexer.EOFToken(l.pos), nil
+}
+
+func (l *Lexer) getPattern(candidate compiledRule) (*regexp.Regexp, error) {
+	if candidate.RE != nil {
+		return candidate.RE, nil
+	}
+
+	// We don't have a compiled RE. This means there are back-references
+	// that need to be substituted first.
+	// TODO: Cache?
+	parent := l.stack[len(l.stack)-1]
+	var (
+		re  *regexp.Regexp
+		err error
+	)
+	pattern := backrefReplace.ReplaceAllStringFunc(candidate.Pattern, func(s string) string {
+		n, nerr := strconv.ParseInt(s[1:], 10, 64)
+		if nerr != nil {
+			err = nerr
+			return s
+		}
+		if len(parent.groups) == 0 || int(n) >= len(parent.groups) {
+			err = fmt.Errorf("invalid group %d from parent with %d groups", n, len(parent.groups))
+			return s
+		}
+		return regexp.QuoteMeta(parent.groups[n])
+	})
+	if err == nil {
+		re, err = regexp.Compile("^(?:" + pattern + ")")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("invalid backref expansion: %q: %s", pattern, err)
+	}
+	return re, nil
 }

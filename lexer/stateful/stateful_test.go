@@ -2,13 +2,107 @@ package stateful
 
 import (
 	"log"
+	"strings"
 	"testing"
 
 	"github.com/alecthomas/repr"
 	"github.com/stretchr/testify/require"
 
 	"github.com/alecthomas/participle"
+	"github.com/alecthomas/participle/lexer"
 )
+
+func TestStatefulLexer(t *testing.T) {
+	tests := []struct {
+		name   string
+		rules  Rules
+		input  string
+		tokens []string
+		err    string
+	}{
+		{name: "BackrefNoGroups",
+			input: `hello`,
+			err:   `1:1: rule "RootBackref": invalid backref expansion: "\\1": invalid group 1 from parent with 0 groups`,
+			rules: Rules{"Root": {{"Backref", `\1`, nil}}},
+		},
+		{name: "BackrefInvalidGroups",
+			input: `<<EOF EOF`,
+			err:   "1:6: rule \"HeredocEnd\": invalid backref expansion: \"\\\\b\\\\2\\\\b\": invalid group 2 from parent with 2 groups",
+			rules: Rules{
+				"Root": {
+					{"Heredoc", `<<(\w+)\b`, Push("Heredoc")},
+				},
+				"Heredoc": {
+					{"End", `\b\2\b`, Pop()},
+				},
+			},
+		},
+		{name: "Heredoc",
+			rules: Rules{
+				"Root": {
+					{"Heredoc", `<<(\w+\b)`, Push("Heredoc")},
+					Include("Common"),
+				},
+				"Heredoc": {
+					{"End", `\b\1\b`, Pop()},
+					Include("Common"),
+				},
+				"Common": {
+					{"Whitespace", `\s+`, nil},
+					{"Ident", `\w+`, nil},
+				},
+			},
+			input: `
+				<<END
+				hello world
+				END
+			`,
+			tokens: []string{"\n\t\t\t\t", "<<END", "\n\t\t\t\t", "hello", " ", "world", "\n\t\t\t\t", "END", "\n\t\t\t", ""},
+		},
+		{name: "Recursive",
+			rules: Rules{
+				"Root": {
+					{`String`, `"`, Push("String")},
+				},
+				"String": {
+					{"Escaped", `\\.`, nil},
+					{"End", `"`, Pop()},
+					{"Expr", `\${`, Push("Expr")},
+					{"Char", `[^$"\\]+`, nil},
+				},
+				"Expr": {
+					Include("Root"),
+					{`Whitespace`, `\s+`, nil},
+					{`Oper`, `[-+/*%]`, nil},
+					{"Ident", `\w+`, nil},
+					{"End", `}`, Pop()},
+				},
+			},
+			input:  `"hello ${user + "??" + "${nested}"}"`,
+			tokens: []string{"\"", "hello ", "${", "user", " ", "+", " ", "\"", "??", "\"", " ", "+", " ", "\"", "${", "nested", "}", "\"", "}", "\"", ""},
+		},
+	}
+	// nolint: scopelint
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			def, err := New(test.rules)
+			require.NoError(t, err)
+			lex, err := def.Lex(strings.NewReader(test.input))
+			require.NoError(t, err)
+			tokens, err := lexer.ConsumeAll(lex)
+			if test.err != "" {
+				require.EqualError(t, err, test.err)
+			} else {
+				require.NoError(t, err)
+				actual := []string{}
+				for _, token := range tokens {
+					actual = append(actual, token.Value)
+				}
+				require.Equal(t, test.tokens, actual)
+			}
+		})
+	}
+}
 
 // An example of parsing nested expressions within strings.
 func ExampleNew() {
@@ -134,5 +228,50 @@ func TestStateful(t *testing.T) {
 			}},
 		},
 	}
+	require.Equal(t, expected, actual)
+}
+
+func TestHereDoc(t *testing.T) {
+	type Heredoc struct {
+		Idents []string `RootHeredoc @HeredocIdent* HeredocEnd`
+	}
+
+	type AST struct {
+		Doc *Heredoc `@@`
+	}
+
+	def, err := New(Rules{
+		"Root": {
+			{"Heredoc", `<<(\w+\b)`, Push("Heredoc")},
+			Include("Common"),
+		},
+		"Heredoc": {
+			{"End", `\b\1\b`, Pop()},
+			Include("Common"),
+		},
+		"Common": {
+			{"Whitespace", `\s+`, nil},
+			{"Ident", `\w+`, nil},
+		},
+	})
+	require.NoError(t, err)
+	parser, err := participle.Build(&AST{},
+		participle.Lexer(def),
+		participle.Elide("HeredocWhitespace", "RootWhitespace"),
+	)
+	require.NoError(t, err)
+
+	expected := &AST{
+		Doc: &Heredoc{
+			Idents: []string{"hello", "world"},
+		},
+	}
+	actual := &AST{}
+	err = parser.ParseString(`
+		<<END
+		hello world
+		END
+	`, actual)
+	require.NoError(t, err)
 	require.Equal(t, expected, actual)
 }
