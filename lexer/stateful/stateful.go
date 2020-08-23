@@ -9,8 +9,8 @@
 //
 // Lexing starts in the "Root" group. Each rule is matched in order, with the first
 // successful match producing a lexeme. If the matching rule has an associated Mutator
-// it will be executed. The name of each rule is prefixed with the name of its group
-// to yield the token identifier used during matching.
+// it will be executed. The name of each non-root rule is prefixed with the name
+// of its group to yield the token identifier used during matching.
 //
 // A state change can be introduced with the Mutator `Push(state)`. `Pop()` will
 // return to the previous state.
@@ -171,7 +171,9 @@ restart:
 	rn := lexer.EOF - 1
 	for _, key := range keys {
 		for i, rule := range compiled[key] {
-			rule.Name = key + rule.Name
+			if key != "Root" {
+				rule.Name = key + rule.Name
+			}
 			compiled[key][i] = rule
 			if _, ok := symbols[rule.Name]; ok {
 				panic("duplicate key " + rule.Name)

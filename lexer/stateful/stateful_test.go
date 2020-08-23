@@ -22,7 +22,7 @@ func TestStatefulLexer(t *testing.T) {
 	}{
 		{name: "BackrefNoGroups",
 			input: `hello`,
-			err:   `1:1: rule "RootBackref": invalid backref expansion: "\\1": invalid group 1 from parent with 0 groups`,
+			err:   `1:1: rule "Backref": invalid backref expansion: "\\1": invalid group 1 from parent with 0 groups`,
 			rules: Rules{"Root": {{"Backref", `\1`, nil}}},
 		},
 		{name: "BackrefInvalidGroups",
@@ -231,7 +231,7 @@ func TestStateful(t *testing.T) {
 
 func TestHereDoc(t *testing.T) {
 	type Heredoc struct {
-		Idents []string `RootHeredoc @HeredocIdent* HeredocEnd`
+		Idents []string `Heredoc @HeredocIdent* HeredocEnd`
 	}
 
 	type AST struct {
