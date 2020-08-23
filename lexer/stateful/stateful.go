@@ -15,6 +15,10 @@
 //
 // To reuse rules from another state, use `Include(state)`.
 //
+// As a special case, regexes containing backrefs in the form \N (where N is a digit)
+// will match the corresponding capture group from the immediate parent group. This
+// can be used to parse, among other things, heredocs.
+//
 // See the example and tests in this package for details.
 package stateful
 
