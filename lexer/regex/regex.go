@@ -7,19 +7,12 @@
 package regex
 
 import (
-	"bytes"
 	"fmt"
-	"io"
-	"io/ioutil"
-	"regexp"
 	"strings"
-	"unicode"
-	"unicode/utf8"
 
 	"github.com/alecthomas/participle/lexer"
+	"github.com/alecthomas/participle/lexer/stateful"
 )
-
-var eolBytes = []byte("\n")
 
 // New creates a regex lexer from a readable list of named patterns.
 //
@@ -37,12 +30,8 @@ var eolBytes = []byte("\n")
 // expression will have surrounding whitespace trimmed before being parsed. Lower-case
 // rules are ignored.
 func New(grammar string) (lexer.Definition, error) {
-	rules := []reRule{}
-	symbols := map[string]rune{
-		"EOF": lexer.EOF,
-	}
+	rules := []stateful.Rule{}
 	lines := strings.Split(grammar, "\n")
-	i := 0
 	for _, rule := range lines {
 		rule = strings.TrimSpace(rule)
 		if rule == "" || strings.HasPrefix(rule, "#") {
@@ -56,107 +45,11 @@ func New(grammar string) (lexer.Definition, error) {
 
 		name := strings.TrimSpace(parts[0])
 		pattern := "^(?:" + strings.TrimSpace(parts[1]) + ")"
-		re, err := regexp.Compile(pattern)
-		if err != nil {
-			return nil, fmt.Errorf("invalid regex in rule %q: %s", name, err)
-		}
-
-		symbols[name] = lexer.EOF - 1 - rune(i)
-		i++
-		rules = append(rules, reRule{
-			name:   name,
-			ignore: unicode.IsLower(rune(name[0])),
-			re:     re,
+		rules = append(rules, stateful.Rule{
+			Name:    name,
+			Pattern: pattern,
 		})
 	}
 
-	return &reDefinition{
-		symbols: symbols,
-		rules:   rules,
-	}, nil
-}
-
-type reRule struct {
-	name   string
-	ignore bool
-	re     *regexp.Regexp
-}
-
-type reDefinition struct {
-	symbols map[string]rune
-	rules   []reRule
-}
-
-func (d *reDefinition) Lex(r io.Reader) (lexer.Lexer, error) {
-	data, err := ioutil.ReadAll(r)
-	if err != nil {
-		return nil, err
-	}
-	return &reLexer{
-		rules:   d.rules,
-		symbols: d.symbols,
-		data:    data,
-		pos: lexer.Position{
-			Filename: lexer.NameOfReader(r),
-			Line:     1,
-			Column:   1,
-		},
-	}, nil
-}
-
-func (d *reDefinition) Symbols() map[string]rune { return d.symbols }
-
-type reLexer struct {
-	pos     lexer.Position
-	rules   []reRule
-	symbols map[string]rune
-	data    []byte
-}
-
-var _ lexer.Lexer = &reLexer{}
-
-func (r *reLexer) Next() (lexer.Token, error) {
-	for len(r.data) > 0 {
-		var match []int
-		var rule *reRule
-		for _, re := range r.rules {
-			match = re.re.FindIndex(r.data)
-			if match != nil {
-				rule = &re // nolint: scopelint
-				if match[0] == 0 && match[1] == 0 {
-					return lexer.Token{}, fmt.Errorf("rule %q matched, but did not consume any input", rule.name)
-				}
-				break
-			}
-		}
-		if rule == nil || match == nil {
-			rn, _ := utf8.DecodeRune(r.data)
-			token := lexer.Token{Pos: r.pos, Value: string(rn)}
-			return token, lexer.ErrorWithTokenf(token, "invalid token %q", rn)
-		}
-
-		span := r.data[match[0]:match[1]]
-		r.data = r.data[match[1]:]
-
-		// Update position.
-		pos := r.pos
-		r.pos.Offset += match[1]
-		lines := bytes.Count(span, eolBytes)
-		r.pos.Line += lines
-		// Update column.
-		if lines == 0 {
-			r.pos.Column += utf8.RuneCount(span)
-		} else {
-			r.pos.Column = utf8.RuneCount(span[bytes.LastIndex(span, eolBytes):])
-		}
-		if rule.ignore {
-			continue
-		}
-		return lexer.Token{
-			Type:  r.symbols[rule.name],
-			Value: string(span),
-			Pos:   pos,
-		}, nil
-	}
-	return lexer.EOFToken(r.pos), nil
+	return stateful.New(stateful.Rules{"Root": rules})
 }
