@@ -27,7 +27,7 @@ func TestStatefulLexer(t *testing.T) {
 		},
 		{name: "BackrefInvalidGroups",
 			input: `<<EOF EOF`,
-			err:   "1:6: rule \"HeredocEnd\": invalid backref expansion: \"\\\\b\\\\2\\\\b\": invalid group 2 from parent with 2 groups",
+			err:   "1:6: rule \"End\": invalid backref expansion: \"\\\\b\\\\2\\\\b\": invalid group 2 from parent with 2 groups",
 			rules: Rules{
 				"Root": {
 					{"Heredoc", `<<(\w+)\b`, Push("Heredoc")},
@@ -66,7 +66,7 @@ func TestStatefulLexer(t *testing.T) {
 				},
 				"String": {
 					{"Escaped", `\\.`, nil},
-					{"End", `"`, Pop()},
+					{"StringEnd", `"`, Pop()},
 					{"Expr", `\${`, Push("Expr")},
 					{"Char", `[^$"\\]+`, nil},
 				},
@@ -75,7 +75,7 @@ func TestStatefulLexer(t *testing.T) {
 					{`Whitespace`, `\s+`, nil},
 					{`Oper`, `[-+/*%]`, nil},
 					{"Ident", `\w+`, nil},
-					{"End", `}`, Pop()},
+					{"ExprEnd", `}`, Pop()},
 				},
 			},
 			input:  `"hello ${user + "??" + "${nested}"}"`,
@@ -108,19 +108,19 @@ func TestStatefulLexer(t *testing.T) {
 func ExampleNew() {
 	type Terminal struct {
 		String *String `  @@`
-		Ident  string  `| @ExprIdent`
+		Ident  string  `| @Ident`
 	}
 
 	type Expr struct {
 		Left  *Terminal `@@`
-		Op    string    `( @ExprOper`
+		Op    string    `( @Oper`
 		Right *Terminal `  @@)?`
 	}
 
 	type Fragment struct {
-		Escaped string `(  @StringEscaped`
+		Escaped string `(  @Escaped`
 		Expr    *Expr  ` | "${" @@ "}"`
-		Text    string ` | @StringChar)`
+		Text    string ` | @Char)`
 	}
 
 	type String struct {
@@ -133,7 +133,7 @@ func ExampleNew() {
 		},
 		"String": {
 			{"Escaped", `\\.`, nil},
-			{"End", `"`, Pop()},
+			{"StringEnd", `"`, Pop()},
 			{"Expr", `\${`, Push("Expr")},
 			{"Char", `[^$"\\]+`, nil},
 		},
@@ -142,7 +142,7 @@ func ExampleNew() {
 			{`whitespace`, `\s+`, nil},
 			{`Oper`, `[-+/*%]`, nil},
 			{"Ident", `\w+`, nil},
-			{"End", `}`, Pop()},
+			{"ExprEnd", `}`, Pop()},
 		},
 	})
 	if err != nil {
@@ -166,20 +166,20 @@ type String struct {
 }
 
 type Fragment struct {
-	Escaped string `(  @StringEscaped`
+	Escaped string `(  @Escaped`
 	Expr    *Expr  ` | "${" @@ "}"`
-	Text    string ` | @StringChar)`
+	Text    string ` | @Char)`
 }
 
 type Expr struct {
 	Left  *Terminal `@@`
-	Op    string    `( @ExprOper`
+	Op    string    `( @Oper`
 	Right *Terminal `  @@)?`
 }
 
 type Terminal struct {
 	String *String `  @@`
-	Ident  string  `| @ExprIdent`
+	Ident  string  `| @Ident`
 }
 
 func TestStateful(t *testing.T) {
@@ -189,7 +189,7 @@ func TestStateful(t *testing.T) {
 		},
 		"String": {
 			{"Escaped", `\\.`, nil},
-			{"End", `"`, Pop()},
+			{"StringEnd", `"`, Pop()},
 			{"Expr", `\${`, Push("Expr")},
 			{"Char", `[^$"\\]+`, nil},
 		},
@@ -198,7 +198,7 @@ func TestStateful(t *testing.T) {
 			{`whitespace`, `\s+`, nil},
 			{`Oper`, `[-+/*%]`, nil},
 			{"Ident", `\w+`, nil},
-			{"End", `}`, Pop()},
+			{"ExprEnd", `}`, Pop()},
 		},
 	})
 	require.NoError(t, err)
@@ -231,7 +231,7 @@ func TestStateful(t *testing.T) {
 
 func TestHereDoc(t *testing.T) {
 	type Heredoc struct {
-		Idents []string `Heredoc @HeredocIdent* HeredocEnd`
+		Idents []string `Heredoc @Ident* End`
 	}
 
 	type AST struct {

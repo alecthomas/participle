@@ -168,16 +168,15 @@ restart:
 		"EOF": lexer.EOF,
 	}
 	sort.Strings(keys)
+	duplicates := map[string]compiledRule{}
 	rn := lexer.EOF - 1
 	for _, key := range keys {
 		for i, rule := range compiled[key] {
-			if key != "Root" {
-				rule.Name = key + rule.Name
+			if dup, ok := duplicates[rule.Name]; ok && rule.Pattern != dup.Pattern {
+				panic(fmt.Sprintf("duplicate key %q with different patterns %q != %q", rule.Name, rule.Pattern, dup.Pattern))
 			}
+			duplicates[rule.Name] = rule
 			compiled[key][i] = rule
-			if _, ok := symbols[rule.Name]; ok {
-				panic("duplicate key " + rule.Name)
-			}
 			symbols[rule.Name] = rn
 			rn--
 		}

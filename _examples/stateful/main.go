@@ -12,19 +12,19 @@ import (
 
 type Terminal struct {
 	String *String `  @@`
-	Ident  string  `| @ExprIdent`
+	Ident  string  `| @Ident`
 }
 
 type Expr struct {
 	Left  *Terminal `@@`
-	Op    string    `( @ExprOper`
+	Op    string    `( @Oper`
 	Right *Terminal `  @@)?`
 }
 
 type Fragment struct {
-	Escaped string `(  @StringEscaped`
+	Escaped string `(  @Escaped`
 	Expr    *Expr  ` | "${" @@ "}"`
-	Text    string ` | @StringChar)`
+	Text    string ` | @Char)`
 }
 
 type String struct {
@@ -38,7 +38,7 @@ var (
 		},
 		"String": {
 			{"Escaped", `\\.`, nil},
-			{"End", `"`, stateful.Pop()},
+			{"StringEnd", `"`, stateful.Pop()},
 			{"Expr", `\${`, stateful.Push("Expr")},
 			{"Char", `[^$"\\]+`, nil},
 		},
@@ -47,11 +47,11 @@ var (
 			{`Whitespace`, `\s+`, nil},
 			{`Oper`, `[-+/*%]`, nil},
 			{"Ident", `\w+`, nil},
-			{"End", `}`, stateful.Pop()},
+			{"ExprEnd", `}`, stateful.Pop()},
 		},
 	}))
 	parser = participle.MustBuild(&String{}, participle.Lexer(def),
-		participle.Elide("ExprWhitespace"))
+		participle.Elide("Whitespace"))
 )
 
 func main() {
