@@ -94,7 +94,7 @@ func Pop() Action {
 	})
 }
 
-// PopIfEmpty pops to the parent state if the rule did not match.
+// PopIfEmpty pops to the parent state if the rule matches an empty string.
 func PopIfEmpty() Action {
 	return ActionFunc(func(lexer *Lexer, groups []string) error {
 		if groups[0] == "" {
