@@ -8,11 +8,11 @@
 // As a convenience, any Rule starting with a lowercase letter will be elided from output.
 //
 // Lexing starts in the "Root" group. Each rule is matched in order, with the first
-// successful match producing a lexeme. If the matching rule has an associated Mutator
+// successful match producing a lexeme. If the matching rule has an associated Action
 // it will be executed. The name of each non-root rule is prefixed with the name
 // of its group to yield the token identifier used during matching.
 //
-// A state change can be introduced with the Mutator `Push(state)`. `Pop()` will
+// A state change can be introduced with the Action `Push(state)`. `Pop()` will
 // return to the previous state.
 //
 // To reuse rules from another state, use `Include(state)`.
@@ -26,6 +26,7 @@ package stateful
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -48,7 +49,7 @@ var (
 type Rule struct {
 	Name    string
 	Pattern string
-	Mutator Mutator
+	Action  Action
 }
 
 // Rules grouped by name.
@@ -64,27 +65,41 @@ type compiledRule struct {
 // compiledRules grouped by name.
 type compiledRules map[string][]compiledRule
 
-// A Mutator mutates the state of the Lexer
-type Mutator interface {
-	mutateLexer(lexer *Lexer, groups []string) error
+// A Action is applied when a rule matches.
+type Action interface {
+	// Actions are responsible for validating the match. ie. if they consumed any input.
+	applyAction(lexer *Lexer, groups []string) error
 }
 
-// RulesMutator is an optional interface that Mutators can implement.
+// RulesAction is an optional interface that Actions can implement.
 //
 // It is applied during rule construction to mutate the rule map.
-type RulesMutator interface {
-	mutateRules(state string, rule int, rules compiledRules) error
+type RulesAction interface {
+	applyRules(state string, rule int, rules compiledRules) error
 }
 
-// MutatorFunc is a function that is also a Mutator.
-type MutatorFunc func(*Lexer, []string) error
+// ActionFunc is a function that is also a Action.
+type ActionFunc func(*Lexer, []string) error
 
-func (m MutatorFunc) mutateLexer(lexer *Lexer, groups []string) error { return m(lexer, groups) } // nolint: golint
+func (m ActionFunc) applyAction(lexer *Lexer, groups []string) error { return m(lexer, groups) } // nolint: golint
 
 // Pop to the previous state.
-func Pop() Mutator {
-	return MutatorFunc(func(lexer *Lexer, groups []string) error {
+func Pop() Action {
+	return ActionFunc(func(lexer *Lexer, groups []string) error {
+		if groups[0] == "" {
+			return errors.New("did not consume any input")
+		}
 		lexer.stack = lexer.stack[:len(lexer.stack)-1]
+		return nil
+	})
+}
+
+// PopIfEmpty pops to the parent state if the rule did not match.
+func PopIfEmpty() Action {
+	return ActionFunc(func(lexer *Lexer, groups []string) error {
+		if groups[0] == "" {
+			lexer.stack = lexer.stack[:len(lexer.stack)-1]
+		}
 		return nil
 	})
 }
@@ -93,8 +108,11 @@ func Pop() Mutator {
 //
 // The target state will then be the set of rules used for matching
 // until another Push or Pop is encountered.
-func Push(state string) Mutator {
-	return MutatorFunc(func(lexer *Lexer, groups []string) error {
+func Push(state string) Action {
+	return ActionFunc(func(lexer *Lexer, groups []string) error {
+		if groups[0] == "" {
+			return errors.New("did not consume any input")
+		}
 		lexer.stack = append(lexer.stack, lexerState{name: state, groups: groups})
 		return nil
 	})
@@ -102,9 +120,9 @@ func Push(state string) Mutator {
 
 type include struct{ state string }
 
-func (i include) mutateLexer(lexer *Lexer, groups []string) error { panic("should not be called") }
+func (i include) applyAction(lexer *Lexer, groups []string) error { panic("should not be called") }
 
-func (i include) mutateRules(state string, rule int, rules compiledRules) error {
+func (i include) applyRules(state string, rule int, rules compiledRules) error {
 	includedRules, ok := rules[i.state]
 	if !ok {
 		return fmt.Errorf("invalid include state %q", i.state)
@@ -117,7 +135,7 @@ func (i include) mutateRules(state string, rule int, rules compiledRules) error 
 
 // Include rules from another state in this one.
 func Include(state string) Rule {
-	return Rule{Mutator: include{state}}
+	return Rule{Action: include{state}}
 }
 
 // Definition is the lexer.Definition.
@@ -152,8 +170,8 @@ func New(rules Rules) (*Definition, error) {
 restart:
 	for state, rules := range compiled {
 		for i, rule := range rules {
-			if mutator, ok := rule.Mutator.(RulesMutator); ok {
-				if err := mutator.mutateRules(state, i, compiled); err != nil {
+			if action, ok := rule.Action.(RulesAction); ok {
+				if err := action.applyRules(state, i, compiled); err != nil {
 					return nil, fmt.Errorf("%s.%d: %s", state, i, err)
 				}
 				goto restart
@@ -234,9 +252,6 @@ func (l *Lexer) Next() (lexer.Token, error) { // nolint: golint
 			match = re.FindSubmatchIndex(l.data)
 			if match != nil {
 				rule = &candidate // nolint: scopelint
-				if match[0] == 0 && match[1] == 0 {
-					return lexer.Token{}, fmt.Errorf("rule %q matched, but did not consume any input", rule.Name)
-				}
 				break
 			}
 		}
@@ -244,14 +259,16 @@ func (l *Lexer) Next() (lexer.Token, error) { // nolint: golint
 			return lexer.Token{}, participle.Errorf(l.pos, "no match")
 		}
 
-		if rule.Mutator != nil {
+		if rule.Action != nil {
 			groups := make([]string, 0, len(match)/2)
 			for i := 0; i < len(match); i += 2 {
 				groups = append(groups, string(l.data[match[i]:match[i+1]]))
 			}
-			if err := rule.Mutator.mutateLexer(l, groups); err != nil {
-				return lexer.Token{}, participle.Errorf(l.pos, "rule %q mutator returned an error", rule.Name)
+			if err := rule.Action.applyAction(l, groups); err != nil {
+				return lexer.Token{}, participle.Errorf(l.pos, "rule %q: %s", rule.Name, err)
 			}
+		} else if match[0] == match[1] {
+			return lexer.Token{}, participle.Errorf(l.pos, "rule %q did not match any input", rule.Name)
 		}
 
 		span := l.data[match[0]:match[1]]
@@ -270,6 +287,8 @@ func (l *Lexer) Next() (lexer.Token, error) { // nolint: golint
 			l.pos.Column = utf8.RuneCount(span[bytes.LastIndex(span, eolBytes):])
 		}
 		if rule.ignore {
+			parent = l.stack[len(l.stack)-1]
+			rules = l.def.rules[parent.name]
 			continue
 		}
 		return lexer.Token{

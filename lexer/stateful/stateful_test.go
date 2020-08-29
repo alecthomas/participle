@@ -57,7 +57,7 @@ func TestStatefulLexer(t *testing.T) {
 				hello world
 				END
 			`,
-			tokens: []string{"\n\t\t\t\t", "<<END", "\n\t\t\t\t", "hello", " ", "world", "\n\t\t\t\t", "END", "\n\t\t\t", ""},
+			tokens: []string{"\n\t\t\t\t", "<<END", "\n\t\t\t\t", "hello", " ", "world", "\n\t\t\t\t", "END", "\n\t\t\t"},
 		},
 		{name: "Recursive",
 			rules: Rules{
@@ -79,7 +79,43 @@ func TestStatefulLexer(t *testing.T) {
 				},
 			},
 			input:  `"hello ${user + "??" + "${nested}"}"`,
-			tokens: []string{"\"", "hello ", "${", "user", " ", "+", " ", "\"", "??", "\"", " ", "+", " ", "\"", "${", "nested", "}", "\"", "}", "\"", ""},
+			tokens: []string{"\"", "hello ", "${", "user", " ", "+", " ", "\"", "??", "\"", " ", "+", " ", "\"", "${", "nested", "}", "\"", "}", "\""},
+		},
+		{name: "PopIfEmpty",
+			rules: Rules{
+				"Root": {
+					{"Ident", `\w+`, Push("Reference")},
+					{"whitespace", `\s+`, nil},
+				},
+				"Reference": {
+					{"Dot", `\.`, nil},
+					{"Ident", `\w+`, nil},
+					{"pop", ``, PopIfEmpty()},
+				},
+			},
+			input:  `hello.world `,
+			tokens: []string{"hello", ".", "world"},
+		},
+		{name: "NoMatchNoMutatorError",
+			rules: Rules{
+				"Root": {
+					{"NoMatch", "", nil},
+				},
+			},
+			input: "hello",
+			err:   "1:1: rule \"NoMatch\" did not match any input",
+		},
+		{name: "NoMatchPushError",
+			rules: Rules{
+				"Root": {
+					{"NoMatch", "", Push("Sub")},
+				},
+				"Sub": {
+					{"Ident", `\w+`, nil},
+				},
+			},
+			input: "hello",
+			err:   "1:1: rule \"NoMatch\": did not consume any input",
 		},
 	}
 	// nolint: scopelint
@@ -96,6 +132,9 @@ func TestStatefulLexer(t *testing.T) {
 				require.NoError(t, err)
 				actual := []string{}
 				for _, token := range tokens {
+					if token.EOF() {
+						break
+					}
 					actual = append(actual, token.Value)
 				}
 				require.Equal(t, test.tokens, actual)
