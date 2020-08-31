@@ -256,7 +256,13 @@ func (l *Lexer) Next() (lexer.Token, error) { // nolint: golint
 			}
 		}
 		if match == nil || rule == nil {
-			return lexer.Token{}, participle.Errorf(l.pos, "no match")
+			sample := ""
+			if len(l.data) < 16 {
+				sample = string(l.data)
+			} else {
+				sample = string(l.data[:16]) + "..."
+			}
+			return lexer.Token{}, participle.Errorf(l.pos, "no lexer rules in state %q matched input text %q", parent.name, sample)
 		}
 
 		if rule.Action != nil {
