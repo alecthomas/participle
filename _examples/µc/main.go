@@ -242,15 +242,10 @@ var (
 	intType = lex.Symbols()["Int"]
 	parser  = participle.MustBuild(&Program{},
 		participle.Lexer(lex),
-		participle.UseLookahead(3))
+		participle.UseLookahead(2))
 )
 
-func main() {
-	ast := &Program{}
-	defer func() {
-		repr.Println(ast)
-	}()
-	err := parser.ParseString(`
+const sample = `
 /* This is an example uC program. */
 void putint(int i);
 
@@ -284,7 +279,14 @@ int main(void)
     putint(sum(2, a)); // prints 147
     return 0;
 }
-	`, ast)
+	`
+
+func main() {
+	ast := &Program{}
+	defer func() {
+		repr.Println(ast)
+	}()
+	err := parser.ParseString(sample, ast)
 	if err != nil {
 		panic(err)
 	}

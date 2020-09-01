@@ -75,6 +75,7 @@ digit = "0"…"9" .
 	parser = participle.MustBuild(&File{},
 		participle.Lexer(graphQLLexer),
 		participle.Elide("Comment", "Whitespace"),
+		participle.UseLookahead(2),
 	)
 
 	cli struct {

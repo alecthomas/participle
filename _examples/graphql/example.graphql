@@ -1,13 +1,13 @@
 # A comment.
 type Tweet {
     id: ID!
-    // The tweet text. No more than 140 characters!
+    # The tweet text. No more than 140 characters!
     body: String
-    // When the tweet was published
+    # When the tweet was published
     date: Date
-    // Who published the tweet
+    # Who published the tweet
     Author: User
-    // Views, retweets, likes, etc
+    # Views, retweets, likes, etc
     Stats: Stat
 }
 
