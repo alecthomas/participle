@@ -139,6 +139,8 @@ func (g *generatorContext) parseTermNoModifiers(slexer *structLexer) (node, erro
 		out, err = g.parseCapture(slexer)
 	case scanner.String, scanner.RawString, scanner.Char:
 		out, err = g.parseLiteral(slexer)
+	case '!':
+		return g.parseNegation(slexer)
 	case '[':
 		return g.parseOptional(slexer)
 	case '{':
@@ -280,6 +282,18 @@ func (g *generatorContext) parseGroup(slexer *structLexer) (node, error) {
 		return nil, fmt.Errorf("expected ) but got %q", next)
 	}
 	return &group{expr: disj}, nil
+}
+
+// A token negation
+//
+// Accepts both the form !"some-literal" and !SomeNamedToken
+func (g *generatorContext) parseNegation(slexer *structLexer) (node, error) {
+	_, _ = slexer.Next() // advance the parser since we have '!' right now.
+	next, err := g.parseTermNoModifiers(slexer)
+	if err != nil {
+		return nil, err
+	}
+	return &negation{next}, nil
 }
 
 // A literal string.

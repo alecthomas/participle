@@ -412,6 +412,40 @@ func (l *literal) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.
 	return nil, nil
 }
 
+type negation struct {
+	node node
+}
+
+func (n *negation) String() string { return "!" + stringer(n.node) }
+
+func (n *negation) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
+	// Create a branch to avoid advancing the parser, but call neither Stop nor Accept on it
+	// since we will discard a match.
+	branch := ctx.Branch()
+	notEOF, err := ctx.Peek(0)
+	if err != nil {
+		return nil, err
+	}
+	if notEOF.EOF() {
+		// EOF cannot match a negation, which expects something
+		return nil, nil
+	}
+
+	out, err = n.node.Parse(branch, parent)
+
+	if out != nil && err == nil {
+		// out being non-nil means that what we don't want is actually here, so we report nomatch
+		return nil, lexer.ErrorWithTokenf(notEOF, "unexpected '%s'", notEOF.Value)
+	}
+
+	// Just give the next token
+	next, err := ctx.Next()
+	if err != nil {
+		return nil, err
+	}
+	return []reflect.Value{reflect.ValueOf(next.Value)}, nil
+}
+
 // Attempt to transform values to given type.
 //
 // This will dereference pointers, and attempt to parse strings into integer values, floats, etc.
