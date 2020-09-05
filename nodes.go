@@ -79,10 +79,18 @@ type strct struct {
 
 func (s *strct) String() string { return stringer(s) }
 
-func (s *strct) maybeInjectToken(token lexer.Token, v reflect.Value) {
+func (s *strct) maybeInjectStartToken(token lexer.Token, v reflect.Value) {
 	if f := v.FieldByName("Pos"); f.IsValid() && f.Type() == positionType {
 		f.Set(reflect.ValueOf(token.Pos))
 	} else if f := v.FieldByName("Tok"); f.IsValid() && f.Type() == tokenType {
+		f.Set(reflect.ValueOf(token))
+	}
+}
+
+func (s *strct) maybeInjectEndToken(token lexer.Token, v reflect.Value) {
+	if f := v.FieldByName("EndPos"); f.IsValid() && f.Type() == positionType {
+		f.Set(reflect.ValueOf(token.Pos))
+	} else if f := v.FieldByName("EndTok"); f.IsValid() && f.Type() == tokenType {
 		f.Set(reflect.ValueOf(token))
 	}
 }
@@ -93,7 +101,7 @@ func (s *strct) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Va
 	if err != nil {
 		return nil, err
 	}
-	s.maybeInjectToken(t, sv)
+	s.maybeInjectStartToken(t, sv)
 	if out, err = s.expr.Parse(ctx, sv); err != nil {
 		_ = ctx.Apply() // Best effort to give partial AST.
 		ctx.MaybeUpdateError(err)
@@ -101,6 +109,8 @@ func (s *strct) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Va
 	} else if out == nil {
 		return nil, nil
 	}
+	t, _ = ctx.Peek(0)
+	s.maybeInjectEndToken(t, sv)
 	return []reflect.Value{sv}, ctx.Apply()
 }
 

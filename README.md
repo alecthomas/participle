@@ -372,5 +372,7 @@ There are a few areas where Participle can provide useful feedback to users of y
 2. Participle will make a best effort to return as much of the AST up to the error location as possible.
 3. Any node in the AST containing a field `Pos lexer.Position` or `Tok lexer.Token` will be automatically
    populated from the nearest matching token.
+4. Any node in the AST containing a field `EndPos lexer.Position` or `EndTok lexer.Token` will be 
+   automatically populated with the token at the end of the node.
 
 These related pieces of information can be combined to provide fairly comprehensive error reporting.

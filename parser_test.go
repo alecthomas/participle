@@ -560,13 +560,16 @@ func TestRepeatAcrossFields(t *testing.T) {
 
 func TestPosInjection(t *testing.T) {
 	type subgrammar struct {
-		Pos lexer.Position
-		B   string `@{ "," }`
+		Pos    lexer.Position
+		B      string `@{ "," }`
+		EndPos lexer.Position
 	}
 	type grammar struct {
-		Pos lexer.Position
-		A   string      `@{ "." }`
-		B   *subgrammar `@@`
+		Pos    lexer.Position
+		A      string      `@{ "." }`
+		B      *subgrammar `@@`
+		C      string      `@"."`
+		EndPos lexer.Position
 	}
 
 	parser := mustTestParser(t, &grammar{})
@@ -586,10 +589,21 @@ func TestPosInjection(t *testing.T) {
 				Line:   1,
 				Column: 7,
 			},
+			EndPos: lexer.Position{
+				Offset: 9,
+				Line:   1,
+				Column: 10,
+			},
+		},
+		C: ".",
+		EndPos: lexer.Position{
+			Offset: 10,
+			Line:   1,
+			Column: 11,
 		},
 	}
 
-	err := parser.ParseString("   ...,,,", actual)
+	err := parser.ParseString("   ...,,,.", actual)
 	require.NoError(t, err)
 	require.Equal(t, expected, actual)
 }
