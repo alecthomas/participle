@@ -1212,3 +1212,57 @@ func TestPointerToList(t *testing.T) {
 // 	require.NoError(t, err)
 // 	require.NotNil(t, ast.List)
 // }
+
+func TestNegation(t *testing.T) {
+	type grammar struct {
+		EverythingUntilSemicolon *[]string `@!';'* @';'`
+	}
+	p := mustTestParser(t, &grammar{})
+	ast := &grammar{}
+	err := p.ParseString(`hello world ;`, ast)
+	require.NoError(t, err)
+	require.Equal(t, &[]string{"hello", "world", ";"}, ast.EverythingUntilSemicolon)
+
+	err = p.ParseString(`hello world`, ast)
+	require.Error(t, err)
+}
+
+func TestNegationWithPattern(t *testing.T) {
+	type grammar struct {
+		EverythingMoreComplex *[]string `@!(';' String)* @';' @String`
+	}
+
+	p := mustTestParser(t, &grammar{})
+	// j, err := json.MarshalIndent(p.root, "", "  ")
+	// log.Print(j)
+	// log.Print(stringer(p.root))
+	ast := &grammar{}
+	err := p.ParseString(`hello world ; 'some-str'`, ast)
+	require.NoError(t, err)
+	require.Equal(t, &[]string{"hello", "world", ";", `some-str`}, ast.EverythingMoreComplex)
+
+	err = p.ParseString(`hello ; world ; 'hey'`, ast)
+	require.NoError(t, err)
+	require.Equal(t, &[]string{"hello", ";", "world", ";", `hey`}, ast.EverythingMoreComplex)
+
+	err = p.ParseString(`hello ; world ;`, ast)
+	require.Error(t, err)
+}
+
+func TestNegationWithDisjunction(t *testing.T) {
+	type grammar struct {
+		EverythingMoreComplex *[]string `@!(';' | ',')* @(';' | ',')`
+	}
+
+	// Note: we need more lookahead since (';' String) needs some before failing to match
+	p := mustTestParser(t, &grammar{})
+	ast := &grammar{}
+	err := p.ParseString(`hello world ;`, ast)
+	require.NoError(t, err)
+	require.Equal(t, &[]string{"hello", "world", ";"}, ast.EverythingMoreComplex)
+
+	err = p.ParseString(`hello world , `, ast)
+	require.NoError(t, err)
+	require.Equal(t, &[]string{"hello", "world", ","}, ast.EverythingMoreComplex)
+
+}

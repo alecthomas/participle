@@ -90,6 +90,17 @@ func (s *stringerVisitor) visit(n node, depth int) { // nolint: gocognit
 		}
 		fmt.Fprint(s, "*")
 
+	case *negation:
+		fmt.Fprintf(s, "!")
+		composite := compositeNode(map[node]bool{}, n)
+		if composite {
+			fmt.Fprint(s, "(")
+		}
+		s.visit(n.node, depth)
+		if composite {
+			fmt.Fprint(s, ")")
+		}
+
 	case *literal:
 		fmt.Fprintf(s, "%q", n.s)
 		if n.t != lexer.EOF && n.s == "" {
@@ -152,6 +163,9 @@ func compositeNode(seen map[node]bool, n node) bool {
 
 	case *reference, *literal, *parseable:
 		return false
+
+	case *negation:
+		return compositeNode(seen, n.node)
 
 	case *strct:
 		return compositeNode(seen, n.expr)

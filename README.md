@@ -106,6 +106,7 @@ err := parser.ParseString("size = 10", ast)
 - `"...":<identifier>` Match the literal, specifying the exact lexer token type to match.
 - `<expr> <expr> ...` Match expressions.
 - `<expr> | <expr>` Match one of the alternatives.
+- `!<expr>` Match any token that is not the start of the expression (eg: `@!";"` matches anything but the `;` character into the field).
 
 The following modifiers can be used after any expression:
 
@@ -202,8 +203,8 @@ The best combination of speed, flexibility and usability is `lexer/regex.New()`.
 
 Ordered by speed they are:
 
-1. `lexer.DefaultDefinition` is based on the 
-   [text/scanner](https://golang.org/pkg/text/scanner/) package and only allows 
+1. `lexer.DefaultDefinition` is based on the
+   [text/scanner](https://golang.org/pkg/text/scanner/) package and only allows
    tokens provided by that package. This is the default lexer.
 2. `lexer.Regexp()` (legacy) maps regular expression named subgroups to lexer symbols.
 3. `lexer/regex.New()` is a more readable regex lexer, with each rule in the form `<name> = <regex>`.
@@ -372,7 +373,7 @@ There are a few areas where Participle can provide useful feedback to users of y
 2. Participle will make a best effort to return as much of the AST up to the error location as possible.
 3. Any node in the AST containing a field `Pos lexer.Position` or `Tok lexer.Token` will be automatically
    populated from the nearest matching token.
-4. Any node in the AST containing a field `EndPos lexer.Position` or `EndTok lexer.Token` will be 
+4. Any node in the AST containing a field `EndPos lexer.Position` or `EndTok lexer.Token` will be
    automatically populated with the token at the end of the node.
 
 These related pieces of information can be combined to provide fairly comprehensive error reporting.
