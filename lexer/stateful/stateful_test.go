@@ -12,6 +12,25 @@ import (
 	"github.com/alecthomas/participle/lexer"
 )
 
+var interpolatedRules = Rules{
+	"Root": {
+		{`String`, `"`, Push("String")},
+	},
+	"String": {
+		{"Escaped", `\\.`, nil},
+		{"StringEnd", `"`, Pop()},
+		{"Expr", `\${`, Push("Expr")},
+		{"Char", `[^$"\\]+`, nil},
+	},
+	"Expr": {
+		Include("Root"),
+		{`whitespace`, `\s+`, nil},
+		{`Oper`, `[-+/*%]`, nil},
+		{"Ident", `\w+`, nil},
+		{"ExprEnd", `}`, Pop()},
+	},
+}
+
 func TestStatefulLexer(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -166,24 +185,7 @@ func ExampleNew() {
 		Fragments []*Fragment `"\"" @@* "\""`
 	}
 
-	def, err := New(Rules{
-		"Root": {
-			{`String`, `"`, Push("String")},
-		},
-		"String": {
-			{"Escaped", `\\.`, nil},
-			{"StringEnd", `"`, Pop()},
-			{"Expr", `\${`, Push("Expr")},
-			{"Char", `[^$"\\]+`, nil},
-		},
-		"Expr": {
-			Include("Root"),
-			{`whitespace`, `\s+`, nil},
-			{`Oper`, `[-+/*%]`, nil},
-			{"Ident", `\w+`, nil},
-			{"ExprEnd", `}`, Pop()},
-		},
-	})
+	def, err := New(interpolatedRules)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -310,4 +312,23 @@ func TestHereDoc(t *testing.T) {
 	`, actual)
 	require.NoError(t, err)
 	require.Equal(t, expected, actual)
+}
+
+func BenchmarkStateful(b *testing.B) {
+	source := strings.Repeat(`"hello ${user + "${last}"}"`, 100)
+	def := lexer.Must(New(interpolatedRules))
+	b.ReportMetric(float64(len(source)*b.N), "B")
+	for i := 0; i < b.N; i++ {
+		lex, err := def.Lex(strings.NewReader(source))
+		if err != nil {
+			b.Fatal(err)
+		}
+		tokens, err := lexer.ConsumeAll(lex)
+		if err != nil {
+			b.Fatal(err)
+		}
+		if len(tokens) != 1201 {
+			b.Fatalf("%d != 0", len(tokens))
+		}
+	}
 }
