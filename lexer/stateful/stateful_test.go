@@ -78,6 +78,18 @@ func TestStatefulLexer(t *testing.T) {
 			`,
 			tokens: []string{"\n\t\t\t\t", "<<END", "\n\t\t\t\t", "hello", " ", "world", "\n\t\t\t\t", "END", "\n\t\t\t"},
 		},
+		{name: "BackslashIsntABackRef",
+			rules: Rules{
+				"Root": {
+					{"JustOne", `(\\\\1)`, Push("Convoluted")},
+				},
+				"Convoluted": {
+					{"ConvolutedMatch", `\\\1`, nil},
+				},
+			},
+			input:  `\\1\\\1`,
+			tokens: []string{`\\1`, `\\\1`},
+		},
 		{name: "Recursive",
 			rules: Rules{
 				"Root": {
