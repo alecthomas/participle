@@ -42,7 +42,7 @@ import (
 
 var (
 	eolBytes       = []byte("\n")
-	backrefReplace = regexp.MustCompile(`\\(\d)`)
+	backrefReplace = regexp.MustCompile(`(\\+)(\d)`)
 )
 
 // A Rule matching input and possibly changing state.
@@ -154,7 +154,8 @@ func New(rules Rules) (*Definition, error) {
 				re  *regexp.Regexp
 				err error
 			)
-			if backrefReplace.FindString(rule.Pattern) == "" {
+			var match = backrefReplace.FindStringSubmatch(rule.Pattern)
+			if match == nil || len(match[1])%2 == 0 {
 				re, err = regexp.Compile(pattern)
 				if err != nil {
 					return nil, fmt.Errorf("%s.%d: %s", key, i, err)
@@ -320,7 +321,8 @@ func (l *Lexer) getPattern(candidate compiledRule) (*regexp.Regexp, error) {
 		err error
 	)
 	pattern := backrefReplace.ReplaceAllStringFunc(candidate.Pattern, func(s string) string {
-		n, nerr := strconv.ParseInt(s[1:], 10, 64)
+		var rematch = backrefReplace.FindStringSubmatch(s)
+		n, nerr := strconv.ParseInt(rematch[2], 10, 64)
 		if nerr != nil {
 			err = nerr
 			return s
@@ -329,7 +331,8 @@ func (l *Lexer) getPattern(candidate compiledRule) (*regexp.Regexp, error) {
 			err = fmt.Errorf("invalid group %d from parent with %d groups", n, len(parent.groups))
 			return s
 		}
-		return regexp.QuoteMeta(parent.groups[n])
+		// concatenate the leading \\\\ which are already escaped to the quoted match.
+		return rematch[1][:len(rematch[1])-1] + regexp.QuoteMeta(parent.groups[n])
 	})
 	if err == nil {
 		re, err = regexp.Compile("^(?:" + pattern + ")")
