@@ -141,6 +141,11 @@ type Definition struct {
 	symbols map[string]rune
 }
 
+// NewSimple creates a new stateful lexer with a single "Root" state.
+func NewSimple(rules []Rule) (*Definition, error) {
+	return New(Rules{"Root": rules})
+}
+
 // New constructs a new stateful lexer from rules.
 func New(rules Rules) (*Definition, error) {
 	compiled := compiledRules{}
