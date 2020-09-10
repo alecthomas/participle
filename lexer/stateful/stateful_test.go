@@ -112,7 +112,7 @@ func TestStatefulLexer(t *testing.T) {
 			input:  `"hello ${user + "??" + "${nested}"}"`,
 			tokens: []string{"\"", "hello ", "${", "user", " ", "+", " ", "\"", "??", "\"", " ", "+", " ", "\"", "${", "nested", "}", "\"", "}", "\""},
 		},
-		{name: "PopIfEmpty",
+		{name: "Return",
 			rules: Rules{
 				"Root": {
 					{"Ident", `\w+`, Push("Reference")},
@@ -121,7 +121,7 @@ func TestStatefulLexer(t *testing.T) {
 				"Reference": {
 					{"Dot", `\.`, nil},
 					{"Ident", `\w+`, nil},
-					{"pop", ``, PopIfEmpty()},
+					Return(),
 				},
 			},
 			input:  `hello.world `,

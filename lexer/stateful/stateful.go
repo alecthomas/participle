@@ -94,15 +94,12 @@ func Pop() Action {
 	})
 }
 
-// PopIfEmpty pops to the parent state if the rule matches an empty string.
-func PopIfEmpty() Action {
-	return ActionFunc(func(lexer *Lexer, groups []string) error {
-		if groups[0] == "" {
-			lexer.stack = lexer.stack[:len(lexer.stack)-1]
-		}
-		return nil
-	})
-}
+var returnToParent = Rule{"popIfEmpty", "", nil}
+
+// Return to the parent state.
+//
+// Useful as the last rule in a sub-state.
+func Return() Rule { return returnToParent }
 
 // Push to the given state.
 //
@@ -240,12 +237,20 @@ type Lexer struct {
 func (l *Lexer) Next() (lexer.Token, error) { // nolint: golint
 	parent := l.stack[len(l.stack)-1]
 	rules := l.def.rules[parent.name]
+next:
 	for len(l.data) > 0 {
 		var (
 			rule  *compiledRule
 			match []int
 		)
 		for _, candidate := range rules {
+			// Special case "Return()".
+			if candidate.Rule == returnToParent {
+				l.stack = l.stack[:len(l.stack)-1]
+				parent = l.stack[len(l.stack)-1]
+				rules = l.def.rules[parent.name]
+				continue next
+			}
 			re, err := l.getPattern(candidate)
 			if err != nil {
 				return lexer.Token{}, participle.Wrapf(l.pos, err, "rule %q", candidate.Name)
