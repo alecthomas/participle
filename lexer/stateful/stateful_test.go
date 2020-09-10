@@ -329,7 +329,8 @@ func TestHereDoc(t *testing.T) {
 func BenchmarkStateful(b *testing.B) {
 	source := strings.Repeat(`"hello ${user + "${last}"}"`, 100)
 	def := lexer.Must(New(interpolatedRules))
-	b.ReportMetric(float64(len(source)*b.N), "B")
+	b.ReportMetric(float64(len(source)), "B")
+	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		lex, err := def.Lex(strings.NewReader(source))
 		if err != nil {

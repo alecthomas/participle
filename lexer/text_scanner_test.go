@@ -42,7 +42,9 @@ func TestLexSingleString(t *testing.T) {
 }
 
 func BenchmarkTextScannerLexer(b *testing.B) {
-	r := strings.NewReader(strings.Repeat("hello world 123 hello world 123", 100))
+	input := strings.Repeat("hello world 123 hello world 123", 100)
+	r := strings.NewReader(input)
+	b.ReportMetric(float64(len(input)), "B")
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		lex, _ := TextScannerLexer.Lex(r)

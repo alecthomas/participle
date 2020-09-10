@@ -175,7 +175,7 @@ type Comparison struct {
 	Pos lexer.Position
 
 	Addition *Addition   `@@`
-	Op       string      `[ @( ">" | ">" "=" | "<" | "<" "=" )`
+	Op       string      `[ @( ">" "=" | ">" | "<" "=" | "<" )`
 	Next     *Comparison `  @@ ]`
 }
 
@@ -263,7 +263,7 @@ int sum(int n, int a[])
 
     i = 0;
     s = 0;
-    while (i < n) {
+    while (i <= n) {
         s = s + a[i];
         i = i + 1;
     }
