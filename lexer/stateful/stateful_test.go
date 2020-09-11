@@ -341,7 +341,45 @@ func BenchmarkStateful(b *testing.B) {
 			b.Fatal(err)
 		}
 		if len(tokens) != 1201 {
-			b.Fatalf("%d != 0", len(tokens))
+			b.Fatalf("%d != 1201", len(tokens))
+		}
+	}
+}
+
+func BenchmarkStatefulBackrefs(b *testing.B) {
+	source := strings.Repeat(`
+	<<END
+	hello world
+	END
+`, 100)
+	def, err := New(Rules{
+		"Root": {
+			{"Heredoc", `<<(\w+\b)`, Push("Heredoc")},
+			Include("Common"),
+		},
+		"Heredoc": {
+			{"End", `\b\1\b`, Pop()},
+			Include("Common"),
+		},
+		"Common": {
+			{"whitespace", `\s+`, nil},
+			{"Ident", `\w+`, nil},
+		},
+	})
+	require.NoError(b, err)
+	b.ReportMetric(float64(len(source)), "B")
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		lex, err := def.Lex(strings.NewReader(source))
+		if err != nil {
+			b.Fatal(err)
+		}
+		tokens, err := lexer.ConsumeAll(lex)
+		if err != nil {
+			b.Fatal(err)
+		}
+		if len(tokens) != 401 {
+			b.Fatalf("%d != 401", len(tokens))
 		}
 	}
 }
