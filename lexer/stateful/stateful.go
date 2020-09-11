@@ -33,6 +33,8 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
+	"sync"
 	"unicode"
 	"unicode/utf8"
 
@@ -139,6 +141,8 @@ func Include(state string) Rule {
 type Definition struct {
 	rules   compiledRules
 	symbols map[string]rune
+	// Map of key->*regexp.Regexp
+	backrefCache sync.Map
 }
 
 // NewSimple creates a new stateful lexer with a single "Root" state.
@@ -202,7 +206,10 @@ restart:
 			rn--
 		}
 	}
-	return &Definition{rules: compiled, symbols: symbols}, nil
+	return &Definition{
+		rules:   compiled,
+		symbols: symbols,
+	}, nil
 }
 
 func (d *Definition) Lex(r io.Reader) (lexer.Lexer, error) { // nolint: golint
@@ -324,8 +331,13 @@ func (l *Lexer) getPattern(candidate compiledRule) (*regexp.Regexp, error) {
 
 	// We don't have a compiled RE. This means there are back-references
 	// that need to be substituted first.
-	// TODO: Cache?
 	parent := l.stack[len(l.stack)-1]
+	key := candidate.Pattern + "\000" + strings.Join(parent.groups, "\000")
+	cached, ok := l.def.backrefCache.Load(key)
+	if ok {
+		return cached.(*regexp.Regexp), nil
+	}
+
 	var (
 		re  *regexp.Regexp
 		err error
@@ -350,5 +362,6 @@ func (l *Lexer) getPattern(candidate compiledRule) (*regexp.Regexp, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid backref expansion: %q: %s", pattern, err)
 	}
+	l.def.backrefCache.Store(key, re)
 	return re, nil
 }
