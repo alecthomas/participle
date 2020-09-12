@@ -69,7 +69,7 @@ func (s *stringerVisitor) visit(n node, depth int) { // nolint: gocognit
 		fmt.Fprintf(s, "<%s>", strings.ToLower(n.identifier))
 
 	case *optional:
-		composite := compositeNode(map[node]bool{}, n)
+		composite := compositeNode(map[node]bool{}, n, true)
 		if composite {
 			fmt.Fprint(s, "(")
 		}
@@ -80,7 +80,7 @@ func (s *stringerVisitor) visit(n node, depth int) { // nolint: gocognit
 		fmt.Fprint(s, "?")
 
 	case *repetition:
-		composite := compositeNode(map[node]bool{}, n)
+		composite := compositeNode(map[node]bool{}, n, true)
 		if composite {
 			fmt.Fprint(s, "(")
 		}
@@ -92,7 +92,7 @@ func (s *stringerVisitor) visit(n node, depth int) { // nolint: gocognit
 
 	case *negation:
 		fmt.Fprintf(s, "!")
-		composite := compositeNode(map[node]bool{}, n)
+		composite := compositeNode(map[node]bool{}, n, true)
 		if composite {
 			fmt.Fprint(s, "(")
 		}
@@ -108,7 +108,7 @@ func (s *stringerVisitor) visit(n node, depth int) { // nolint: gocognit
 		}
 
 	case *group:
-		composite := (n.mode != groupMatchOnce) && compositeNode(map[node]bool{}, n)
+		composite := (n.mode != groupMatchOnce) && compositeNode(map[node]bool{}, n, true)
 
 		if composite {
 			fmt.Fprint(s, "(")
@@ -143,7 +143,7 @@ func (s *stringerVisitor) visit(n node, depth int) { // nolint: gocognit
 	}
 }
 
-func compositeNode(seen map[node]bool, n node) bool {
+func compositeNode(seen map[node]bool, n node, strctAsComposite bool) bool {
 	if n == nil || seen[n] {
 		return false
 	}
@@ -155,7 +155,7 @@ func compositeNode(seen map[node]bool, n node) bool {
 
 	case *disjunction:
 		for _, c := range n.nodes {
-			if compositeNode(seen, c) {
+			if compositeNode(seen, c, strctAsComposite) {
 				return true
 			}
 		}
@@ -165,22 +165,22 @@ func compositeNode(seen map[node]bool, n node) bool {
 		return false
 
 	case *negation:
-		return compositeNode(seen, n.node)
+		return compositeNode(seen, n.node, strctAsComposite)
 
 	case *strct:
-		return compositeNode(seen, n.expr)
+		return strctAsComposite && compositeNode(seen, n.expr, strctAsComposite)
 
 	case *capture:
-		return compositeNode(seen, n.node)
+		return compositeNode(seen, n.node, strctAsComposite)
 
 	case *optional:
-		return compositeNode(seen, n.node)
+		return compositeNode(seen, n.node, strctAsComposite)
 
 	case *repetition:
-		return compositeNode(seen, n.node)
+		return compositeNode(seen, n.node, strctAsComposite)
 
 	case *group:
-		return compositeNode(seen, n.expr)
+		return compositeNode(seen, n.expr, strctAsComposite)
 
 	default:
 		panic("unsupported")

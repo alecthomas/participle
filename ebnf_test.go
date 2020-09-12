@@ -10,10 +10,10 @@ import (
 func TestEBNF(t *testing.T) {
 	parser := mustTestParser(t, &EBNF{})
 	expected := `
-EBNF = (Production)* .
-Production = ident "=" Expression (Expression)* "." .
+EBNF = Production* .
+Production = ident "=" Expression Expression* "." .
 Expression = Sequence ("|" Sequence)* .
-Sequence = Term (Term)* .
+Sequence = Term Term* .
 Term = ident | Literal | Range | Group | EBNFOption | Repetition .
 Literal = string .
 Range = string "…" string .

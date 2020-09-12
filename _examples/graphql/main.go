@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/alecthomas/kong"
@@ -77,14 +78,19 @@ digit = "0"…"9" .
 		participle.Elide("Comment", "Whitespace"),
 		participle.UseLookahead(2),
 	)
-
-	cli struct {
-		Files []string `arg:"" type:"existingfile" required:"" help:"GraphQL schema files to parse."`
-	}
 )
+
+var cli struct {
+	EBNF  bool     `help"Dump EBNF."`
+	Files []string `arg:"" optional:"" type:"existingfile" help:"GraphQL schema files to parse."`
+}
 
 func main() {
 	ctx := kong.Parse(&cli)
+	if cli.EBNF {
+		fmt.Println(parser.EBNF())
+		ctx.Exit(0)
+	}
 	for _, file := range cli.Files {
 		ast := &File{}
 		r, err := os.Open(file)

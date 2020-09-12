@@ -83,7 +83,7 @@ func ebnf(n node, seen map[node]bool, p *ebnfp, outp *[]*ebnfp) {
 		p.out += fmt.Sprintf("%q", n.s)
 
 	case *group:
-		composite := (n.mode != groupMatchOnce) && compositeNode(map[node]bool{}, n)
+		composite := (n.mode != groupMatchOnce) && compositeNode(map[node]bool{}, n, false)
 
 		if composite {
 			p.out += "("
