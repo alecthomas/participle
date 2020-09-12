@@ -274,7 +274,7 @@ type EBNF struct {
 	Productions []*Production `{ @@ }`
 }
 
-func TestEBNF(t *testing.T) {
+func TestEBNFParser(t *testing.T) {
 	parser := mustTestParser(t, &EBNF{})
 
 	expected := &EBNF{
