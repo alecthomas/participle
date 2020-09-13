@@ -5,10 +5,10 @@ import (
 	"strings"
 )
 
-// EBNF for the grammar.
+// String returns the EBNF for the grammar.
 //
 // Productions are always upper case. Lexer tokens are always lower case.
-func (p *Parser) EBNF() string {
+func (p *Parser) String() string {
 	seen := map[node]bool{}
 	outp := []*ebnfp{}
 	ebnf(p.root, seen, nil, &outp)

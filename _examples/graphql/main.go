@@ -88,7 +88,7 @@ var cli struct {
 func main() {
 	ctx := kong.Parse(&cli)
 	if cli.EBNF {
-		fmt.Println(parser.EBNF())
+		fmt.Println(parser.String())
 		ctx.Exit(0)
 	}
 	for _, file := range cli.Files {

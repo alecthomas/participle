@@ -251,8 +251,3 @@ func (p *Parser) ParseString(s string, v interface{}, options ...ParseOption) er
 func (p *Parser) ParseBytes(b []byte, v interface{}, options ...ParseOption) error {
 	return p.Parse(bytes.NewReader(b), v, options...)
 }
-
-// String representation of the grammar.
-func (p *Parser) String() string {
-	return stringern(p.root, 128)
-}

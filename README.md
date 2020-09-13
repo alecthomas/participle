@@ -3,21 +3,22 @@
 [![Godoc](https://godoc.org/github.com/alecthomas/participle?status.svg)](http://godoc.org/github.com/alecthomas/participle) [![CircleCI](https://img.shields.io/circleci/project/github/alecthomas/participle.svg)](https://circleci.com/gh/alecthomas/participle)
  [![Go Report Card](https://goreportcard.com/badge/github.com/alecthomas/participle)](https://goreportcard.com/report/github.com/alecthomas/participle) [![Slack chat](https://img.shields.io/static/v1?logo=slack&style=flat&label=slack&color=green&message=gophers)](https://gophers.slack.com/messages/CN9DS8YF3)
 
-<!-- TOC -->
+<!-- TOC depthFrom:2 insertAnchor:true updateOnSave:true -->
 
-1. [Introduction](#introduction)
-2. [Limitations](#limitations)
-3. [Tutorial](#tutorial)
-4. [Overview](#overview)
-5. [Annotation syntax](#annotation-syntax)
-6. [Capturing](#capturing)
-7. [Streaming](#streaming)
-8. [Lexing](#lexing)
-9. [Options](#options)
-10. [Examples](#examples)
-11. [Performance](#performance)
-12. [Concurrency](#concurrency)
-13. [Error reporting](#error-reporting)
+- [Introduction](#introduction)
+- [Limitations](#limitations)
+- [Tutorial](#tutorial)
+- [Overview](#overview)
+- [Annotation syntax](#annotation-syntax)
+- [Capturing](#capturing)
+- [Streaming](#streaming)
+- [Lexing](#lexing)
+- [Options](#options)
+- [Examples](#examples)
+- [Performance](#performance)
+- [Concurrency](#concurrency)
+- [Error reporting](#error-reporting)
+- [EBNF](#ebnf)
 
 <!-- /TOC -->
 
@@ -35,7 +36,7 @@ encoders, but is unusual for a parser.
 <a id="markdown-limitations" name="limitations"></a>
 ## Limitations
 
-Participle parsers are LL(k). Among other things, this means that they do not support left recursion.
+Participle grammars are LL(k). Among other things, this means that they do not support left recursion.
 
 The default value of K is 1 but this can be controlled with `participle.UseLookahead(k)`.
 
@@ -377,3 +378,24 @@ There are a few areas where Participle can provide useful feedback to users of y
    automatically populated with the token at the end of the node.
 
 These related pieces of information can be combined to provide fairly comprehensive error reporting.
+
+<a id="markdown-ebnf" name="ebnf"></a>
+## EBNF
+
+Participle supports outputting an EBNF grammar from a Participle parser. Once
+the parser is constructed simply call `String()`.
+
+eg. The [GraphQL example](https://github.com/alecthomas/participle/blob/cbe0cc62a3ad95955311002abd642f11543cb8ed/_examples/graphql/main.go#L14-L61)
+gives in the following EBNF:
+
+```ebnf
+File = Entry* .
+Entry = Type | Schema | Enum | "scalar" ident .
+Type = "type" ident ("implements" ident)? "{" Field* "}" .
+Field = ident ("(" (Argument ("," Argument)*)? ")")? ":" TypeRef ("@" ident)? .
+Argument = ident ":" TypeRef ("=" Value)? .
+TypeRef = "[" TypeRef "]" | ident "!"? .
+Value = ident .
+Schema = "schema" "{" Field* "}" .
+Enum = "enum" ident "{" ident* "}" .
+```

@@ -21,5 +21,5 @@ Group = "(" Expression ")" .
 EBNFOption = "[" Expression "]" .
 Repetition = "{" Expression "}" .
 `
-	require.Equal(t, strings.TrimSpace(expected), parser.EBNF())
+	require.Equal(t, strings.TrimSpace(expected), parser.String())
 }
