@@ -383,3 +383,44 @@ func BenchmarkStatefulBackrefs(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkStatefulBasic(b *testing.B) {
+	source := strings.Repeat(`
+ 5  REM inputting the argument
+10  PRINT "Factorial of:"
+20  INPUT A
+30  LET B = 1
+35  REM beginning of the loop
+40  IF A <= 1 THEN 80
+50  LET B = B * A
+60  LET A = A - 1
+70  GOTO 40
+75  REM prints the result
+80  PRINT B
+	`, 100)
+	def, err := NewSimple([]Rule{
+		{"String", `"(\\"|[^"])*"`, nil},
+		{"Number", `[-+]?(\d*\.)?\d+`, nil},
+		{"Ident", `[a-zA-Z_]\w*`, nil},
+		{"Punct", `[!-/:-@[-` + "`" + `{-~]+`, nil},
+		{"EOL", `\n`, nil},
+		{"comment", `(?i)rem[^\n]*\n`, nil},
+		{"whitespace", `[ \t]+`, nil},
+	})
+	require.NoError(b, err)
+	b.ReportMetric(float64(len(source)), "B")
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		lex, err := def.Lex(strings.NewReader(source))
+		if err != nil {
+			b.Fatal(err)
+		}
+		tokens, err := lexer.ConsumeAll(lex)
+		if err != nil {
+			b.Fatal(err)
+		}
+		if len(tokens) != 6601 {
+			b.Fatalf("%d != 401", len(tokens))
+		}
+	}
+}

@@ -315,6 +315,7 @@ next:
 			rules = l.def.rules[parent.name]
 			continue
 		}
+
 		return lexer.Token{
 			Type:  l.def.symbols[rule.Name],
 			Value: string(span),
