@@ -411,7 +411,7 @@ func BenchmarkStatefulBasic(b *testing.B) {
 	b.ReportMetric(float64(len(source)), "B")
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		lex, err := def.Lex(strings.NewReader(source))
+		lex, err := def.LexReader("", strings.NewReader(source))
 		if err != nil {
 			b.Fatal(err)
 		}
