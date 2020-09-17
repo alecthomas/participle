@@ -145,9 +145,28 @@ type Definition struct {
 	backrefCache sync.Map
 }
 
+// MustSimple creates a new lexer definition based on a single state described by `rules`.
+// panics if the rules trigger an error
+func MustSimple(rules []Rule) *Definition {
+	def, err := NewSimple(rules)
+	if err != nil {
+		panic(err)
+	}
+	return def
+}
+
 // NewSimple creates a new stateful lexer with a single "Root" state.
 func NewSimple(rules []Rule) (lexer.Definition, error) {
 	return New(Rules{"Root": rules})
+}
+
+// Must creates a new stateful lexer and panics if it is incorrect.
+func Must(rules Rules) *Definition {
+	def, err := New(rules)
+	if err != nil {
+		panic(err)
+	}
+	return def
 }
 
 // New constructs a new stateful lexer from rules.

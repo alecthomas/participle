@@ -8,7 +8,10 @@ import (
 	"github.com/alecthomas/repr"
 
 	"github.com/alecthomas/participle"
+<<<<<<< HEAD
 	"github.com/alecthomas/participle/lexer"
+=======
+>>>>>>> changed graphql to use stateful lexer, added Must and MustSimple
 	"github.com/alecthomas/participle/lexer/stateful"
 )
 
