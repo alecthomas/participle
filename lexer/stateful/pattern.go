@@ -110,22 +110,6 @@ func getPotentialStarts(r *syntax.Regexp) ([]*syntax.Regexp, int) {
 	panic("should not get here")
 }
 
-func getPotentialStartsPattern(pattern string) ([]*syntax.Regexp, int, error) {
-	var (
-		syn     *syntax.Regexp
-		res     []*syntax.Regexp
-		err     error
-		howMany int
-	)
-
-	if syn, err = syntax.Parse(pattern, syntax.Perl); err != nil {
-		return nil, -1, fmt.Errorf("could not compute starts for pattern /%s/: %w", pattern, err)
-	}
-
-	res, howMany = getPotentialStarts(syn)
-	return res, howMany, nil
-}
-
 // appendRange returns the result of appending the range lo-hi to the class r.
 // function stolen from syntax/parse.go
 func appendRange(r []int, lo, hi int) []int {
@@ -155,7 +139,7 @@ func appendRange(r []int, lo, hi int) []int {
 func computeNumberOfRunes(arg []int) int {
 	var acc = 0
 	for i, l := 0, len(arg); i < l; i += 2 {
-		acc += int(arg[i+1] - arg[i])
+		acc += arg[i+1] - arg[i]
 	}
 	return acc
 }
@@ -206,7 +190,7 @@ func computeRuneRanges(pattern string) (*computedRuneRange, error) {
 
 		case syntax.OpLiteral:
 			var val = int(start.Rune[0])
-			res = appendRange(res, int(val), int(val))
+			res = appendRange(res, val, val)
 			count++
 		case syntax.OpAnyChar:
 			return &computedRuneRange{pattern, []int{0, 1114111}, 1114111, nbmatch}, nil
@@ -215,7 +199,7 @@ func computeRuneRanges(pattern string) (*computedRuneRange, error) {
 			res = appendRange(res, 11, 1114111)
 		default:
 			// This should not happen, the 0 cases should be handled
-			return nil, fmt.Errorf("an unknown error while looking for pattern starts has occured")
+			return nil, fmt.Errorf("an unknown error while looking for pattern starts has occurred")
 		}
 	}
 

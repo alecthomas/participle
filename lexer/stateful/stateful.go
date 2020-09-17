@@ -62,9 +62,8 @@ type Rules map[string][]Rule
 // compiledRule is a Rule with its pattern compiled.
 type compiledRule struct {
 	Rule
-	ignore            bool
-	RE                *regexp.Regexp
-	isSingleCharMatch bool
+	ignore bool
+	RE     *regexp.Regexp
 }
 
 // compiledRuleGroup is a series of rules who have been grouped together to form a lexer state.
@@ -130,8 +129,8 @@ func (group *compiledRuleGroup) process() error {
 					bools = make([]bool, nbrules)
 					runemap[r] = bools
 					// when creating a new bucket, add all the fallback rules onto it if they could potentially
-					for j, is_fallback := range fallback {
-						if is_fallback {
+					for j, isFallback := range fallback {
+						if isFallback {
 							var comp = computed[j]
 							// add all the fallback rules that are either not yet defined (or "")
 							// or those that we know will never match this rune.
