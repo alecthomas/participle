@@ -47,7 +47,7 @@ func (g *generatorContext) parseType(t reflect.Type) (_ node, returnedError erro
 		if err != nil {
 			return nil, err
 		}
-		out := &strct{typ: t}
+		out := newStrct(t)
 		g.typeNodes[t] = out // Ensure we avoid infinite recursion.
 		if slexer.NumField() == 0 {
 			return nil, fmt.Errorf("can not parse into empty struct %s", t)
