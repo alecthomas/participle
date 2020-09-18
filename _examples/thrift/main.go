@@ -13,9 +13,10 @@ import (
 
 	"gopkg.in/alecthomas/kingpin.v2"
 
+	"github.com/alecthomas/repr"
+
 	"github.com/alecthomas/participle"
 	"github.com/alecthomas/participle/lexer"
-	"github.com/alecthomas/repr"
 )
 
 var (
@@ -207,7 +208,7 @@ func main() {
 		thrift := &Thrift{}
 		r, err := os.Open(file)
 		kingpin.FatalIfError(err, "")
-		err = parser.Parse(r, thrift)
+		err = parser.ParseReader("", r, thrift)
 		kingpin.FatalIfError(err, "")
 		repr.Println(thrift)
 	}

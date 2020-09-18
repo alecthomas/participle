@@ -154,7 +154,7 @@ func TestStatefulLexer(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			def, err := New(test.rules)
 			require.NoError(t, err)
-			lex, err := def.LexReader(strings.NewReader(test.input))
+			lex, err := def.LexReader("", strings.NewReader(test.input))
 			require.NoError(t, err)
 			tokens, err := lexer.ConsumeAll(lex)
 			if test.err != "" {
@@ -207,7 +207,7 @@ func ExampleNew() {
 	}
 
 	actual := &String{}
-	err = parser.ParseString(`"hello ${user + "??"}"`, actual)
+	err = parser.ParseString("", `"hello ${user + "??"}"`, actual)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -259,7 +259,7 @@ func TestStateful(t *testing.T) {
 	require.NoError(t, err)
 
 	actual := &String{}
-	err = parser.ParseString(`"hello ${user + "${last}"}"`, actual)
+	err = parser.ParseString("", `"hello ${user + "${last}"}"`, actual)
 	require.NoError(t, err)
 	expected := &String{
 		Fragments: []*Fragment{
@@ -317,7 +317,7 @@ func TestHereDoc(t *testing.T) {
 		},
 	}
 	actual := &AST{}
-	err = parser.ParseString(`
+	err = parser.ParseString("", `
 		<<END
 		hello world
 		END
@@ -332,7 +332,7 @@ func BenchmarkStateful(b *testing.B) {
 	b.ReportMetric(float64(len(source)), "B")
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		lex, err := def.LexReader(strings.NewReader(source))
+		lex, err := def.LexReader("", strings.NewReader(source))
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -370,7 +370,7 @@ func BenchmarkStatefulBackrefs(b *testing.B) {
 	b.ReportMetric(float64(len(source)), "B")
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		lex, err := def.LexReader(strings.NewReader(source))
+		lex, err := def.LexReader("", strings.NewReader(source))
 		if err != nil {
 			b.Fatal(err)
 		}

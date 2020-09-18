@@ -286,7 +286,7 @@ func main() {
 	defer func() {
 		repr.Println(ast)
 	}()
-	err := parser.ParseString(sample, ast)
+	err := parser.ParseString("", sample, ast)
 	if err != nil {
 		panic(err)
 	}

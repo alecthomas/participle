@@ -7,6 +7,7 @@ import (
   "github.com/stretchr/testify/require"
 
   "github.com/alecthomas/go-thrift/parser"
+
   "github.com/alecthomas/participle"
 )
 
@@ -63,14 +64,14 @@ func BenchmarkParticipleThrift(b *testing.B) {
   require.NoError(b, err)
 
   thrift := &Thrift{}
-  err = parser.ParseString(source, thrift)
+  err = parser.ParseString("", source, thrift)
   require.NoError(b, err)
 
   b.ResetTimer()
 
   for i := 0; i < b.N; i++ {
     thrift := &Thrift{}
-    _ = parser.ParseString(source, thrift)
+    _ = parser.ParseString("", source, thrift)
   }
 }
 

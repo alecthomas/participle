@@ -8,8 +8,9 @@ import (
 
 	"gopkg.in/alecthomas/kingpin.v2"
 
-	"github.com/alecthomas/participle"
 	"github.com/alecthomas/repr"
+
+	"github.com/alecthomas/participle"
 )
 
 type Bool bool
@@ -66,7 +67,7 @@ func main() {
 	kingpin.FatalIfError(err, "")
 
 	expr := &Config{}
-	err = parser.Parse(os.Stdin, expr)
+	err = parser.ParseReader("", os.Stdin, expr)
 	kingpin.FatalIfError(err, "")
 
 	repr.Println(expr)

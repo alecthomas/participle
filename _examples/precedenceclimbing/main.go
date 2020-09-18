@@ -122,7 +122,7 @@ var parser = participle.MustBuild(&Expr{})
 
 func main() {
 	e := &Expr{}
-	err := parser.ParseString(`(1 + 3) * 2 ^ 2 + 1`, e)
+	err := parser.ParseString("", `(1 + 3) * 2 ^ 2 + 1`, e)
 	if err != nil {
 		panic(err)
 	}

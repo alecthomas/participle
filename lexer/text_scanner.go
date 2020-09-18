@@ -20,8 +20,8 @@ var (
 
 type defaultDefinition struct{}
 
-func (d *defaultDefinition) LexReader(r io.Reader) (Lexer, error) {
-	return Lex(r), nil
+func (d *defaultDefinition) LexReader(filename string, r io.Reader) (Lexer, error) {
+	return Lex(filename, r), nil
 }
 
 func (d *defaultDefinition) Symbols() map[string]rune {
@@ -49,10 +49,10 @@ type textScannerLexer struct {
 // This provides very fast lexing of source code compatible with Go tokens.
 //
 // Note that this differs from text/scanner.Scanner in that string tokens will be unquoted.
-func Lex(r io.Reader) Lexer {
+func Lex(filename string, r io.Reader) Lexer {
 	s := &scanner.Scanner{}
 	s.Init(r)
-	lexer := lexWithScanner(r, s)
+	lexer := lexWithScanner(filename, s)
 	lexer.scanner.Error = func(s *scanner.Scanner, msg string) {
 		// This is to support single quoted strings. Hacky.
 		if !strings.HasSuffix(msg, "char literal") {
@@ -65,26 +65,26 @@ func Lex(r io.Reader) Lexer {
 // LexWithScanner creates a Lexer from a user-provided scanner.Scanner.
 //
 // Useful if you need to customise the Scanner.
-func LexWithScanner(r io.Reader, scan *scanner.Scanner) Lexer {
-	return lexWithScanner(r, scan)
+func LexWithScanner(filename string, scan *scanner.Scanner) Lexer {
+	return lexWithScanner(filename, scan)
 }
 
-func lexWithScanner(r io.Reader, scan *scanner.Scanner) *textScannerLexer {
+func lexWithScanner(filename string, scan *scanner.Scanner) *textScannerLexer {
 	lexer := &textScannerLexer{
-		filename: NameOfReader(r),
+		filename: filename,
 		scanner:  scan,
 	}
 	return lexer
 }
 
 // LexBytes returns a new default lexer over bytes.
-func LexBytes(b []byte) Lexer {
-	return Lex(bytes.NewReader(b))
+func LexBytes(filename string, b []byte) Lexer {
+	return Lex(filename, bytes.NewReader(b))
 }
 
 // LexString returns a new default lexer over a string.
-func LexString(s string) Lexer {
-	return Lex(strings.NewReader(s))
+func LexString(filename, s string) Lexer {
+	return Lex(filename, strings.NewReader(s))
 }
 
 func (t *textScannerLexer) Next() (Token, error) {

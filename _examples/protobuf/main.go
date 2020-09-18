@@ -275,7 +275,7 @@ func main() {
 		proto := &Proto{}
 		r, err := os.Open(file)
 		ctx.FatalIfErrorf(err, "")
-		err = parser.Parse(r, proto)
+		err = parser.ParseReader("", r, proto)
 		ctx.FatalIfErrorf(err, "")
 		repr.Println(proto, repr.Hide(&lexer.Position{}))
 	}

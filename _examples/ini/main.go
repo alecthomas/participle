@@ -50,7 +50,7 @@ func main() {
 		panic(err)
 	}
 	ini := &INI{}
-	err = parser.Parse(os.Stdin, ini)
+	err = parser.ParseReader("", os.Stdin, ini)
 	if err != nil {
 		panic(err)
 	}

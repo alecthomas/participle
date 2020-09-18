@@ -21,7 +21,7 @@ func TestIssue3Example1(t *testing.T) {
 
 	g := &LAT1Module{}
 	p := mustTestParser(t, g, participle.UseLookahead(5))
-	err := p.ParseString(`
+	err := p.ParseString("", `
 		source_filename = "foo.c"
 		target datalayout = "bar"
 		target triple = "baz"
@@ -60,7 +60,7 @@ type LAT2Group struct {
 func TestIssue3Example2(t *testing.T) {
 	g := &LAT2Config{}
 	p := mustTestParser(t, g, participle.UseLookahead(2))
-	err := p.ParseString(`
+	err := p.ParseString("", `
 		key = "value"
 		block {
 			inner_key = "inner_value"
@@ -102,7 +102,7 @@ type LAT3Value struct {
 func TestIssue11(t *testing.T) {
 	g := &LAT3Grammar{}
 	p := mustTestParser(t, g, participle.UseLookahead(5))
-	err := p.ParseString(`
+	err := p.ParseString("", `
 		A paid $30.80 for snacks.
 		B paid $70 for housecleaning.
 		C paid $63.50 for utilities.
@@ -127,10 +127,10 @@ func TestLookaheadOptional(t *testing.T) {
 	}
 	p := mustTestParser(t, &grammar{}, participle.UseLookahead(5))
 	actual := &grammar{}
-	err := p.ParseString(`value`, actual)
+	err := p.ParseString("", `value`, actual)
 	require.NoError(t, err)
 	require.Equal(t, &grammar{Value: "value"}, actual)
-	err = p.ParseString(`key = value`, actual)
+	err = p.ParseString("", `key = value`, actual)
 	require.NoError(t, err)
 	require.Equal(t, &grammar{Key: "key", Value: "value"}, actual)
 }
@@ -142,7 +142,7 @@ func TestLookaheadOptionalNoTail(t *testing.T) {
 	}
 	p := mustTestParser(t, &grammar{}, participle.UseLookahead(5))
 	actual := &grammar{}
-	err := p.ParseString(`key`, actual)
+	err := p.ParseString("", `key`, actual)
 	require.NoError(t, err)
 }
 
@@ -155,11 +155,11 @@ func TestLookaheadDisjunction(t *testing.T) {
 	p := mustTestParser(t, &grammar{}, participle.UseLookahead(5))
 
 	g := &grammar{}
-	err := p.ParseString(`hello moo`, g)
+	err := p.ParseString("", `hello moo`, g)
 	require.NoError(t, err)
 	require.Equal(t, &grammar{A: "moo"}, g)
 
-	err = p.ParseString(`hello moo world`, g)
+	err = p.ParseString("", `hello moo world`, g)
 	require.NoError(t, err)
 	require.Equal(t, &grammar{B: "moo"}, g)
 }
@@ -171,11 +171,11 @@ func TestLookaheadNestedDisjunctions(t *testing.T) {
 	}{}
 	p := mustTestParser(t, g, participle.UseLookahead(5))
 
-	err := p.ParseString(`hello foo FOO`, g)
+	err := p.ParseString("", `hello foo FOO`, g)
 	require.NoError(t, err)
 	require.Equal(t, g.A, "FOO")
 
-	err = p.ParseString(`hello world`, g)
+	err = p.ParseString("", `hello world`, g)
 	require.NoError(t, err)
 	require.Equal(t, g.B, "world")
 }
@@ -231,7 +231,7 @@ func TestIssue28(t *testing.T) {
 	p := mustTestParser(t, &issue28Term{}, participle.UseLookahead(5))
 
 	actual := &issue28Term{}
-	err := p.ParseString(`"key": "value"`, actual)
+	err := p.ParseString("", `"key": "value"`, actual)
 	require.NoError(t, err)
 	key := "key"
 	value := "value"
@@ -247,7 +247,7 @@ func TestIssue28(t *testing.T) {
 	}
 	require.Equal(t, expected, actual)
 
-	err = p.ParseString(`"some text string"`, actual)
+	err = p.ParseString("", `"some text string"`, actual)
 	require.NoError(t, err)
 	text := "some text string"
 	expected = &issue28Term{
@@ -282,7 +282,7 @@ func TestLookaheadWithConvergingTokens(t *testing.T) {
 	}
 	p := mustTestParser(t, &grammar{}, participle.UseLookahead(5))
 	actual := &grammar{}
-	err := p.ParseString("a >= b", actual)
+	err := p.ParseString("", "a >= b", actual)
 	require.NoError(t, err)
 }
 
@@ -318,11 +318,11 @@ func TestIssue27(t *testing.T) {
 	p := mustTestParser(t, &grammar{})
 	actual := &grammar{}
 
-	err := p.ParseString(`- 100`, actual)
+	err := p.ParseString("", `- 100`, actual)
 	require.NoError(t, err)
 	require.Equal(t, &grammar{Number: -100}, actual)
 
-	err = p.ParseString(`100`, actual)
+	err = p.ParseString("", `100`, actual)
 	require.NoError(t, err)
 	require.Equal(t, &grammar{Number: 100}, actual)
 }
@@ -336,11 +336,11 @@ func TestLookaheadDisambiguateByType(t *testing.T) {
 	p := mustTestParser(t, &grammar{}, participle.UseLookahead(5))
 	actual := &grammar{}
 
-	err := p.ParseString(`- 100`, actual)
+	err := p.ParseString("", `- 100`, actual)
 	require.NoError(t, err)
 	require.Equal(t, &grammar{Int: -100}, actual)
 
-	err = p.ParseString(`- 100.5`, actual)
+	err = p.ParseString("", `- 100.5`, actual)
 	require.NoError(t, err)
 	require.Equal(t, &grammar{Float: -100.5}, actual)
 }
@@ -352,7 +352,7 @@ func TestShowNearestError(t *testing.T) {
 	}
 	p := mustTestParser(t, &grammar{}, participle.UseLookahead(10))
 	actual := &grammar{}
-	err := p.ParseString(`a b d`, actual)
+	err := p.ParseString("", `a b d`, actual)
 	require.EqualError(t, err, `1:5: unexpected token "d" (expected "c")`)
 }
 
@@ -363,7 +363,7 @@ func TestRewindDisjunction(t *testing.T) {
 	}
 	p := mustTestParser(t, &grammar{}, participle.UseLookahead(2))
 	ast := &grammar{}
-	err := p.ParseString(`name`, ast)
+	err := p.ParseString("", `name`, ast)
 	require.NoError(t, err)
 	require.Equal(t, &grammar{Ident: "name"}, ast)
 }
@@ -375,11 +375,11 @@ func TestRewindOptional(t *testing.T) {
 	p := mustTestParser(t, &grammar{}, participle.UseLookahead(3))
 	ast := &grammar{}
 
-	err := p.ParseString(`one`, ast)
+	err := p.ParseString("", `one`, ast)
 	require.NoError(t, err)
 	require.Equal(t, &grammar{Var: "one"}, ast)
 
-	err = p.ParseString(`int int one`, ast)
+	err = p.ParseString("", `int int one`, ast)
 	require.NoError(t, err)
 	require.Equal(t, &grammar{Var: "one"}, ast)
 }
@@ -392,11 +392,11 @@ func TestRewindRepetition(t *testing.T) {
 	p := mustTestParser(t, &grammar{}, participle.UseLookahead(3))
 	ast := &grammar{}
 
-	err := p.ParseString(`int int one`, ast)
+	err := p.ParseString("", `int int one`, ast)
 	require.NoError(t, err)
 	require.Equal(t, &grammar{Ints: []string{"int", "int"}, Ident: "one"}, ast)
 
-	err = p.ParseString(`int int one`, ast)
+	err = p.ParseString("", `int int one`, ast)
 	require.NoError(t, err)
 	require.Equal(t, &grammar{Ints: []string{"int", "int"}, Ident: "one"}, ast)
 }

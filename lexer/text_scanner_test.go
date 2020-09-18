@@ -9,7 +9,7 @@ import (
 )
 
 func TestLexer(t *testing.T) {
-	lexer, err := Upgrade(LexString("hello world"))
+	lexer, err := Upgrade(LexString("", "hello world"))
 	require.NoError(t, err)
 	helloPos := Position{Offset: 0, Line: 1, Column: 1}
 	worldPos := Position{Offset: 6, Line: 1, Column: 7}
@@ -24,18 +24,18 @@ func TestLexer(t *testing.T) {
 }
 
 func TestLexString(t *testing.T) {
-	lexer := LexString(`"hello\nworld"`)
+	lexer := LexString("", `"hello\nworld"`)
 	token, err := lexer.Next()
 	require.NoError(t, err)
 	require.Equal(t, Token{Type: scanner.String, Value: "hello\nworld", Pos: Position{Line: 1, Column: 1}}, token)
 }
 
 func TestLexSingleString(t *testing.T) {
-	lexer := LexString(`'hello\nworld'`)
+	lexer := LexString("", `'hello\nworld'`)
 	token, err := lexer.Next()
 	require.NoError(t, err)
 	require.Equal(t, Token{Type: scanner.String, Value: "hello\nworld", Pos: Position{Line: 1, Column: 1}}, token)
-	lexer = LexString(`'\U00008a9e'`)
+	lexer = LexString("", `'\U00008a9e'`)
 	token, err = lexer.Next()
 	require.NoError(t, err)
 	require.Equal(t, Token{Type: scanner.Char, Value: "\U00008a9e", Pos: Position{Line: 1, Column: 1}}, token)
@@ -47,7 +47,7 @@ func BenchmarkTextScannerLexer(b *testing.B) {
 	b.ReportMetric(float64(len(input)), "B")
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		lex, _ := TextScannerLexer.LexReader(r)
+		lex, _ := TextScannerLexer.LexReader("", r)
 		for {
 			token, _ := lex.Next()
 			if token.Type == EOF {

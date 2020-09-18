@@ -11,6 +11,6 @@ func BenchmarkParser(b *testing.B) {
 	b.ReportMetric(float64(len(src)*b.N), "B/s")
 	for i := 0; i < b.N; i++ {
 		program := &Program{}
-		_ = parser.ParseString(src, program)
+		_ = parser.ParseString("", src, program)
 	}
 }
