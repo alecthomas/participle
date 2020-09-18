@@ -41,10 +41,6 @@ func Build(grammar interface{}, options ...Option) (parser *Parser, err error) {
 		useLookahead:    1,
 	}
 	for _, option := range options {
-		if option == nil {
-			return nil, fmt.Errorf("nil Option passed, signature has changed; " +
-				"if you intended to provide a custom Lexer, try participle.Build(grammar, participle.Lexer(lexer))")
-		}
 		if err = option(p); err != nil {
 			return nil, err
 		}

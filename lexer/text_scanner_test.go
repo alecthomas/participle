@@ -24,21 +24,21 @@ func TestLexer(t *testing.T) {
 }
 
 func TestLexString(t *testing.T) {
-	lexer := LexString("", `"hello\nworld"`)
+	lexer := LexString("", "\"hello world\"")
 	token, err := lexer.Next()
 	require.NoError(t, err)
-	require.Equal(t, Token{Type: scanner.String, Value: "hello\nworld", Pos: Position{Line: 1, Column: 1}}, token)
+	require.Equal(t, token, Token{Type: scanner.String, Value: "\"hello world\"", Pos: Position{Line: 1, Column: 1}})
 }
 
 func TestLexSingleString(t *testing.T) {
-	lexer := LexString("", `'hello\nworld'`)
+	lexer := LexString("", "`hello world`")
 	token, err := lexer.Next()
 	require.NoError(t, err)
-	require.Equal(t, Token{Type: scanner.String, Value: "hello\nworld", Pos: Position{Line: 1, Column: 1}}, token)
+	require.Equal(t, Token{Type: scanner.RawString, Value: "`hello world`", Pos: Position{Line: 1, Column: 1}}, token)
 	lexer = LexString("", `'\U00008a9e'`)
 	token, err = lexer.Next()
 	require.NoError(t, err)
-	require.Equal(t, Token{Type: scanner.Char, Value: "\U00008a9e", Pos: Position{Line: 1, Column: 1}}, token)
+	require.Equal(t, Token{Type: scanner.Char, Value: `'\U00008a9e'`, Pos: Position{Line: 1, Column: 1}}, token)
 }
 
 func BenchmarkTextScannerLexer(b *testing.B) {
