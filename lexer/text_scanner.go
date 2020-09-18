@@ -2,12 +2,9 @@ package lexer
 
 import (
 	"bytes"
-	"fmt"
 	"io"
-	"strconv"
 	"strings"
 	"text/scanner"
-	"unicode/utf8"
 )
 
 // TextScannerLexer is a lexer that uses the text/scanner module.
@@ -95,32 +92,9 @@ func (t *textScannerLexer) Next() (Token, error) {
 	if t.err != nil {
 		return Token{}, t.err
 	}
-	return textScannerTransform(Token{
+	return Token{
 		Type:  typ,
 		Value: text,
 		Pos:   pos,
-	})
-}
-
-func textScannerTransform(token Token) (Token, error) {
-	// Unquote strings.
-	switch token.Type {
-	case scanner.Char:
-		// FIXME(alec): This is pretty hacky...we convert a single quoted char into a double
-		// quoted string in order to support single quoted strings.
-		token.Value = fmt.Sprintf("\"%s\"", token.Value[1:len(token.Value)-1])
-		fallthrough
-	case scanner.String:
-		s, err := strconv.Unquote(token.Value)
-		if err != nil {
-			return Token{}, Errorf(token.Pos, "%s: %q", err.Error(), token.Value)
-		}
-		token.Value = s
-		if token.Type == scanner.Char && utf8.RuneCountInString(s) > 1 {
-			token.Type = scanner.String
-		}
-	case scanner.RawString:
-		token.Value = token.Value[1 : len(token.Value)-1]
-	}
-	return token, nil
+	}, nil
 }

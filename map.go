@@ -86,16 +86,36 @@ func Elide(types ...string) Option {
 
 // Apply a Mapping to all tokens coming out of a Lexer.
 type mappingLexerDef struct {
-	lexer.Definition
+	l      lexer.Definition
 	mapper Mapper
 }
 
-func (m *mappingLexerDef) LexReader(filename string, r io.Reader) (lexer.Lexer, error) {
-	lexer, err := m.Definition.LexReader("", r)
+var _ lexer.Definition = &mappingLexerDef{}
+
+func (m *mappingLexerDef) Symbols() map[string]rune { return m.l.Symbols() }
+
+func (m *mappingLexerDef) LexString(filename string, s string) (lexer.Lexer, error) {
+	l, err := m.l.LexString(filename, s)
 	if err != nil {
 		return nil, err
 	}
-	return &mappingLexer{lexer, m.mapper}, nil
+	return &mappingLexer{l, m.mapper}, nil
+}
+
+func (m *mappingLexerDef) LexBytes(filename string, b []byte) (lexer.Lexer, error) {
+	l, err := m.l.LexBytes(filename, b)
+	if err != nil {
+		return nil, err
+	}
+	return &mappingLexer{l, m.mapper}, nil
+}
+
+func (m *mappingLexerDef) LexReader(filename string, r io.Reader) (lexer.Lexer, error) {
+	l, err := m.l.LexReader(filename, r)
+	if err != nil {
+		return nil, err
+	}
+	return &mappingLexer{l, m.mapper}, nil
 }
 
 type mappingLexer struct {

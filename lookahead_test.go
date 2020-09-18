@@ -20,7 +20,7 @@ func TestIssue3Example1(t *testing.T) {
 	}
 
 	g := &LAT1Module{}
-	p := mustTestParser(t, g, participle.UseLookahead(5))
+	p := mustTestParser(t, g, participle.UseLookahead(5), participle.Unquote())
 	err := p.ParseString("", `
 		source_filename = "foo.c"
 		target datalayout = "bar"
@@ -28,14 +28,13 @@ func TestIssue3Example1(t *testing.T) {
 	`, g)
 	require.NoError(t, err)
 	require.Equal(t,
-		g,
 		&LAT1Module{
 			Decls: []*LAT1Decl{
 				{SourceFilename: "foo.c"},
 				{DataLayout: "bar"},
 				{TargetTriple: "baz"},
 			},
-		})
+		}, g)
 }
 
 type LAT2Config struct {
@@ -59,7 +58,7 @@ type LAT2Group struct {
 
 func TestIssue3Example2(t *testing.T) {
 	g := &LAT2Config{}
-	p := mustTestParser(t, g, participle.UseLookahead(2))
+	p := mustTestParser(t, g, participle.UseLookahead(2), participle.Unquote())
 	err := p.ParseString("", `
 		key = "value"
 		block {
@@ -68,7 +67,6 @@ func TestIssue3Example2(t *testing.T) {
 	`, g)
 	require.NoError(t, err)
 	require.Equal(t,
-		g,
 		&LAT2Config{
 			Entries: []*LAT2Entry{
 				{Attribute: &LAT2Attribute{Key: "key", Value: "value"}},
@@ -82,6 +80,7 @@ func TestIssue3Example2(t *testing.T) {
 				},
 			},
 		},
+		g,
 	)
 }
 
@@ -228,7 +227,7 @@ type issue28Value struct {
 }
 
 func TestIssue28(t *testing.T) {
-	p := mustTestParser(t, &issue28Term{}, participle.UseLookahead(5))
+	p := mustTestParser(t, &issue28Term{}, participle.UseLookahead(5), participle.Unquote())
 
 	actual := &issue28Term{}
 	err := p.ParseString("", `"key": "value"`, actual)

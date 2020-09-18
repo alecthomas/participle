@@ -277,7 +277,7 @@ type EBNF struct {
 }
 
 func TestEBNFParser(t *testing.T) {
-	parser := mustTestParser(t, &EBNF{})
+	parser := mustTestParser(t, &EBNF{}, participle.Unquote())
 
 	expected := &EBNF{
 		Productions: []*Production{
@@ -508,9 +508,9 @@ func TestHello(t *testing.T) {
 		To    string `@String`
 	}
 
-	parser := mustTestParser(t, &testHello{})
+	parser := mustTestParser(t, &testHello{}, participle.Unquote())
 
-	expected := &testHello{"hello", "Bobby Brown"}
+	expected := &testHello{"hello", `Bobby Brown`}
 	actual := &testHello{}
 	err := parser.ParseString("", `hello "Bobby Brown"`, actual)
 	require.NoError(t, err)
@@ -655,7 +655,7 @@ func TestLiteralTypeConstraint(t *testing.T) {
 		Literal string `@"123456":String`
 	}
 
-	parser := mustTestParser(t, &grammar{})
+	parser := mustTestParser(t, &grammar{}, participle.Unquote())
 
 	actual := &grammar{}
 	expected := &grammar{Literal: "123456"}
@@ -681,7 +681,7 @@ func TestStructCaptureInterface(t *testing.T) {
 		Capture *nestedCapture `@String`
 	}
 
-	parser, err := participle.Build(&grammar{})
+	parser, err := participle.Build(&grammar{}, participle.Unquote())
 	require.NoError(t, err)
 
 	actual := &grammar{}
@@ -711,7 +711,7 @@ func TestParseable(t *testing.T) {
 		Inner *parseableStruct `@@`
 	}
 
-	parser, err := participle.Build(&grammar{})
+	parser, err := participle.Build(&grammar{}, participle.Unquote())
 	require.NoError(t, err)
 
 	actual := &grammar{}
@@ -1239,16 +1239,16 @@ func TestNegationWithPattern(t *testing.T) {
 		EverythingMoreComplex *[]string `@!(';' String)* @';' @String`
 	}
 
-	p := mustTestParser(t, &grammar{})
+	p := mustTestParser(t, &grammar{}, participle.Unquote())
 	// j, err := json.MarshalIndent(p.root, "", "  ")
 	// log.Print(j)
 	// log.Print(stringer(p.root))
 	ast := &grammar{}
-	err := p.ParseString("", `hello world ; 'some-str'`, ast)
+	err := p.ParseString("", `hello world ; "some-str"`, ast)
 	require.NoError(t, err)
 	require.Equal(t, &[]string{"hello", "world", ";", `some-str`}, ast.EverythingMoreComplex)
 
-	err = p.ParseString("", `hello ; world ; 'hey'`, ast)
+	err = p.ParseString("", `hello ; world ; "hey"`, ast)
 	require.NoError(t, err)
 	require.Equal(t, &[]string{"hello", ";", "world", ";", `hey`}, ast.EverythingMoreComplex)
 
