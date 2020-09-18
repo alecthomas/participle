@@ -90,8 +90,8 @@ type mappingLexerDef struct {
 	mapper Mapper
 }
 
-func (m *mappingLexerDef) LexReader(r io.Reader) (lexer.Lexer, error) {
-	lexer, err := m.Definition.LexReader(r)
+func (m *mappingLexerDef) LexReader(filename string, r io.Reader) (lexer.Lexer, error) {
+	lexer, err := m.Definition.LexReader("", r)
 	if err != nil {
 		return nil, err
 	}

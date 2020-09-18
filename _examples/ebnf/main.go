@@ -154,7 +154,7 @@ in the form:
 	kingpin.FatalIfError(err, "")
 
 	ebnf := &EBNF{}
-	err = parser.Parse(os.Stdin, ebnf)
+	err = parser.ParseReader("", os.Stdin, ebnf)
 	kingpin.FatalIfError(err, "")
 
 	if *jsonFlag {

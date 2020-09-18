@@ -56,7 +56,7 @@ var (
 
 func main() {
 	actual := &String{}
-	err := parser.ParseString(`"hello ${first + "${last}"}"`, actual)
+	err := parser.ParseString("", `"hello ${first + "${last}"}"`, actual)
 	if err != nil {
 		log.Fatal(err)
 	}

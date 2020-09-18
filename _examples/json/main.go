@@ -34,7 +34,7 @@ func main() {
 	files := os.Args[2:]
 
 	var expr pathExpr
-	if err := parser.ParseString(q, &expr); err != nil {
+	if err := parser.ParseString("", q, &expr); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

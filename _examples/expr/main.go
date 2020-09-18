@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/alecthomas/kong"
+
 	"github.com/alecthomas/participle"
 )
 
@@ -195,7 +196,7 @@ func main() {
 	ctx.FatalIfErrorf(err)
 
 	expr := &Expression{}
-	err = parser.ParseString(strings.Join(cli.Expression, " "), expr)
+	err = parser.ParseString("", strings.Join(cli.Expression, " "), expr)
 	ctx.FatalIfErrorf(err)
 
 	if cli.AST {

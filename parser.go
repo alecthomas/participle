@@ -1,11 +1,9 @@
 package participle
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"reflect"
-	"strings"
 
 	"github.com/alecthomas/participle/lexer"
 )
@@ -104,7 +102,7 @@ func (p *Parser) Lexer() lexer.Definition {
 
 // Lex uses the parser's lexer to tokenise input.
 func (p *Parser) Lex(r io.Reader) ([]lexer.Token, error) {
-	lex, err := p.lex.LexReader(r)
+	lex, err := p.lex.LexReader("", r)
 	if err != nil {
 		return nil, err
 	}
@@ -155,12 +153,47 @@ func (p *Parser) ParseFromLexer(lex *lexer.PeekingLexer, v interface{}, options 
 	return p.parseOne(ctx, rv)
 }
 
-// Parse from r into grammar v which must be of the same type as the grammar passed to
+// ParseReader from r into grammar v which must be of the same type as the grammar passed to
 // participle.Build().
 //
 // This may return a participle.Error.
-func (p *Parser) Parse(r io.Reader, v interface{}, options ...ParseOption) (err error) {
-	lex, err := p.lex.LexReader(r)
+func (p *Parser) ParseReader(filename string, r io.Reader, v interface{}, options ...ParseOption) (err error) {
+	if filename == "" {
+		filename = lexer.NameOfReader(r)
+	}
+	lex, err := p.lex.LexReader(filename, r)
+	if err != nil {
+		return err
+	}
+	peeker, err := lexer.Upgrade(lex)
+	if err != nil {
+		return err
+	}
+	return p.ParseFromLexer(peeker, v, options...)
+}
+
+// ParseString from s into grammar v which must be of the same type as the grammar passed to
+// participle.Build().
+//
+// This may return a participle.Error.
+func (p *Parser) ParseString(filename string, s string, v interface{}, options ...ParseOption) error {
+	lex, err := p.lex.LexString(filename, s)
+	if err != nil {
+		return err
+	}
+	peeker, err := lexer.Upgrade(lex)
+	if err != nil {
+		return err
+	}
+	return p.ParseFromLexer(peeker, v, options...)
+}
+
+// ParseBytes from b into grammar v which must be of the same type as the grammar passed to
+// participle.Build().
+//
+// This may return a participle.Error.
+func (p *Parser) ParseBytes(filename string, b []byte, v interface{}, options ...ParseOption) error {
+	lex, err := p.lex.LexBytes(filename, b)
 	if err != nil {
 		return err
 	}
@@ -236,18 +269,4 @@ func (p *Parser) rootParseable(ctx *parseContext, parseable Parseable) error {
 		return ctx.DeepestError(UnexpectedTokenError{Unexpected: peek})
 	}
 	return nil
-}
-
-// ParseString is a convenience around Parse().
-//
-// This may return a participle.Error.
-func (p *Parser) ParseString(s string, v interface{}, options ...ParseOption) error {
-	return p.Parse(strings.NewReader(s), v, options...)
-}
-
-// ParseBytes is a convenience around Parse().
-//
-// This may return a participle.Error.
-func (p *Parser) ParseBytes(b []byte, v interface{}, options ...ParseOption) error {
-	return p.Parse(bytes.NewReader(b), v, options...)
 }

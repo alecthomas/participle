@@ -11,7 +11,7 @@ import (
 // Parse a BASIC program.
 func Parse(r io.Reader) (*Program, error) {
 	program := &Program{}
-	err := basicParser.Parse(r, program)
+	err := basicParser.ParseReader("", r, program)
 	if err != nil {
 		return nil, err
 	}

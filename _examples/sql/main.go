@@ -181,7 +181,7 @@ var (
 func main() {
 	ctx := kong.Parse(&cli)
 	sql := &Select{}
-	err := sqlParser.ParseString(cli.SQL, sql)
+	err := sqlParser.ParseString("", cli.SQL, sql)
 	repr.Println(sql, repr.Indent("  "), repr.OmitEmpty(true))
 	ctx.FatalIfErrorf(err)
 }

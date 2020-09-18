@@ -18,8 +18,8 @@ func TestStructLexerTokens(t *testing.T) {
 
 	scan, err := lexStruct(reflect.TypeOf(testScanner{}))
 	require.NoError(t, err)
-	t12 := lexer.Token{Type: scanner.Int, Value: "12", Pos: lexer.Position{Line: 1, Column: 1}}
-	t34 := lexer.Token{Type: scanner.Int, Value: "34", Pos: lexer.Position{Line: 2, Column: 1}}
+	t12 := lexer.Token{Type: scanner.Int, Value: "12", Pos: lexer.Position{Filename: "testScanner", Line: 1, Column: 1}}
+	t34 := lexer.Token{Type: scanner.Int, Value: "34", Pos: lexer.Position{Filename: "B", Line: 2, Column: 1}}
 	require.Equal(t, t12, mustPeek(scan))
 	require.Equal(t, 0, scan.field)
 	require.Equal(t, t12, mustNext(scan))

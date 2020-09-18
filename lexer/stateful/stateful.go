@@ -212,7 +212,7 @@ restart:
 	}), nil
 }
 
-func (d *Definition) LexReader(r io.Reader) (lexer.Lexer, error) { // nolint: golint
+func (d *Definition) LexReader(filename string, r io.Reader) (lexer.Lexer, error) { // nolint: golint
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -222,7 +222,7 @@ func (d *Definition) LexReader(r io.Reader) (lexer.Lexer, error) { // nolint: go
 		data:  data,
 		stack: []lexerState{{name: "Root"}},
 		pos: lexer.Position{
-			Filename: lexer.NameOfReader(r),
+			Filename: filename,
 			Line:     1,
 			Column:   1,
 		},

@@ -17,7 +17,7 @@ type Error interface {
 	Token() lexer.Token
 }
 
-// UnexpectedTokenError is returned by Parse when an unexpected token is encountered.
+// UnexpectedTokenError is returned by ParseReader when an unexpected token is encountered.
 //
 // This is useful for composing parsers in order to detect when a sub-parser has terminated.
 type UnexpectedTokenError struct {

@@ -28,12 +28,12 @@ func TestErrorReporting(t *testing.T) {
 
 	var err error
 	ast := &grammar{}
-	err = p.ParseString(`public class A;`, ast)
+	err = p.ParseString("", `public class A;`, ast)
 	assert.NoError(t, err)
-	err = p.ParseString(`public union A;`, ast)
+	err = p.ParseString("", `public union A;`, ast)
 	assert.NoError(t, err)
-	err = p.ParseString(`public struct Bar;`, ast)
+	err = p.ParseString("", `public struct Bar;`, ast)
 	assert.EqualError(t, err, `1:8: unexpected token "struct" (expected "union")`)
-	err = p.ParseString(`public class 1;`, ast)
+	err = p.ParseString("", `public class 1;`, ast)
 	assert.EqualError(t, err, `1:14: unexpected token "1" (expected <ident>)`)
 }

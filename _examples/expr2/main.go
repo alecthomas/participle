@@ -71,7 +71,7 @@ func main() {
 	p := participle.MustBuild(&Expression{}, participle.UseLookahead(2))
 
 	expr := &Expression{}
-	err := p.ParseString(strings.Join(cli.Expr, " "), expr)
+	err := p.ParseString("", strings.Join(cli.Expr, " "), expr)
 	ctx.FatalIfErrorf(err)
 
 	repr.Println(expr)
