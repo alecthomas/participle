@@ -89,7 +89,7 @@ Once constructed, the parser is applied to input to produce an AST:
 
 ```go
 ast := &INI{}
-err := parser.ParseString("size = 10", ast)
+err := parser.ParseString("", "size = 10", ast)
 // ast == &INI{
 //   Properties: []*Property{
 //     {Key: "size", Value: &Value{Number: &10}},
@@ -186,7 +186,7 @@ type token struct {
 parser, err := participle.Build(&token{})
 
 tokens := make(chan *token, 128)
-err := parser.ParseString(`hello 10 11 12 world`, tokens)
+err := parser.ParseString("", `hello 10 11 12 world`, tokens)
 for token := range tokens {
   fmt.Printf("%#v\n", token)
 }
@@ -327,7 +327,7 @@ func main() {
 		ast := &File{}
 		r, err := os.Open(file)
 		ctx.FatalIfErrorf(err)
-		err = parser.Parse(r, ast)
+		err = parser.Parse(file, r, ast)
 		r.Close()
 		repr.Println(ast)
 		ctx.FatalIfErrorf(err)
@@ -364,7 +364,7 @@ A compiled `Parser` instance can be used concurrently. A `LexerDefinition` can b
 
 There are a few areas where Participle can provide useful feedback to users of your parser.
 
-1. Errors returned by [Parser.Parse()](https://godoc.org/github.com/alecthomas/participle#Parser.Parse) will be of type [Error](https://godoc.org/github.com/alecthomas/participle#Error). This will contain positional information where available. If the source `io.Reader` includes a `Name() string` method (as `os.File` does), the filename will be included.
+1. Errors returned by [Parser.Parse*()](https://godoc.org/github.com/alecthomas/participle#Parser.ParseReader) will be of type [Error](https://godoc.org/github.com/alecthomas/participle#Error). This will contain positional information where available.
 2. Participle will make a best effort to return as much of the AST up to the error location as possible.
 3. Any node in the AST containing a field `Pos lexer.Position` or `Tok lexer.Token` will be automatically
    populated from the nearest matching token.

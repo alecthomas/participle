@@ -1,19 +1,20 @@
 # Participle parser tutorial
 
-<!-- MarkdownTOC -->
+<!-- TOC depthFrom:2 insertAnchor:true updateOnSave:true -->
 
-1. [Introduction](#introduction)
-1. [The complete grammar](#the-complete-grammar)
-1. [Root of the .ini AST \(structure, fields\)](#root-of-the-ini-ast-structure-fields)
-1. [.ini properties \(named tokens, capturing, literals\)](#ini-properties-named-tokens-capturing-literals)
-1. [.ini property values \(alternates, recursive structs, sequences\)](#ini-property-values-alternates-recursive-structs-sequences)
-1. [Complete, but limited, .ini grammar \(top-level properties only\)](#complete-but-limited-ini-grammar-top-level-properties-only)
-1. [Extending our grammar to support sections](#extending-our-grammar-to-support-sections)
-1. [\(Optional\) Source positional information](#optional-source-positional-information)
-1. [Parsing using our grammar](#parsing-using-our-grammar)
+- [Introduction](#introduction)
+- [The complete grammar](#the-complete-grammar)
+- [Root of the .ini AST (structure, fields)](#root-of-the-ini-ast-structure-fields)
+- [.ini properties (named tokens, capturing, literals)](#ini-properties-named-tokens-capturing-literals)
+- [.ini property values (alternates, recursive structs, sequences)](#ini-property-values-alternates-recursive-structs-sequences)
+- [Complete, but limited, .ini grammar (top-level properties only)](#complete-but-limited-ini-grammar-top-level-properties-only)
+- [Extending our grammar to support sections](#extending-our-grammar-to-support-sections)
+- [(Optional) Source positional information](#optional-source-positional-information)
+- [Parsing using our grammar](#parsing-using-our-grammar)
 
-<!-- /MarkdownTOC -->
+<!-- /TOC -->
 
+<a id="markdown-introduction" name="introduction"></a>
 ## Introduction
 
 Writing a parser in Participle typically involves starting from the "root" of
@@ -33,6 +34,7 @@ city = "Beverly Hills"
 postal_code = 90210
 ```
 
+<a id="markdown-the-complete-grammar" name="the-complete-grammar"></a>
 ## The complete grammar
 
 I think it's useful to see the complete grammar first, to see what we're
@@ -60,6 +62,7 @@ working towards. Read on below for details.
  }
  ```
 
+<a id="markdown-root-of-the-ini-ast-structure-fields" name="root-of-the-ini-ast-structure-fields"></a>
 ## Root of the .ini AST (structure, fields)
 
 The first step is to create a root struct for our grammar. In the case of our
@@ -74,6 +77,7 @@ type Property struct {
 }
 ```
 
+<a id="markdown-ini-properties-named-tokens-capturing-literals" name="ini-properties-named-tokens-capturing-literals"></a>
 ## .ini properties (named tokens, capturing, literals)
 
 Each property in an .ini file has an identifier key:
@@ -116,6 +120,7 @@ type Property struct {
 > this example if the lexer does not output `=` as a distinct token the
 > grammar will not match.
 
+<a id="markdown-ini-property-values-alternates-recursive-structs-sequences" name="ini-property-values-alternates-recursive-structs-sequences"></a>
 ## .ini property values (alternates, recursive structs, sequences)
 
 For the purposes of our example we are only going to support quoted string
@@ -167,6 +172,7 @@ type INI struct {
 
 > Note: tokens can also be accumulated into strings, appending each match.
 
+<a id="markdown-complete-but-limited-ini-grammar-top-level-properties-only" name="complete-but-limited-ini-grammar-top-level-properties-only"></a>
 ## Complete, but limited, .ini grammar (top-level properties only)
 
 We now have a functional, but limited, .ini parser!
@@ -187,6 +193,7 @@ type Value struct {
 }
 ```
 
+<a id="markdown-extending-our-grammar-to-support-sections" name="extending-our-grammar-to-support-sections"></a>
 ## Extending our grammar to support sections
 
 Adding support for sections is simply a matter of utilising the constructs
@@ -213,6 +220,7 @@ type INI struct {
 
 And we're done!
 
+<a id="markdown-optional-source-positional-information" name="optional-source-positional-information"></a>
 ## (Optional) Source positional information
 
 If a grammar node includes a field with the name `Pos` and type `lexer.Position`, it will be automatically populated by positional information. eg.
@@ -227,6 +235,7 @@ type Value struct {
 
 This is useful for error reporting.
 
+<a id="markdown-parsing-using-our-grammar" name="parsing-using-our-grammar"></a>
 ## Parsing using our grammar
 
 To parse with this grammar we first construct the parser (we'll use the
