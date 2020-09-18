@@ -36,7 +36,8 @@ encoders, but is unusual for a parser.
 <a id="markdown-limitations" name="limitations"></a>
 ## Limitations
 
-Participle grammars are LL(k). Among other things, this means that they do not support left recursion.
+Participle grammars are LL(k), though the implementation is recursive descent.
+Among other things, this means that they do not support left recursion.
 
 The default value of K is 1 but this can be controlled with `participle.UseLookahead(k)`.
 
@@ -197,20 +198,11 @@ for token := range tokens {
 Participle operates on tokens and thus relies on a lexer to convert character
 streams to tokens.
 
-Four lexers are provided, varying in speed and flexibility. Configure your parser with a lexer
-via `participle.Lexer()`.
+Two lexers are provided, one that is extremely fast but limited based on the
+Go stdlib's `text/scanner` package, and a full-featured stateful lexer based on
+regular expressions that resides in `participle/lexer`.
 
-The best combination of speed, flexibility and usability is `lexer/regex.New()`.
-
-Ordered by speed they are:
-
-1. `lexer.DefaultDefinition` is based on the
-   [text/scanner](https://golang.org/pkg/text/scanner/) package and only allows
-   tokens provided by that package. This is the default lexer.
-2. `lexer.Regexp()` (legacy) maps regular expression named subgroups to lexer symbols.
-3. `lexer/regex.New()` is a more readable regex lexer, with each rule in the form `<name> = <regex>`.
-4. `lexer/ebnf.New()` is a lexer based on the Go EBNF package. It has a large potential for optimisation
-   through code generation, but that is not implemented yet.
+Configure your parser with a lexer via `participle.Lexer()`.
 
 To use your own Lexer you will need to implement two interfaces:
 [Definition](https://godoc.org/github.com/alecthomas/participle/lexer#Definition)
@@ -245,100 +237,102 @@ Included below is a full GraphQL lexer and parser:
 package main
 
 import (
-  "os"
+	"fmt"
+	"os"
 
-  "github.com/alecthomas/kong"
-  "github.com/alecthomas/repr"
+	"github.com/alecthomas/kong"
+	"github.com/alecthomas/repr"
 
-  "github.com/alecthomas/participle"
-  "github.com/alecthomas/participle/lexer"
-  "github.com/alecthomas/participle/lexer/ebnf"
+	"github.com/alecthomas/participle"
+	"github.com/alecthomas/participle/lexer"
+	"github.com/alecthomas/participle/lexer/stateful"
 )
 
 type File struct {
-  Entries []*Entry `@@*`
+	Entries []*Entry `@@*`
 }
 
 type Entry struct {
-  Type   *Type   `  @@`
-  Schema *Schema `| @@`
-  Enum   *Enum   `| @@`
-  Scalar string  `| "scalar" @Ident`
+	Type   *Type   `  @@`
+	Schema *Schema `| @@`
+	Enum   *Enum   `| @@`
+	Scalar string  `| "scalar" @Ident`
 }
 
 type Enum struct {
-  Name  string   `"enum" @Ident`
-  Cases []string `"{" @Ident* "}"`
+	Name  string   `"enum" @Ident`
+	Cases []string `"{" { @Ident } "}"`
 }
 
 type Schema struct {
-  Fields []*Field `"schema" "{" @@* "}"`
+	Fields []*Field `"schema" "{" { @@ } "}"`
 }
 
 type Type struct {
-  Name       string   `"type" @Ident`
-  Implements string   `("implements" @Ident)?`
-  Fields     []*Field `"{" @@* "}"`
+	Name       string   `"type" @Ident`
+	Implements string   `[ "implements" @Ident ]`
+	Fields     []*Field `"{" { @@ } "}"`
 }
 
 type Field struct {
-  Name       string      `@Ident`
-  Arguments  []*Argument `("(" (@@ ("," @@)*)? ")")?`
-  Type       *TypeRef    `":" @@`
-  Annotation string      `("@" @Ident)?`
+	Name       string      `@Ident`
+	Arguments  []*Argument `[ "(" [ @@ { "," @@ } ] ")" ]`
+	Type       *TypeRef    `":" @@`
+	Annotation string      `[ "@" @Ident ]`
 }
 
 type Argument struct {
-  Name    string   `@Ident`
-  Type    *TypeRef `":" @@`
-  Default *Value   `("=" @@)?`
+	Name    string   `@Ident`
+	Type    *TypeRef `":" @@`
+	Default *Value   `[ "=" @@ ]`
 }
 
 type TypeRef struct {
-  Array       *TypeRef `(   "[" @@ "]"`
-  Type        string   `  | @Ident )`
-  NonNullable bool     `@"!"?`
+	Array       *TypeRef `(   "[" @@ "]"`
+	Type        string   `  | @Ident )`
+	NonNullable bool     `[ @"!" ]`
 }
 
 type Value struct {
-  Symbol string `@Ident`
+	Symbol string `@Ident`
 }
 
 var (
-  graphQLLexer = lexer.Must(ebnf.New(`
-    Comment = ("#" | "//") { "\u0000"…"\uffff"-"\n" } .
-    Ident = (alpha | "_") { "_" | alpha | digit } .
-    Number = ("." | digit) {"." | digit} .
-    Whitespace = " " | "\t" | "\n" | "\r" .
-    Punct = "!"…"/" | ":"…"@" | "["…`+"\"`\""+` | "{"…"~" .
-
-    alpha = "a"…"z" | "A"…"Z" .
-    digit = "0"…"9" .
-`))
-
-  parser = participle.MustBuild(&File{},
-    participle.Lexer(graphQLLexer),
-    participle.Elide("Comment", "Whitespace"),
-    )
-
-  cli struct {
-    Files []string `arg:"" type:"existingfile" required:"" help:"GraphQL schema files to parse."`
-  }
+	graphQLLexer = lexer.Must(stateful.NewSimple([]stateful.Rule{
+		{"Comment", `(?:#|//)[^\n]*\n?`, nil},
+		{"Ident", `[a-zA-Z]\w*`, nil},
+		{"Number", `(?:\d*\.)?\d+`, nil},
+		{"Punct", `[-[!@#$%^&*()+_={}\|:;"'<,>.?/]|]`, nil},
+		{"Whitespace", `[ \t\n\r]+`, nil},
+	}))
+	parser = participle.MustBuild(&File{},
+		participle.Lexer(graphQLLexer),
+		participle.Elide("Comment", "Whitespace"),
+		participle.UseLookahead(2),
+	)
 )
 
-func main() {
-  ctx := kong.Parse(&cli)
-  for _, file := range cli.Files {
-    ast := &File{}
-    r, err := os.Open(file)
-    ctx.FatalIfErrorf(err)
-    err = parser.Parse(r, ast)
-    r.Close()
-    repr.Println(ast)
-    ctx.FatalIfErrorf(err)
-  }
+var cli struct {
+	EBNF  bool     `help"Dump EBNF."`
+	Files []string `arg:"" optional:"" type:"existingfile" help:"GraphQL schema files to parse."`
 }
 
+func main() {
+	ctx := kong.Parse(&cli)
+	if cli.EBNF {
+		fmt.Println(parser.String())
+		ctx.Exit(0)
+	}
+	for _, file := range cli.Files {
+		ast := &File{}
+		r, err := os.Open(file)
+		ctx.FatalIfErrorf(err)
+		err = parser.Parse(r, ast)
+		r.Close()
+		repr.Println(ast)
+		ctx.FatalIfErrorf(err)
+	}
+}
 ```
 
 <a id="markdown-performance" name="performance"></a>
@@ -354,8 +348,8 @@ run time.
 
 You can run the benchmarks yourself, but here's the output on my machine:
 
-    BenchmarkParticipleThrift-4        10000      221818 ns/op     48880 B/op     1240 allocs/op
-    BenchmarkGoThriftParser-4           2000      804709 ns/op    170301 B/op     3086 allocs/op
+    BenchmarkParticipleThrift-12    	   5941	   201242 ns/op	 178088 B/op	   2390 allocs/op
+    BenchmarkGoThriftParser-12      	   3196	   379226 ns/op	 157560 B/op	   2644 allocs/op
 
 On a real life codebase of 47K lines of Thrift, Participle takes 200ms and go-
 thrift takes 630ms, which aligns quite closely with the benchmarks.
