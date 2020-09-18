@@ -1,4 +1,4 @@
-package participle
+package participle_test
 
 import (
 	"fmt"
@@ -10,7 +10,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/alecthomas/participle"
 	"github.com/alecthomas/participle/lexer"
+	"github.com/alecthomas/participle/lexer/stateful"
 )
 
 func TestProductionCapture(t *testing.T) {
@@ -18,7 +20,7 @@ func TestProductionCapture(t *testing.T) {
 		A string `@Test`
 	}
 
-	_, err := Build(&testCapture{})
+	_, err := participle.Build(&testCapture{})
 	require.Error(t, err)
 }
 
@@ -515,15 +517,15 @@ func TestHello(t *testing.T) {
 	require.Equal(t, expected, actual)
 }
 
-func mustTestParser(t *testing.T, grammar interface{}, options ...Option) *Parser {
+func mustTestParser(t *testing.T, grammar interface{}, options ...participle.Option) *participle.Parser {
 	t.Helper()
-	parser, err := Build(grammar, options...)
+	parser, err := participle.Build(grammar, options...)
 	require.NoError(t, err)
 	return parser
 }
 
 func BenchmarkEBNFParser(b *testing.B) {
-	parser, err := Build(&EBNF{})
+	parser, err := participle.Build(&EBNF{})
 	require.NoError(b, err)
 	b.ResetTimer()
 	source := strings.TrimSpace(`
@@ -679,7 +681,7 @@ func TestStructCaptureInterface(t *testing.T) {
 		Capture *nestedCapture `@String`
 	}
 
-	parser, err := Build(&grammar{})
+	parser, err := participle.Build(&grammar{})
 	require.NoError(t, err)
 
 	actual := &grammar{}
@@ -709,7 +711,7 @@ func TestParseable(t *testing.T) {
 		Inner *parseableStruct `@@`
 	}
 
-	parser, err := Build(&grammar{})
+	parser, err := participle.Build(&grammar{})
 	require.NoError(t, err)
 
 	actual := &grammar{}
@@ -724,7 +726,7 @@ func TestStringConcat(t *testing.T) {
 		Field string `@"." { @"." }`
 	}
 
-	parser, err := Build(&grammar{})
+	parser, err := participle.Build(&grammar{})
 	require.NoError(t, err)
 
 	actual := &grammar{}
@@ -752,7 +754,7 @@ func TestEmptyStructErrorsNotPanicsIssue21(t *testing.T) {
 	type grammar struct {
 		Foo struct{} `@@`
 	}
-	_, err := Build(&grammar{})
+	_, err := participle.Build(&grammar{})
 	require.Error(t, err)
 }
 
@@ -760,7 +762,7 @@ func TestMultipleTokensIntoScalar(t *testing.T) {
 	var grammar struct {
 		Field int `@("-" Int)`
 	}
-	p, err := Build(&grammar)
+	p, err := participle.Build(&grammar)
 	require.NoError(t, err)
 	err = p.ParseString(`- 10`, &grammar)
 	require.NoError(t, err)
@@ -913,13 +915,18 @@ func TestCaseInsensitive(t *testing.T) {
 		Select string `"select":Keyword @Ident`
 	}
 
-	lex := lexer.Must(lexer.Regexp(
-		`(?i)(?P<Keyword>SELECT)` +
-			`|(?P<Ident>\w+)` +
-			`|(\s+)`,
-	))
+	// lex := lexer.Must(lexer.Regexp(
+	// 	`(?i)(?P<Keyword>SELECT)` +
+	// 		`|(?P<Ident>\w+)` +
+	// 		`|(\s+)`,
+	// ))
+	lex := lexer.Must(stateful.NewSimple([]stateful.Rule{
+		{"Keyword", `(?i)SELECT`, nil},
+		{"Ident", `\w+`, nil},
+		{"whitespace", `\s+`, nil},
+	}))
 
-	p := mustTestParser(t, &grammar{}, Lexer(lex), CaseInsensitive("Keyword"))
+	p := mustTestParser(t, &grammar{}, participle.Lexer(lex), participle.CaseInsensitive("Keyword"))
 	actual := &grammar{}
 	err := p.ParseString(`SELECT foo`, actual)
 	expected := &grammar{"foo"}
@@ -1068,7 +1075,7 @@ func TestIssue60(t *testing.T) {
 	type grammar struct {
 		A string `@("one" | | "two")`
 	}
-	_, err := Build(&grammar{})
+	_, err := participle.Build(&grammar{})
 	require.Error(t, err)
 }
 
@@ -1090,7 +1097,7 @@ type Issue62Foo struct {
 }
 
 func TestIssue62(t *testing.T) {
-	_, err := Build(&Issue62Foo{})
+	_, err := participle.Build(&Issue62Foo{})
 	require.NoError(t, err)
 }
 
@@ -1103,7 +1110,7 @@ func TestIssue71(t *testing.T) {
 		pattern *Sub `@@`
 	}
 
-	_, err := Build(&grammar{})
+	_, err := participle.Build(&grammar{})
 	require.Error(t, err)
 }
 
@@ -1112,13 +1119,13 @@ func TestAllowTrailing(t *testing.T) {
 		Name string `@Ident`
 	}
 
-	p, err := Build(&G{})
+	p, err := participle.Build(&G{})
 	require.NoError(t, err)
 
 	g := &G{}
 	err = p.ParseString(`hello world`, g)
 	require.Error(t, err)
-	err = p.ParseString(`hello world`, g, AllowTrailing(true))
+	err = p.ParseString(`hello world`, g, participle.AllowTrailing(true))
 	require.NoError(t, err)
 	require.Equal(t, &G{"hello"}, g)
 }
@@ -1144,7 +1151,7 @@ func TestCustomInt(t *testing.T) {
 		Value MyInt `@Int`
 	}
 
-	p, err := Build(&G{})
+	p, err := participle.Build(&G{})
 	require.NoError(t, err)
 
 	g := &G{}
@@ -1158,7 +1165,7 @@ func TestBoolIfSet(t *testing.T) {
 		Value bool `@"true"?`
 	}
 
-	p, err := Build(&G{})
+	p, err := participle.Build(&G{})
 	require.NoError(t, err)
 
 	g := &G{}
@@ -1176,7 +1183,7 @@ func TestCustomBoolIfSet(t *testing.T) {
 		Value MyBool `@"true"?`
 	}
 
-	p, err := Build(&G{})
+	p, err := participle.Build(&G{})
 	require.NoError(t, err)
 
 	g := &G{}

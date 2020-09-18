@@ -4,9 +4,11 @@ import (
 	"os"
 
 	"github.com/alecthomas/kong"
+
 	"github.com/alecthomas/participle"
 	"github.com/alecthomas/participle/lexer"
-	"github.com/alecthomas/participle/lexer/ebnf"
+	"github.com/alecthomas/participle/lexer/stateful"
+
 	"github.com/alecthomas/repr"
 )
 
@@ -32,8 +34,7 @@ type Value struct {
 	Date     *string  `| @Date`
 	Time     *string  `| @Time`
 	Bool     *bool    `| (@"true" | "false")`
-	Integer  *int64   `| @Int`
-	Float    *float64 `| @Float`
+	Number   *float64 `| @Number`
 	List     []*Value `| "[" [ @@ { "," @@ } ] "]"`
 }
 
@@ -43,28 +44,22 @@ type Section struct {
 }
 
 var (
-	tomlLexer = lexer.Must(ebnf.New(`
-		Comment = "#" { "\u0000"…"\uffff"-"\n" } .
-		DateTime = date "T" time [ "-" digit digit ":" digit digit ].
-		Date = date .
-		Time = time .
-		Ident = (alpha | "_") { "_" | alpha | digit } .
-		String = "\"" { "\u0000"…"\uffff"-"\""-"\\" | "\\" any } "\"" .
-		Int = [ "-" | "+" ] digit { digit } .
-		Float = ("." | digit) {"." | digit} .
-		Punct = "!"…"/" | ":"…"@" | "["…` + "\"`\"" + ` | "{"…"~" .
-		Whitespace = " " | "\t" | "\n" | "\r" .
-
-		alpha = "a"…"z" | "A"…"Z" .
-		digit = "0"…"9" .
-		any = "\u0000"…"\uffff" .
-		date = digit digit digit digit "-" digit digit "-" digit digit .
-		time = digit digit ":" digit digit ":" digit digit [ "." { digit } ] .
-	`))
+	tomlLexer = lexer.Must(stateful.NewSimple([]stateful.Rule{
+		{"DateTime", `\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?(-\d\d:\d\d)?`, nil},
+		{"Date", `\d\d\d\d-\d\d-\d\d`, nil},
+		{"Time", `\d\d:\d\d:\d\d(\.\d+)?`, nil},
+		{"Ident", `[a-zA-Z_][a-zA-Z_0-9]*`, nil},
+		{"String", `"[^"]*"`, nil},
+		{"Number", `[-+]?[.0-9]+\b`, nil},
+		{"Punct", `\[|]|[-!()+/*=,]`, nil},
+		{"comment", `#[^\n]+`, nil},
+		{"whitespace", `\s+`, nil},
+	}))
 	tomlParser = participle.MustBuild(&TOML{},
-		participle.Lexer(tomlLexer),
+		participle.Lexer(
+			tomlLexer,
+		),
 		participle.Unquote("String"),
-		participle.Elide("Whitespace", "Comment"),
 	)
 
 	cli struct {

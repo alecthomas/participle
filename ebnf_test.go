@@ -1,4 +1,4 @@
-package participle
+package participle_test
 
 import (
 	"strings"

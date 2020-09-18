@@ -4,7 +4,7 @@ go 1.14
 
 require (
 	github.com/alecthomas/go-thrift v0.0.0-20170109061633-7914173639b2
-	github.com/alecthomas/kong v0.2.8
+	github.com/alecthomas/kong v0.2.11
 	github.com/alecthomas/participle v0.4.1
 	github.com/alecthomas/repr v0.0.0-20200325044227-4184120f674c
 	github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751 // indirect

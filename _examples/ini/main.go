@@ -5,20 +5,21 @@ import (
 
 	"github.com/alecthomas/participle"
 	"github.com/alecthomas/participle/lexer"
+	"github.com/alecthomas/participle/lexer/stateful"
+
 	"github.com/alecthomas/repr"
 )
 
 // A custom lexer for INI files. This illustrates a relatively complex Regexp lexer, as well
 // as use of the Unquote filter, which unquotes string tokens.
-var iniLexer = lexer.Must(lexer.Regexp(
-	`(?m)` +
-		`(\s+)` +
-		`|(^[#;].*$)` +
-		`|(?P<Ident>[a-zA-Z][a-zA-Z_\d]*)` +
-		`|(?P<String>"(?:\\.|[^"])*")` +
-		`|(?P<Float>\d+(?:\.\d+)?)` +
-		`|(?P<Punct>[][=])`,
-))
+var iniLexer = lexer.Must(stateful.NewSimple([]stateful.Rule{
+	{`Ident`, `[a-zA-Z][a-zA-Z_\d]*`, nil},
+	{`String`, `"(?:\\.|[^"])*"`, nil},
+	{`Float`, `\d+(?:\.\d+)?`, nil},
+	{`Punct`, `[][=]`, nil},
+	{"comment", `[#;][^\n]*`, nil},
+	{"whitespace", `\s+`, nil},
+}))
 
 type INI struct {
 	Properties []*Property `@@*`

@@ -146,12 +146,12 @@ type Definition struct {
 }
 
 // NewSimple creates a new stateful lexer with a single "Root" state.
-func NewSimple(rules []Rule) (*Definition, error) {
+func NewSimple(rules []Rule) (lexer.Definition, error) {
 	return New(Rules{"Root": rules})
 }
 
 // New constructs a new stateful lexer from rules.
-func New(rules Rules) (*Definition, error) {
+func New(rules Rules) (lexer.Definition, error) {
 	compiled := compiledRules{}
 	for key, set := range rules {
 		for i, rule := range set {
@@ -206,13 +206,13 @@ restart:
 			rn--
 		}
 	}
-	return &Definition{
+	return lexer.Simple(&Definition{
 		rules:   compiled,
 		symbols: symbols,
-	}, nil
+	}), nil
 }
 
-func (d *Definition) Lex(r io.Reader) (lexer.Lexer, error) { // nolint: golint
+func (d *Definition) LexReader(r io.Reader) (lexer.Lexer, error) { // nolint: golint
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err

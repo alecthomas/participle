@@ -1,4 +1,4 @@
-package participle
+package participle_test
 
 import (
 	"strings"
@@ -6,15 +6,20 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/alecthomas/participle"
 	"github.com/alecthomas/participle/lexer"
+	"github.com/alecthomas/participle/lexer/stateful"
 )
 
 func TestUpper(t *testing.T) {
 	var grammar struct {
 		Text string `@Ident`
 	}
-	def := lexer.Must(lexer.Regexp(`(?P<Whitespace>\s+)|(?P<Ident>\w+)`))
-	parser := mustTestParser(t, &grammar, Lexer(def), Upper("Ident"))
+	def := lexer.Must(stateful.NewSimple([]stateful.Rule{
+		{"Whitespace", `\s+`, nil},
+		{"Ident", `\w+`, nil},
+	}))
+	parser := mustTestParser(t, &grammar, participle.Lexer(def), participle.Upper("Ident"))
 	actual, err := parser.Lex(strings.NewReader("hello world"))
 	require.NoError(t, err)
 
@@ -32,8 +37,13 @@ func TestUnquote(t *testing.T) {
 	var grammar struct {
 		Text string `@Ident`
 	}
-	lex := lexer.Must(lexer.Regexp("(\\s+)|(?P<Ident>\\w+)|(?P<String>\"(?:[^\"]|\\.)*\")|(?P<RawString>`[^`]*`)"))
-	parser := mustTestParser(t, &grammar, Lexer(lex), Unquote("String", "RawString"))
+	lex := lexer.Must(stateful.NewSimple([]stateful.Rule{
+		{"whitespace", `\s+`, nil},
+		{"Ident", `\w+`, nil},
+		{"String", `\"(?:[^\"]|\\.)*\"`, nil},
+		{"RawString", "`[^`]*`", nil},
+	}))
+	parser := mustTestParser(t, &grammar, participle.Lexer(lex), participle.Unquote("String", "RawString"))
 	actual, err := parser.Lex(strings.NewReader("hello world \"quoted\\tstring\" `backtick quotes`"))
 	require.NoError(t, err)
 	expected := []lexer.Token{

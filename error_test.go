@@ -1,9 +1,11 @@
-package participle
+package participle_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/alecthomas/participle"
 )
 
 func TestErrorReporting(t *testing.T) {
@@ -22,7 +24,7 @@ func TestErrorReporting(t *testing.T) {
 	type grammar struct {
 		Decls []*decl `( @@ ";" )*`
 	}
-	p := mustTestParser(t, &grammar{}, UseLookahead(5))
+	p := mustTestParser(t, &grammar{}, participle.UseLookahead(5))
 
 	var err error
 	ast := &grammar{}
