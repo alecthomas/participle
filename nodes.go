@@ -16,7 +16,6 @@ var (
 	MaxIterations = 1000000
 
 	positionType        = reflect.TypeOf(lexer.Position{})
-	tokenType           = reflect.TypeOf(lexer.Token{})
 	captureType         = reflect.TypeOf((*Capture)(nil)).Elem()
 	textUnmarshalerType = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
 	parseableType       = reflect.TypeOf((*Parseable)(nil)).Elem()
@@ -73,26 +72,46 @@ func (p *parseable) Parse(ctx *parseContext, parent reflect.Value) (out []reflec
 
 // @@
 type strct struct {
-	typ  reflect.Type
-	expr node
+	typ              reflect.Type
+	expr             node
+	posFieldIndex    []int
+	endPosFieldIndex []int
+}
+
+func newStrct(typ reflect.Type) *strct {
+	var (
+		posFieldIndex    []int
+		endPosFieldIndex []int
+	)
+	field, ok := typ.FieldByName("Pos")
+	if ok && field.Type == positionType {
+		posFieldIndex = field.Index
+	}
+	field, ok = typ.FieldByName("EndPos")
+	if ok && field.Type == positionType {
+		endPosFieldIndex = field.Index
+	}
+	return &strct{
+		typ:              typ,
+		posFieldIndex:    posFieldIndex,
+		endPosFieldIndex: endPosFieldIndex,
+	}
 }
 
 func (s *strct) String() string { return stringer(s) }
 
 func (s *strct) maybeInjectStartToken(token lexer.Token, v reflect.Value) {
-	if f := v.FieldByName("Pos"); f.IsValid() && f.Type() == positionType {
-		f.Set(reflect.ValueOf(token.Pos))
-	} else if f := v.FieldByName("Tok"); f.IsValid() && f.Type() == tokenType {
-		f.Set(reflect.ValueOf(token))
+	if s.posFieldIndex == nil {
+		return
 	}
+	v.FieldByIndex(s.posFieldIndex).Set(reflect.ValueOf(token.Pos))
 }
 
 func (s *strct) maybeInjectEndToken(token lexer.Token, v reflect.Value) {
-	if f := v.FieldByName("EndPos"); f.IsValid() && f.Type() == positionType {
-		f.Set(reflect.ValueOf(token.Pos))
-	} else if f := v.FieldByName("EndTok"); f.IsValid() && f.Type() == tokenType {
-		f.Set(reflect.ValueOf(token))
+	if s.endPosFieldIndex == nil {
+		return
 	}
+	v.FieldByIndex(s.endPosFieldIndex).Set(reflect.ValueOf(token.Pos))
 }
 
 func (s *strct) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
