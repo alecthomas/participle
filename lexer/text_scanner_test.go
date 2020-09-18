@@ -47,7 +47,7 @@ func BenchmarkTextScannerLexer(b *testing.B) {
 	b.ReportMetric(float64(len(input)), "B")
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		lex, _ := TextScannerLexer.Lex(r)
+		lex, _ := TextScannerLexer.LexReader(r)
 		for {
 			token, _ := lex.Next()
 			if token.Type == EOF {

@@ -12,7 +12,7 @@ import (
 
 // TextScannerLexer is a lexer that uses the text/scanner module.
 var (
-	TextScannerLexer Definition = &defaultDefinition{}
+	TextScannerLexer Definition = Simple(&defaultDefinition{})
 
 	// DefaultDefinition defines properties for the default lexer.
 	DefaultDefinition = TextScannerLexer
@@ -20,7 +20,7 @@ var (
 
 type defaultDefinition struct{}
 
-func (d *defaultDefinition) Lex(r io.Reader) (Lexer, error) {
+func (d *defaultDefinition) LexReader(r io.Reader) (Lexer, error) {
 	return Lex(r), nil
 }
 

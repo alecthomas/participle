@@ -8,30 +8,25 @@ import (
 
 	"github.com/alecthomas/participle"
 	"github.com/alecthomas/participle/lexer"
-	"github.com/alecthomas/participle/lexer/ebnf"
+	"github.com/alecthomas/participle/lexer/stateful"
 )
 
 var (
-	basicLexer = lexer.Must(ebnf.New(`
-		Comment = ("REM" | "rem" ) { "\u0000"…"\uffff"-"\n"-"\r" } .
-		Ident = (alpha | "_") { "_" | alpha | digit } .
-		String = "\"" { "\u0000"…"\uffff"-"\""-"\\" | "\\" any } "\"" .
-		Number = [ "-" | "+" ] ("." | digit) { "." | digit } .
-		Punct = "!"…"/" | ":"…"@" | "["…` + "\"`\"" + ` | "{"…"~" .
-		EOL = ( "\n" | "\r" ) { "\n" | "\r" }.
-		Whitespace = ( " " | "\t" ) { " " | "\t" } .
-
-		alpha = "a"…"z" | "A"…"Z" .
-		digit = "0"…"9" .
-		any = "\u0000"…"\uffff" .
-	`))
+	basicLexer = lexer.Must(stateful.NewSimple([]stateful.Rule{
+		{"Comment", `(?i)rem[^\n]*`, nil},
+		{"String", `"(\\"|[^"])*"`, nil},
+		{"Number", `[-+]?(\d*\.)?\d+`, nil},
+		{"Ident", `[a-zA-Z_]\w*`, nil},
+		{"Punct", `[-[!@#$%^&*()+_={}\|:;"'<,>.?/]|]`, nil},
+		{"EOL", `[\n\r]+`, nil},
+		{"whitespace", `[ \t]+`, nil},
+	}))
 
 	basicParser = participle.MustBuild(&Program{},
 		participle.Lexer(basicLexer),
 		participle.CaseInsensitive("Ident"),
 		participle.Unquote("String"),
 		participle.UseLookahead(2),
-		participle.Elide("Whitespace"),
 	)
 
 	cli struct {

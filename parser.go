@@ -104,7 +104,7 @@ func (p *Parser) Lexer() lexer.Definition {
 
 // Lex uses the parser's lexer to tokenise input.
 func (p *Parser) Lex(r io.Reader) ([]lexer.Token, error) {
-	lex, err := p.lex.Lex(r)
+	lex, err := p.lex.LexReader(r)
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +160,7 @@ func (p *Parser) ParseFromLexer(lex *lexer.PeekingLexer, v interface{}, options 
 //
 // This may return a participle.Error.
 func (p *Parser) Parse(r io.Reader, v interface{}, options ...ParseOption) (err error) {
-	lex, err := p.lex.Lex(r)
+	lex, err := p.lex.LexReader(r)
 	if err != nil {
 		return err
 	}

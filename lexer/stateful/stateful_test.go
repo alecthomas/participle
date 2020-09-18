@@ -154,7 +154,7 @@ func TestStatefulLexer(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			def, err := New(test.rules)
 			require.NoError(t, err)
-			lex, err := def.Lex(strings.NewReader(test.input))
+			lex, err := def.LexReader(strings.NewReader(test.input))
 			require.NoError(t, err)
 			tokens, err := lexer.ConsumeAll(lex)
 			if test.err != "" {
@@ -332,7 +332,7 @@ func BenchmarkStateful(b *testing.B) {
 	b.ReportMetric(float64(len(source)), "B")
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		lex, err := def.Lex(strings.NewReader(source))
+		lex, err := def.LexReader(strings.NewReader(source))
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -370,7 +370,7 @@ func BenchmarkStatefulBackrefs(b *testing.B) {
 	b.ReportMetric(float64(len(source)), "B")
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		lex, err := def.Lex(strings.NewReader(source))
+		lex, err := def.LexReader(strings.NewReader(source))
 		if err != nil {
 			b.Fatal(err)
 		}

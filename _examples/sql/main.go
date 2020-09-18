@@ -3,8 +3,11 @@ package main
 
 import (
 	"github.com/alecthomas/kong"
+
 	"github.com/alecthomas/participle"
 	"github.com/alecthomas/participle/lexer"
+	"github.com/alecthomas/participle/lexer/stateful"
+
 	"github.com/alecthomas/repr"
 )
 
@@ -156,13 +159,14 @@ var (
 		SQL string `arg:"" required:"" help:"SQL to parse."`
 	}
 
-	sqlLexer = lexer.Must(lexer.Regexp(`(\s+)` +
-		`|(?P<Keyword>(?i)SELECT|FROM|TOP|DISTINCT|ALL|WHERE|GROUP|BY|HAVING|UNION|MINUS|EXCEPT|INTERSECT|ORDER|LIMIT|OFFSET|TRUE|FALSE|NULL|IS|NOT|ANY|SOME|BETWEEN|AND|OR|LIKE|AS|IN)` +
-		`|(?P<Ident>[a-zA-Z_][a-zA-Z0-9_]*)` +
-		`|(?P<Number>[-+]?\d*\.?\d+([eE][-+]?\d+)?)` +
-		`|(?P<String>'[^']*'|"[^"]*")` +
-		`|(?P<Operators><>|!=|<=|>=|[-+*/%,.()=<>])`,
-	))
+	sqlLexer = lexer.Must(stateful.NewSimple([]stateful.Rule{
+		{`Keyword`, `(?i)SELECT|FROM|TOP|DISTINCT|ALL|WHERE|GROUP|BY|HAVING|UNION|MINUS|EXCEPT|INTERSECT|ORDER|LIMIT|OFFSET|TRUE|FALSE|NULL|IS|NOT|ANY|SOME|BETWEEN|AND|OR|LIKE|AS|IN`, nil},
+		{`Ident`, `[a-zA-Z_][a-zA-Z0-9_]*`, nil},
+		{`Number`, `[-+]?\d*\.?\d+([eE][-+]?\d+)?`, nil},
+		{`String`, `'[^']*'|"[^"]*"`, nil},
+		{`Operators`, `<>|!=|<=|>=|[-+*/%,.()=<>]`, nil},
+		{"whitespace", `\s+`, nil},
+	}))
 	sqlParser = participle.MustBuild(
 		&Select{},
 		participle.Lexer(sqlLexer),

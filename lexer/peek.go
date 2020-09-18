@@ -7,6 +7,8 @@ type PeekingLexer struct {
 	tokens []Token
 }
 
+var _ Lexer = &PeekingLexer{}
+
 // Upgrade a Lexer to a PeekingLexer with arbitrary lookahead.
 func Upgrade(lex Lexer) (*PeekingLexer, error) {
 	r := &PeekingLexer{}
