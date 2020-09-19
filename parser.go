@@ -107,9 +107,9 @@ func (p *Parser) Lex(r io.Reader) ([]lexer.Token, error) {
 }
 
 // ParseFromLexer into grammar v which must be of the same type as the grammar passed to
-// participle.Build().
+// Build().
 //
-// This may return a participle.Error.
+// This may return a Error.
 func (p *Parser) ParseFromLexer(lex *lexer.PeekingLexer, v interface{}, options ...ParseOption) error {
 	rv := reflect.ValueOf(v)
 	if rv.Kind() == reflect.Interface {
@@ -150,9 +150,9 @@ func (p *Parser) ParseFromLexer(lex *lexer.PeekingLexer, v interface{}, options 
 }
 
 // ParseReader from r into grammar v which must be of the same type as the grammar passed to
-// participle.Build().
+// Build().
 //
-// This may return a participle.Error.
+// This may return a Error.
 func (p *Parser) ParseReader(filename string, r io.Reader, v interface{}, options ...ParseOption) (err error) {
 	if filename == "" {
 		filename = lexer.NameOfReader(r)
@@ -169,9 +169,9 @@ func (p *Parser) ParseReader(filename string, r io.Reader, v interface{}, option
 }
 
 // ParseString from s into grammar v which must be of the same type as the grammar passed to
-// participle.Build().
+// Build().
 //
-// This may return a participle.Error.
+// This may return a Error.
 func (p *Parser) ParseString(filename string, s string, v interface{}, options ...ParseOption) error {
 	lex, err := p.lex.LexString(filename, s)
 	if err != nil {
@@ -185,9 +185,9 @@ func (p *Parser) ParseString(filename string, s string, v interface{}, options .
 }
 
 // ParseBytes from b into grammar v which must be of the same type as the grammar passed to
-// participle.Build().
+// Build().
 //
-// This may return a participle.Error.
+// This may return a Error.
 func (p *Parser) ParseBytes(filename string, b []byte, v interface{}, options ...ParseOption) error {
 	lex, err := p.lex.LexBytes(filename, b)
 	if err != nil {

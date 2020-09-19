@@ -3,31 +3,28 @@ package lexer
 import "fmt"
 
 // Error represents an error while parsing.
-type Error struct {
+//
+// It complies with the participle.Error interface.
+type lexerError struct {
 	Msg string
-	Tok Token
+	Pos Position
 }
 
 // Errorf creats a new Error at the given position.
-func Errorf(pos Position, format string, args ...interface{}) *Error {
-	return &Error{Msg: fmt.Sprintf(format, args...), Tok: Token{Pos: pos}}
+func errorf(pos Position, format string, args ...interface{}) *lexerError {
+	return &lexerError{Msg: fmt.Sprintf(format, args...), Pos: pos}
 }
 
-// ErrorWithTokenf creats a new Error with the given token as context.
-func ErrorWithTokenf(tok Token, format string, args ...interface{}) *Error {
-	return &Error{Msg: fmt.Sprintf(format, args...), Tok: tok}
-}
+func (e *lexerError) Message() string    { return e.Msg } // nolint: golint
+func (e *lexerError) Position() Position { return e.Pos } // nolint: golint
 
-func (e *Error) Message() string { return e.Msg } // nolint: golint
-func (e *Error) Token() Token    { return e.Tok } // nolint: golint
-
-// Error complies with the error interface and reports the position of an error.
-func (e *Error) Error() string {
-	return FormatError(e.Tok.Pos, e.Msg)
-}
+// Error formats the error with FormatError.
+func (e *lexerError) Error() string { return formatError(e.Pos, e.Msg) }
 
 // FormatError formats an error in the form "[<filename>:][<line>:<pos>:] <message>"
-func FormatError(pos Position, message string) string {
+//
+// This exists in the lexer to avoid circular imports.
+func formatError(pos Position, message string) string {
 	msg := ""
 	if pos.Filename != "" {
 		msg += pos.Filename + ":"

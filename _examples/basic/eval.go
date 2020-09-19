@@ -6,8 +6,9 @@ import (
 	"io"
 	"math"
 
-	"github.com/alecthomas/participle/lexer"
 	"github.com/alecthomas/repr"
+
+	"github.com/alecthomas/participle"
 )
 
 type Evaluatable interface {
@@ -66,7 +67,7 @@ func (f *Factor) Evaluate(ctx *Context) (interface{}, error) {
 	}
 	baseNum, exponentNum, err := evaluateFloats(ctx, base, f.Exponent)
 	if err != nil {
-		return nil, lexer.Errorf(f.Pos, "invalid factor: %s", err)
+		return nil, participle.Errorf(f.Pos, "invalid factor: %s", err)
 	}
 	return math.Pow(baseNum, exponentNum), nil
 }
@@ -74,7 +75,7 @@ func (f *Factor) Evaluate(ctx *Context) (interface{}, error) {
 func (o *OpFactor) Evaluate(ctx *Context, lhs interface{}) (interface{}, error) {
 	lhsNumber, rhsNumber, err := evaluateFloats(ctx, lhs, o.Factor)
 	if err != nil {
-		return nil, lexer.Errorf(o.Pos, "invalid arguments for %s: %s", o.Operator, err)
+		return nil, participle.Errorf(o.Pos, "invalid arguments for %s: %s", o.Operator, err)
 	}
 	switch o.Operator {
 	case "*":
@@ -103,7 +104,7 @@ func (t *Term) Evaluate(ctx *Context) (interface{}, error) {
 func (o *OpTerm) Evaluate(ctx *Context, lhs interface{}) (interface{}, error) {
 	lhsNumber, rhsNumber, err := evaluateFloats(ctx, lhs, o.Term)
 	if err != nil {
-		return nil, lexer.Errorf(o.Pos, "invalid arguments for %s: %s", o.Operator, err)
+		return nil, participle.Errorf(o.Pos, "invalid arguments for %s: %s", o.Operator, err)
 	}
 	switch o.Operator {
 	case "+":
@@ -138,7 +139,7 @@ func (o *OpCmp) Evaluate(ctx *Context, lhs interface{}) (interface{}, error) {
 	case float64:
 		rhs, ok := rhs.(float64)
 		if !ok {
-			return nil, lexer.Errorf(o.Pos, "rhs of %s must be a number", o.Operator)
+			return nil, participle.Errorf(o.Pos, "rhs of %s must be a number", o.Operator)
 		}
 		switch o.Operator {
 		case "=":
@@ -157,7 +158,7 @@ func (o *OpCmp) Evaluate(ctx *Context, lhs interface{}) (interface{}, error) {
 	case string:
 		rhs, ok := rhs.(string)
 		if !ok {
-			return nil, lexer.Errorf(o.Pos, "rhs of %s must be a string", o.Operator)
+			return nil, participle.Errorf(o.Pos, "rhs of %s must be a string", o.Operator)
 		}
 		switch o.Operator {
 		case "=":
@@ -174,7 +175,7 @@ func (o *OpCmp) Evaluate(ctx *Context, lhs interface{}) (interface{}, error) {
 			return lhs >= rhs, nil
 		}
 	default:
-		return nil, lexer.Errorf(o.Pos, "lhs of %s must be a number or string", o.Operator)
+		return nil, participle.Errorf(o.Pos, "lhs of %s must be a number or string", o.Operator)
 	}
 	panic("unreachable")
 }
@@ -197,7 +198,7 @@ func (e *Expression) Evaluate(ctx *Context) (interface{}, error) {
 func (c *Call) Evaluate(ctx *Context) (interface{}, error) {
 	function, ok := ctx.Functions[c.Name]
 	if !ok {
-		return nil, lexer.Errorf(c.Pos, "unknown function %q", c.Name)
+		return nil, participle.Errorf(c.Pos, "unknown function %q", c.Name)
 	}
 	args := []interface{}{}
 	for _, arg := range c.Args {
@@ -210,7 +211,7 @@ func (c *Call) Evaluate(ctx *Context) (interface{}, error) {
 
 	value, err := function(args...)
 	if err != nil {
-		return nil, lexer.Errorf(c.Pos, "call to %s() failed", c.Name)
+		return nil, participle.Errorf(c.Pos, "call to %s() failed", c.Name)
 	}
 	return value, nil
 }
@@ -234,7 +235,7 @@ func (p *Program) Evaluate(r io.Reader, w io.Writer, functions map[string]Functi
 			cmd := cmd.Goto
 			next, ok := p.Table[cmd.Line]
 			if !ok {
-				return lexer.Errorf(cmd.Pos, "invalid line number %d", cmd.Line)
+				return participle.Errorf(cmd.Pos, "invalid line number %d", cmd.Line)
 			}
 			index = next.Index
 			continue
@@ -262,7 +263,7 @@ func (p *Program) Evaluate(r io.Reader, w io.Writer, functions map[string]Functi
 			var value float64
 			_, err := fmt.Fscanln(ctx.Input, &value)
 			if err != nil {
-				return lexer.Errorf(cmd.Pos, "invalid input: %s", err)
+				return participle.Errorf(cmd.Pos, "invalid input: %s", err)
 			}
 			ctx.Vars[cmd.Variable] = value
 
@@ -275,7 +276,7 @@ func (p *Program) Evaluate(r io.Reader, w io.Writer, functions map[string]Functi
 			if test, ok := condition.(bool); ok && test {
 				next, ok := p.Table[cmd.Line]
 				if !ok {
-					return lexer.Errorf(cmd.Pos, "invalid line number %d", cmd.Line)
+					return participle.Errorf(cmd.Pos, "invalid line number %d", cmd.Line)
 				}
 				index = next.Index
 				continue

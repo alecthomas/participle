@@ -53,7 +53,7 @@ func Lex(filename string, r io.Reader) Lexer {
 	lexer.scanner.Error = func(s *scanner.Scanner, msg string) {
 		// This is to support single quoted strings. Hacky.
 		if !strings.HasSuffix(msg, "char literal") {
-			lexer.err = Errorf(Position(lexer.scanner.Pos()), msg)
+			lexer.err = errorf(Position(lexer.scanner.Pos()), msg)
 		}
 	}
 	return lexer

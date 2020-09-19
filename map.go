@@ -47,7 +47,7 @@ func Unquote(types ...string) Option {
 	return Map(func(t lexer.Token) (lexer.Token, error) {
 		value, err := unquote(t.Value)
 		if err != nil {
-			return t, lexer.ErrorWithTokenf(t, "invalid quoted string %q: %s", t.Value, err.Error())
+			return t, Errorf(t.Pos, "invalid quoted string %q: %s", t.Value, err.Error())
 		}
 		t.Value = value
 		return t, nil
