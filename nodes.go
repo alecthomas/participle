@@ -40,13 +40,10 @@ func decorate(err *error, name func() string) {
 	if *err == nil {
 		return
 	}
-	switch realError := (*err).(type) {
-	case *lexer.Error:
-		*err = &parseError{Msg: name() + ": " + realError.Msg, Tok: realError.Token()}
-	case *parseError:
-		*err = &parseError{Msg: name() + ": " + realError.Msg, Tok: realError.Token()}
-	default:
-		*err = &parseError{Msg: fmt.Sprintf("%s: %s", name(), realError)}
+	if perr, ok := (*err).(Error); ok {
+		*err = Errorf(perr.Position(), "%s: %s", name(), perr.Message())
+	} else {
+		*err = &parseError{Msg: fmt.Sprintf("%s: %s", name(), *err)}
 	}
 }
 
@@ -168,7 +165,7 @@ func (g *group) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Va
 		}
 		if len(out) == 0 {
 			t, _ := ctx.Peek(0)
-			return out, lexer.ErrorWithTokenf(t, "sub-expression %s cannot be empty", g)
+			return out, Errorf(t.Pos, "sub-expression %s cannot be empty", g)
 		}
 		return out, nil
 	case groupMatchOnce:
@@ -204,10 +201,10 @@ func (g *group) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Va
 	// fmt.Printf("%d < %d < %d: out == nil? %v\n", min, matches, max, out == nil)
 	t, _ := ctx.Peek(0)
 	if matches >= MaxIterations {
-		panic(lexer.ErrorWithTokenf(t, "too many iterations of %s (> %d)", g, MaxIterations))
+		panic(Errorf(t.Pos, "too many iterations of %s (> %d)", g, MaxIterations))
 	}
 	if matches < min {
-		return out, lexer.ErrorWithTokenf(t, "sub-expression %s must match at least once", g)
+		return out, Errorf(t.Pos, "sub-expression %s must match at least once", g)
 	}
 	// The idea here is that something like "a"? is a successful match and that parsing should proceed.
 	if min == 0 && out == nil {
@@ -393,7 +390,7 @@ func (r *repetition) Parse(ctx *parseContext, parent reflect.Value) (out []refle
 	}
 	if i >= MaxIterations {
 		t, _ := ctx.Peek(0)
-		panic(lexer.ErrorWithTokenf(t, "too many iterations of %s (> %d)", r, MaxIterations))
+		panic(Errorf(t.Pos, "too many iterations of %s (> %d)", r, MaxIterations))
 	}
 	if out == nil {
 		out = []reflect.Value{}
@@ -454,7 +451,7 @@ func (n *negation) Parse(ctx *parseContext, parent reflect.Value) (out []reflect
 
 	if out != nil && err == nil {
 		// out being non-nil means that what we don't want is actually here, so we report nomatch
-		return nil, lexer.ErrorWithTokenf(notEOF, "unexpected '%s'", notEOF.Value)
+		return nil, Errorf(notEOF.Pos, "unexpected '%s'", notEOF.Value)
 	}
 
 	// Just give the next token

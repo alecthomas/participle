@@ -8,13 +8,33 @@ import (
 
 // Error represents an error while parsing.
 //
+// The format of an Error is in the form "[<filename>:][<line>:<pos>:] <message>".
+//
 // The error will contain positional information if available.
 type Error interface {
 	error
 	// Unadorned message.
 	Message() string
-	// Closest token to error location.
-	Token() lexer.Token
+	// Closest position to error location.
+	Position() lexer.Position
+}
+
+// FormatError formats an error in the form "[<filename>:][<line>:<pos>:] <message>"
+func FormatError(err Error) string {
+	msg := ""
+	pos := err.Position()
+	if pos.Filename != "" {
+		msg += pos.Filename + ":"
+	}
+	if pos.Line != 0 || pos.Column != 0 {
+		msg += fmt.Sprintf("%d:%d:", pos.Line, pos.Column)
+	}
+	if msg != "" {
+		msg += " " + err.Message()
+	} else {
+		msg = err.Message()
+	}
+	return msg
 }
 
 // UnexpectedTokenError is returned by ParseReader when an unexpected token is encountered.
@@ -25,9 +45,7 @@ type UnexpectedTokenError struct {
 	Expected   string
 }
 
-func (u UnexpectedTokenError) Error() string {
-	return lexer.FormatError(u.Unexpected.Pos, u.Message())
-}
+func (u UnexpectedTokenError) Error() string { return FormatError(u) }
 
 func (u UnexpectedTokenError) Message() string { // nolint: golint
 	var expected string
@@ -36,41 +54,28 @@ func (u UnexpectedTokenError) Message() string { // nolint: golint
 	}
 	return fmt.Sprintf("unexpected token %q%s", u.Unexpected, expected)
 }
-func (u UnexpectedTokenError) Token() lexer.Token { return u.Unexpected } // nolint: golint
+func (u UnexpectedTokenError) Position() lexer.Position { return u.Unexpected.Pos } // nolint: golint
 
 type parseError struct {
 	Msg string
-	Tok lexer.Token
+	Pos lexer.Position
 }
 
-func (p *parseError) Error() string      { return lexer.FormatError(p.Tok.Pos, p.Msg) }
-func (p *parseError) Message() string    { return p.Msg }
-func (p *parseError) Token() lexer.Token { return p.Tok }
-
-// AnnotateError wraps an existing error with a position.
-//
-// If the existing error is a lexer.Error or participle.Error it will be returned unmodified.
-func AnnotateError(pos lexer.Position, err error) error {
-	if perr, ok := err.(Error); ok {
-		return perr
-	}
-	return &parseError{Msg: err.Error(), Tok: lexer.Token{Pos: pos}}
-}
+func (p *parseError) Error() string            { return FormatError(p) }
+func (p *parseError) Message() string          { return p.Msg }
+func (p *parseError) Position() lexer.Position { return p.Pos }
 
 // Errorf creats a new Error at the given position.
-func Errorf(pos lexer.Position, format string, args ...interface{}) error {
-	return &parseError{Msg: fmt.Sprintf(format, args...), Tok: lexer.Token{Pos: pos}}
+func Errorf(pos lexer.Position, format string, args ...interface{}) Error {
+	return &parseError{Msg: fmt.Sprintf(format, args...), Pos: pos}
 }
 
-// ErrorWithTokenf creats a new Error with the given token as context.
-func ErrorWithTokenf(tok lexer.Token, format string, args ...interface{}) error {
-	return &parseError{Msg: fmt.Sprintf(format, args...), Tok: tok}
-}
-
-// Wrapf attempts to wrap an existing participle.Error in a new message.
-func Wrapf(pos lexer.Position, err error, format string, args ...interface{}) error {
+// Wrapf attempts to wrap an existing Error in a new message.
+//
+// If "err" is a participle.Error, its positional information will be uesd.
+func Wrapf(pos lexer.Position, err error, format string, args ...interface{}) Error {
 	if perr, ok := err.(Error); ok {
-		return Errorf(perr.Token().Pos, "%s: %s", fmt.Sprintf(format, args...), perr.Message())
+		return Errorf(perr.Position(), "%s: %s", fmt.Sprintf(format, args...), perr.Message())
 	}
 	return Errorf(pos, "%s: %s", fmt.Sprintf(format, args...), err.Error())
 }
