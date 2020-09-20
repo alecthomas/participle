@@ -73,27 +73,24 @@ type compiledRuleGroup struct {
 	rules []compiledRule
 
 	// These two variables contain information about which rules may be tested on a given rune.
-	// This is done so by having a [nb_runes]bool slice at the end which when true means that the rule at this
-	// index is a possible candidate.
-	//
-	// The rune map is a slice of 256 elements to slices of 256 elements to a slice of nb_rules booleans.
-	//                                              ^ this one can be nil       ^ this one can also be nil
-	// The fallback map is a list of rules that weren't put in the runeMap because if they were they would
-	// fill too much of them (like /./, which would basically force us to allocate all of the runeMap, which
-	// we want to avoid), or because we didn't know their regexps during analysis (backrefs).
-	runeMap     map[int][]bool
-	fallbackMap []bool // a slice the same size as rules, these
+	// The runemap holds a map associating a rune to an array of bool the size of the rule count,
+	// that indicate whether the rule should be checked or not.
+	// The fallbackMap holds a single []bool array that holds true for the rules that are too
+	// big to put in the runeMap (like '.') and that are tested all the time.
+	runeMap     map[rune][]bool
+	fallbackMap []bool // a slice the same size as rules
 }
 
 func (group *compiledRuleGroup) process() error {
-	var rules = group.rules
-	var nbrules = len(rules)
-	group.runeMap = make(map[int][]bool)
-	group.fallbackMap = make([]bool, nbrules)
-
-	var computed = make([]*computedRuneRange, nbrules)
-	var fallback = group.fallbackMap
-	var runemap = group.runeMap
+	var (
+		rules    = group.rules
+		nbrules  = len(rules)
+		computed = make([]*computedRuneRange, nbrules)
+		fallback = make([]bool, nbrules)
+		runemap  = make(map[rune][]bool)
+	)
+	group.runeMap = runemap
+	group.fallbackMap = fallback
 
 	// Analyze the patterns to populate runeMap and fallbackMap
 	for i, rule := range rules {
@@ -147,7 +144,7 @@ func (group *compiledRuleGroup) process() error {
 	return nil
 }
 
-func runeIsInRange(r int, comp *computedRuneRange) bool {
+func runeIsInRange(r rune, comp *computedRuneRange) bool {
 	if comp == nil {
 		return true // all the unknown rules are added.
 	}
@@ -172,13 +169,12 @@ func (group *compiledRuleGroup) tryMatch(l *Lexer) (*compiledRule, []int, error)
 	)
 
 	// first, get the first rune
-	// FIXME: this is forcing utf-8 as an encoding, maybe do something for other charsets ?
 	r, _ := utf8.DecodeRune(l.data)
 	if r == utf8.RuneError {
 		return nil, nil, fmt.Errorf(`invalid utf-8 input sequence`) // FIXME this should be an error, how do we report it ?
 	}
 
-	if indices, ok = group.runeMap[int(r)]; !ok {
+	if indices, ok = group.runeMap[r]; !ok {
 		indices = group.fallbackMap // so we use the fallback to test the rest.
 	}
 
@@ -350,7 +346,7 @@ restart:
 				if err := action.applyRules(state, i, compiled); err != nil {
 					return nil, fmt.Errorf("%s.%d: %s", state, i, err)
 				}
-				continue restart
+				goto restart
 			}
 		}
 	}
@@ -451,22 +447,6 @@ func (l *Lexer) Next() (lexer.Token, error) { // nolint: golint
 			rules = l.def.rules[parent.name]
 			continue
 		}
-
-		// Old code, tried everything
-		// for _, candidate := range rules {
-		// 	// Special case "Return()".
-		// 	if candidate.Rule == returnToParent {
-		// 	}
-		// 	re, err := l.getPattern(candidate)
-		// 	if err != nil {
-		// 		return lexer.Token{}, participle.Wrapf(l.pos, err, "rule %q", candidate.Name)
-		// 	}
-		// 	match = re.FindSubmatchIndex(l.data)
-		// 	if match != nil {
-		// 		rule = &candidate // nolint: scopelint
-		// 		break
-		// 	}
-		// }
 
 		if match == nil || rule == nil {
 			sample := ""

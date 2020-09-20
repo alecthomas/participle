@@ -112,7 +112,7 @@ func getPotentialStarts(r *syntax.Regexp) ([]*syntax.Regexp, int) {
 
 // appendRange returns the result of appending the range lo-hi to the class r.
 // function stolen from syntax/parse.go
-func appendRange(r []int, lo, hi int) []int {
+func appendRange(r []rune, lo, hi rune) []rune {
 	// Expand last range or next to last range if it overlaps or abuts.
 	// Checking two ranges helps when appending case-folded
 	// alphabets, so that one range can be expanding A-Z and the
@@ -136,17 +136,17 @@ func appendRange(r []int, lo, hi int) []int {
 	return append(r, lo, hi)
 }
 
-func computeNumberOfRunes(arg []int) int {
+func computeNumberOfRunes(arg []rune) int {
 	var acc = 0
 	for i, l := 0, len(arg); i < l; i += 2 {
-		acc += arg[i+1] - arg[i]
+		acc += int(arg[i+1] - arg[i])
 	}
 	return acc
 }
 
 type computedRuneRange struct {
 	pattern string
-	runes   []int
+	runes   []rune
 	size    int
 	nbmatch int
 }
@@ -159,7 +159,7 @@ type computedRuneRange struct {
 func computeRuneRanges(pattern string) (*computedRuneRange, error) {
 	var (
 		syn   *syntax.Regexp
-		res   []int
+		res   []rune
 		count = 0
 		err   error
 	)
@@ -185,15 +185,15 @@ func computeRuneRanges(pattern string) (*computedRuneRange, error) {
 		case syntax.OpCharClass:
 			for i, l := 0, len(start.Rune); i < l; i += 2 {
 				var lo, hi = start.Rune[i], start.Rune[i+1]
-				res = appendRange(res, int(lo), int(hi))
+				res = appendRange(res, lo, hi)
 			}
 
 		case syntax.OpLiteral:
-			var val = int(start.Rune[0])
+			var val = start.Rune[0]
 			res = appendRange(res, val, val)
 			count++
 		case syntax.OpAnyChar:
-			return &computedRuneRange{pattern, []int{0, 1114111}, 1114111, nbmatch}, nil
+			return &computedRuneRange{pattern, []rune{0, 1114111}, 1114111, nbmatch}, nil
 		case syntax.OpAnyCharNotNL:
 			res = appendRange(res, 0, 9)
 			res = appendRange(res, 11, 1114111)
