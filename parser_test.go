@@ -832,21 +832,6 @@ func (c *captureableWithPosition) Capture(values []string) error {
 	return nil
 }
 
-func TestIssue35(t *testing.T) {
-	type grammar struct {
-		Value *captureableWithPosition `@Ident`
-	}
-	p := mustTestParser(t, &grammar{})
-	actual := &grammar{}
-	err := p.ParseString("", `hello`, actual)
-	require.NoError(t, err)
-	expected := &grammar{Value: &captureableWithPosition{
-		Pos:   lexer.Position{Column: 1, Offset: 0, Line: 1},
-		Value: "hello",
-	}}
-	require.Equal(t, expected, actual)
-}
-
 func TestInvalidNumbers(t *testing.T) {
 	type grammar struct {
 		Int8    int8    `  "int8" @Int`
@@ -1306,6 +1291,26 @@ func TestASTTokens(t *testing.T) {
 		Subject: subject{
 			Tokens: tokens[1:],
 			Word:   "world",
+		},
+	}
+	require.Equal(t, expected, actual)
+}
+
+func TestCaptureIntoToken(t *testing.T) {
+	type ast struct {
+		Head lexer.Token   `@Ident`
+		Tail []lexer.Token `@(Ident*)`
+	}
+
+	p := mustTestParser(t, &ast{})
+	actual := &ast{}
+	err := p.ParseString("", "hello waz baz", actual)
+	require.NoError(t, err)
+	expected := &ast{
+		Head: lexer.Token{-2, "hello", lexer.Position{Line: 1, Column: 1}},
+		Tail: []lexer.Token{
+			{-2, "waz", lexer.Position{Offset: 6, Line: 1, Column: 7}},
+			{-2, "baz", lexer.Position{Offset: 10, Line: 1, Column: 11}},
 		},
 	}
 	require.Equal(t, expected, actual)
