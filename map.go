@@ -1,7 +1,6 @@
 package participle
 
 import (
-	"errors"
 	"io"
 	"strconv"
 	"strings"
@@ -14,12 +13,7 @@ type mapperByToken struct {
 	mapper  Mapper
 }
 
-// DropToken can be returned by a Mapper to remove a token from the stream.
-var DropToken = errors.New("drop token") // nolint: golint
-
 // Mapper function for mutating tokens before being applied to the AST.
-//
-// If the Mapper func returns an error of DropToken, the token will be removed from the stream.
 type Mapper func(token lexer.Token) (lexer.Token, error)
 
 // Map is an Option that configures the Parser to apply a mapping function to each Token from the lexer.
@@ -125,15 +119,9 @@ type mappingLexer struct {
 }
 
 func (m *mappingLexer) Next() (lexer.Token, error) {
-	for {
-		t, err := m.Lexer.Next()
-		if err != nil {
-			return t, err
-		}
-		t, err = m.mapper(t)
-		if err == DropToken {
-			continue
-		}
+	t, err := m.Lexer.Next()
+	if err != nil {
 		return t, err
 	}
+	return m.mapper(t)
 }
