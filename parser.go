@@ -16,6 +16,7 @@ type Parser struct {
 	useLookahead    int
 	caseInsensitive map[string]bool
 	mappers         []mapperByToken
+	elide           []string
 }
 
 // MustBuild calls Build(grammar, options...) and panics if an error occurs.
@@ -46,9 +47,9 @@ func Build(grammar interface{}, options ...Option) (parser *Parser, err error) {
 		}
 	}
 
+	symbols := p.lex.Symbols()
 	if len(p.mappers) > 0 {
 		mappers := map[rune][]Mapper{}
-		symbols := p.lex.Symbols()
 		for _, mapper := range p.mappers {
 			if len(mapper.symbols) == 0 {
 				mappers[lexer.EOF] = append(mappers[lexer.EOF], mapper.mapper)
@@ -161,7 +162,7 @@ func (p *Parser) ParseReader(filename string, r io.Reader, v interface{}, option
 	if err != nil {
 		return err
 	}
-	peeker, err := lexer.Upgrade(lex)
+	peeker, err := lexer.Upgrade(lex, p.getElidedTypes()...)
 	if err != nil {
 		return err
 	}
@@ -177,7 +178,7 @@ func (p *Parser) ParseString(filename string, s string, v interface{}, options .
 	if err != nil {
 		return err
 	}
-	peeker, err := lexer.Upgrade(lex)
+	peeker, err := lexer.Upgrade(lex, p.getElidedTypes()...)
 	if err != nil {
 		return err
 	}
@@ -193,7 +194,7 @@ func (p *Parser) ParseBytes(filename string, b []byte, v interface{}, options ..
 	if err != nil {
 		return err
 	}
-	peeker, err := lexer.Upgrade(lex)
+	peeker, err := lexer.Upgrade(lex, p.getElidedTypes()...)
 	if err != nil {
 		return err
 	}
@@ -265,4 +266,17 @@ func (p *Parser) rootParseable(ctx *parseContext, parseable Parseable) error {
 		return ctx.DeepestError(UnexpectedTokenError{Unexpected: peek})
 	}
 	return nil
+}
+
+func (p *Parser) getElidedTypes() []rune {
+	symbols := p.lex.Symbols()
+	elideTypes := make([]rune, 0, len(p.elide))
+	for _, elide := range p.elide {
+		rn, ok := symbols[elide]
+		if !ok {
+			panic(fmt.Errorf("Elide() uses unknown token %q", elide))
+		}
+		elideTypes = append(elideTypes, rn)
+	}
+	return elideTypes
 }

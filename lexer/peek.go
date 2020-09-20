@@ -5,13 +5,21 @@ type PeekingLexer struct {
 	cursor int
 	eof    Token
 	tokens []Token
+	elide  map[rune]bool
 }
 
 var _ Lexer = &PeekingLexer{}
 
 // Upgrade a Lexer to a PeekingLexer with arbitrary lookahead.
-func Upgrade(lex Lexer) (*PeekingLexer, error) {
-	r := &PeekingLexer{}
+//
+// "elide" is a slice of token types to elide from processing.
+func Upgrade(lex Lexer, elide ...rune) (*PeekingLexer, error) {
+	r := &PeekingLexer{
+		elide: make(map[rune]bool, len(elide)),
+	}
+	for _, rn := range elide {
+		r.elide[rn] = true
+	}
 	for {
 		t, err := lex.Next()
 		if err != nil {
@@ -26,27 +34,42 @@ func Upgrade(lex Lexer) (*PeekingLexer, error) {
 	return r, nil
 }
 
-// Cursor position in tokens.
+// Range returns the slice of tokens between the two cursor points.
+func (p *PeekingLexer) Range(start, end int) []Token {
+	return p.tokens[start:end]
+}
+
+// Cursor position in tokens (includes elided tokens).
 func (p *PeekingLexer) Cursor() int {
 	return p.cursor
 }
 
 // Next consumes and returns the next token.
 func (p *PeekingLexer) Next() (Token, error) {
-	if p.cursor >= len(p.tokens) {
-		return p.eof, nil
+	for p.cursor < len(p.tokens) {
+		t := p.tokens[p.cursor]
+		p.cursor++
+		if p.elide[t.Type] {
+			continue
+		}
+		return p.tokens[p.cursor-1], nil
 	}
-	p.cursor++
-	return p.tokens[p.cursor-1], nil
+	return p.eof, nil
 }
 
 // Peek ahead at the n+1 token. ie. Peek(0) will peek at the next token.
 func (p *PeekingLexer) Peek(n int) (Token, error) {
-	i := p.cursor + n
-	if i >= len(p.tokens) {
-		return p.eof, nil
+	for i := p.cursor; i < len(p.tokens); i++ {
+		t := p.tokens[i]
+		if p.elide[t.Type] {
+			continue
+		}
+		if n == 0 {
+			return t, nil
+		}
+		n--
 	}
-	return p.tokens[i], nil
+	return p.eof, nil
 }
 
 // Clone creates a clone of this PeekingLexer at its current token.

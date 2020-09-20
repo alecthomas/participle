@@ -1273,3 +1273,40 @@ func TestNegationWithDisjunction(t *testing.T) {
 	require.Equal(t, &[]string{"hello", "world", ","}, ast.EverythingMoreComplex)
 
 }
+
+func TestASTTokens(t *testing.T) {
+	type subject struct {
+		Tokens []lexer.Token
+
+		Word string `@Ident`
+	}
+
+	type hello struct {
+		Tokens []lexer.Token
+
+		Subject subject `"hello" @@`
+	}
+
+	p := mustTestParser(t, &hello{},
+		participle.Elide("Whitespace"),
+		participle.Lexer(lexer.Must(stateful.NewSimple([]stateful.Rule{
+			{"Ident", `\w+`, nil},
+			{"Whitespace", `\s+`, nil},
+		}))))
+	actual := &hello{}
+	err := p.ParseString("", "hello world", actual)
+	require.NoError(t, err)
+	tokens := []lexer.Token{
+		{-2, "hello", lexer.Position{Line: 1, Column: 1}},
+		{-3, " ", lexer.Position{Offset: 5, Line: 1, Column: 6}},
+		{-2, "world", lexer.Position{Offset: 6, Line: 1, Column: 7}},
+	}
+	expected := &hello{
+		Tokens: tokens,
+		Subject: subject{
+			Tokens: tokens[1:],
+			Word:   "world",
+		},
+	}
+	require.Equal(t, expected, actual)
+}

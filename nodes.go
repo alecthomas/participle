@@ -16,6 +16,7 @@ var (
 	MaxIterations = 1000000
 
 	positionType        = reflect.TypeOf(lexer.Position{})
+	tokensType          = reflect.TypeOf([]lexer.Token{})
 	captureType         = reflect.TypeOf((*Capture)(nil)).Elem()
 	textUnmarshalerType = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
 	parseableType       = reflect.TypeOf((*Parseable)(nil)).Elem()
@@ -71,31 +72,53 @@ func (p *parseable) Parse(ctx *parseContext, parent reflect.Value) (out []reflec
 type strct struct {
 	typ              reflect.Type
 	expr             node
+	tokensFieldIndex []int
 	posFieldIndex    []int
 	endPosFieldIndex []int
 }
 
 func newStrct(typ reflect.Type) *strct {
-	var (
-		posFieldIndex    []int
-		endPosFieldIndex []int
-	)
+	s := &strct{
+		typ: typ,
+	}
 	field, ok := typ.FieldByName("Pos")
 	if ok && field.Type == positionType {
-		posFieldIndex = field.Index
+		s.posFieldIndex = field.Index
 	}
 	field, ok = typ.FieldByName("EndPos")
 	if ok && field.Type == positionType {
-		endPosFieldIndex = field.Index
+		s.endPosFieldIndex = field.Index
 	}
-	return &strct{
-		typ:              typ,
-		posFieldIndex:    posFieldIndex,
-		endPosFieldIndex: endPosFieldIndex,
+	field, ok = typ.FieldByName("Tokens")
+	if ok && field.Type == tokensType {
+		s.tokensFieldIndex = field.Index
 	}
+	return s
 }
 
 func (s *strct) String() string { return stringer(s) }
+
+func (s *strct) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
+	sv := reflect.New(s.typ).Elem()
+	start := ctx.Cursor()
+	t, err := ctx.Peek(0)
+	if err != nil {
+		return nil, err
+	}
+	s.maybeInjectStartToken(t, sv)
+	if out, err = s.expr.Parse(ctx, sv); err != nil {
+		_ = ctx.Apply() // Best effort to give partial AST.
+		ctx.MaybeUpdateError(err)
+		return []reflect.Value{sv}, err
+	} else if out == nil {
+		return nil, nil
+	}
+	end := ctx.Cursor()
+	t, _ = ctx.Peek(0)
+	s.maybeInjectEndToken(t, sv)
+	s.maybeInjectTokens(ctx.Range(start, end), sv)
+	return []reflect.Value{sv}, ctx.Apply()
+}
 
 func (s *strct) maybeInjectStartToken(token lexer.Token, v reflect.Value) {
 	if s.posFieldIndex == nil {
@@ -111,23 +134,11 @@ func (s *strct) maybeInjectEndToken(token lexer.Token, v reflect.Value) {
 	v.FieldByIndex(s.endPosFieldIndex).Set(reflect.ValueOf(token.Pos))
 }
 
-func (s *strct) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
-	sv := reflect.New(s.typ).Elem()
-	t, err := ctx.Peek(0)
-	if err != nil {
-		return nil, err
+func (s *strct) maybeInjectTokens(tokens []lexer.Token, v reflect.Value) {
+	if s.tokensFieldIndex == nil {
+		return
 	}
-	s.maybeInjectStartToken(t, sv)
-	if out, err = s.expr.Parse(ctx, sv); err != nil {
-		_ = ctx.Apply() // Best effort to give partial AST.
-		ctx.MaybeUpdateError(err)
-		return []reflect.Value{sv}, err
-	} else if out == nil {
-		return nil, nil
-	}
-	t, _ = ctx.Peek(0)
-	s.maybeInjectEndToken(t, sv)
-	return []reflect.Value{sv}, ctx.Apply()
+	v.FieldByIndex(s.tokensFieldIndex).Set(reflect.ValueOf(tokens))
 }
 
 type groupMatchMode int
