@@ -6,7 +6,11 @@ import (
 )
 
 ///////////////////////////////////////////
-// Regexp Analyzer
+// These functions analyze a Regexp AST to determine for a given pattern ;
+//   - what possible first runes it would match on
+//   - what possible match size can be expected (possibly zero, exactly one, one or more)
+// The possible match size is for now not utilized, but could potentially be used to not
+// even launch a regexp match if the rune is found is in the input.
 ///////////////////////////////////////////
 
 func min(a, b int) int {
@@ -18,11 +22,11 @@ func min(a, b int) int {
 
 // If a character class has a range bigger than this, then give up on it and mark it as always to test,
 // since otherwise it would take too much memory.
-const charclassSizeLimit = 4096
 const (
-	mayMatchZero      = 0
-	mayMatchOneOrMore = 1
-	matchesExactlyOne = 2
+	charclassSizeLimit = 4096
+	mayMatchZero       = 0
+	mayMatchOneOrMore  = 1
+	matchesExactlyOne  = 2
 )
 
 // Get all the possible starting points of a regexp that resolve to runes
