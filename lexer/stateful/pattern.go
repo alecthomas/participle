@@ -3,6 +3,7 @@ package stateful
 import (
 	"fmt"
 	"regexp/syntax"
+	"unicode"
 )
 
 ///////////////////////////////////////////
@@ -195,6 +196,11 @@ func computeRuneRanges(pattern string) (*computedRuneRange, error) {
 		case syntax.OpLiteral:
 			var val = start.Rune[0]
 			res = appendRange(res, val, val)
+			if start.Flags&syntax.FoldCase != 0 {
+				// If the match is case insensitive, add also its case counterpart.
+				folded := unicode.SimpleFold(val)
+				res = appendRange(res, folded, folded)
+			}
 			count++
 		case syntax.OpAnyChar:
 			return &computedRuneRange{pattern, []rune{0, 1114111}, 1114111, nbmatch}, nil
