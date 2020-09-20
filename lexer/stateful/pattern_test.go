@@ -5,12 +5,12 @@ import (
 	"testing"
 )
 
-type PatternTest struct {
-	pattern     string
-	errexpected bool
-}
-
 func TestPatternStartingPatterns(t *testing.T) {
+	type PatternTest struct {
+		pattern     string
+		errexpected bool
+	}
+
 	var (
 		tests = []PatternTest{
 			{`^`, true},

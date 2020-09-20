@@ -36,8 +36,6 @@ import (
 	"strings"
 	"sync"
 	"unicode"
-
-	// "unicode"
 	"unicode/utf8"
 
 	"github.com/alecthomas/participle"
@@ -78,7 +76,7 @@ type compiledRuleGroup struct {
 	// The fallbackMap holds a single []bool array that holds true for the rules that are too
 	// big to put in the runeMap (like '.') and that are tested all the time.
 	runeMap     map[rune][]bool
-	fallbackMap []bool // a slice the same size as rules
+	fallbackMap []bool
 }
 
 func (group *compiledRuleGroup) process() error {
