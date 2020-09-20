@@ -7,7 +7,7 @@ import (
 )
 
 type contextFieldSet struct {
-	pos        lexer.Position
+	tokens     []lexer.Token
 	strct      reflect.Value
 	field      structLexerField
 	fieldValue []reflect.Value
@@ -43,14 +43,14 @@ func (p *parseContext) DeepestError(err error) error {
 }
 
 // Defer adds a function to be applied once a branch has been picked.
-func (p *parseContext) Defer(pos lexer.Position, strct reflect.Value, field structLexerField, fieldValue []reflect.Value) {
-	p.apply = append(p.apply, &contextFieldSet{pos, strct, field, fieldValue})
+func (p *parseContext) Defer(tokens []lexer.Token, strct reflect.Value, field structLexerField, fieldValue []reflect.Value) {
+	p.apply = append(p.apply, &contextFieldSet{tokens, strct, field, fieldValue})
 }
 
 // Apply deferred functions.
 func (p *parseContext) Apply() error {
 	for _, apply := range p.apply {
-		if err := setField(apply.pos, apply.strct, apply.field, apply.fieldValue); err != nil {
+		if err := setField(apply.tokens, apply.strct, apply.field, apply.fieldValue); err != nil {
 			return err
 		}
 	}

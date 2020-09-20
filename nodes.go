@@ -16,6 +16,7 @@ var (
 	MaxIterations = 1000000
 
 	positionType        = reflect.TypeOf(lexer.Position{})
+	tokenType           = reflect.TypeOf(lexer.Token{})
 	tokensType          = reflect.TypeOf([]lexer.Token{})
 	captureType         = reflect.TypeOf((*Capture)(nil)).Elem()
 	textUnmarshalerType = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
@@ -308,22 +309,17 @@ type capture struct {
 func (c *capture) String() string { return stringer(c) }
 
 func (c *capture) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
-	token, err := ctx.Peek(0)
-	if err != nil {
-		return nil, err
-	}
-	pos := token.Pos
+	start := ctx.Cursor()
 	v, err := c.node.Parse(ctx, parent)
+	if v != nil {
+		ctx.Defer(ctx.Range(start, ctx.Cursor()), parent, c.field, v)
+	}
 	if err != nil {
-		if v != nil {
-			ctx.Defer(pos, parent, c.field, v)
-		}
 		return []reflect.Value{parent}, err
 	}
 	if v == nil {
 		return nil, nil
 	}
-	ctx.Defer(pos, parent, c.field, v)
 	return []reflect.Value{parent}, nil
 }
 
@@ -553,7 +549,7 @@ func sizeOfKind(kind reflect.Kind) int {
 //
 // For all other types, an attempt will be made to convert the string to the corresponding
 // type (int, float32, etc.).
-func setField(pos lexer.Position, strct reflect.Value, field structLexerField, fieldValue []reflect.Value) (err error) { // nolint: gocognit
+func setField(tokens []lexer.Token, strct reflect.Value, field structLexerField, fieldValue []reflect.Value) (err error) { // nolint: gocognit
 	defer decorate(&err, func() string { return strct.Type().Name() + "." + field.Name })
 
 	f := strct.FieldByIndex(field.Index)
@@ -569,6 +565,16 @@ func setField(pos lexer.Position, strct reflect.Value, field structLexerField, f
 		}
 	}
 
+	if f.Type() == tokenType {
+		f.Set(reflect.ValueOf(tokens[0]))
+		return nil
+	}
+
+	if f.Type() == tokensType {
+		f.Set(reflect.ValueOf(tokens))
+		return nil
+	}
+
 	if f.Kind() == reflect.Slice {
 		fieldValue, err = conform(f.Type().Elem(), fieldValue)
 		if err != nil {
@@ -576,12 +582,6 @@ func setField(pos lexer.Position, strct reflect.Value, field structLexerField, f
 		}
 		f.Set(reflect.Append(f, fieldValue...))
 		return nil
-	}
-
-	if f.Kind() == reflect.Struct {
-		if pf := f.FieldByName("Pos"); pf.IsValid() && pf.Type() == positionType {
-			pf.Set(reflect.ValueOf(pos))
-		}
 	}
 
 	if f.CanAddr() {

@@ -205,7 +205,8 @@ func (g *generatorContext) parseCapture(slexer *structLexer) (node, error) {
 		}
 		return &capture{field, n}, nil
 	}
-	if indirectType(field.Type).Kind() == reflect.Struct && !field.Type.Implements(captureType) && !field.Type.Implements(textUnmarshalerType) {
+	ft := indirectType(field.Type)
+	if ft.Kind() == reflect.Struct && ft != tokenType && ft != tokensType && !field.Type.Implements(captureType) && !field.Type.Implements(textUnmarshalerType) {
 		return nil, fmt.Errorf("structs can only be parsed with @@ or by implementing the Capture or encoding.TextUnmarshaler interfaces")
 	}
 	n, err := g.parseTermNoModifiers(slexer)
@@ -304,9 +305,6 @@ func (g *generatorContext) parseLiteral(lex *structLexer) (node, error) { // nol
 	token, err := lex.Next()
 	if err != nil {
 		return nil, err
-	}
-	if token.Type != scanner.String && token.Type != scanner.RawString && token.Type != scanner.Char {
-		return nil, fmt.Errorf("expected quoted string but got %q", token)
 	}
 	s := token.Value
 	t := rune(-1)

@@ -161,6 +161,9 @@ A successful capture match into a boolean field will set the field to true.
 For integer and floating point types, a successful capture will be parsed
 with `strconv.ParseInt()` and `strconv.ParseBool()` respectively.
 
+Tokens can also be captured directly into fields of type `lexer.Token` and
+`[]lexer.Token`.
+
 Custom control of how values are captured into fields can be achieved by a
 field type implementing the `Capture` interface (`Capture(values []string)
 error`).
