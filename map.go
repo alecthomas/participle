@@ -79,9 +79,10 @@ func Upper(types ...string) Option {
 
 // Elide drops tokens of the specified types.
 func Elide(types ...string) Option {
-	return Map(func(token lexer.Token) (lexer.Token, error) {
-		return lexer.Token{}, DropToken
-	}, types...)
+	return func(p *Parser) error {
+		p.elide = append(p.elide, types...)
+		return nil
+	}
 }
 
 // Apply a Mapping to all tokens coming out of a Lexer.
