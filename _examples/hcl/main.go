@@ -67,7 +67,7 @@ func main() {
 	kingpin.FatalIfError(err, "")
 
 	expr := &Config{}
-	err = parser.ParseReader("", os.Stdin, expr)
+	err = parser.Parse("", os.Stdin, expr)
 	kingpin.FatalIfError(err, "")
 
 	repr.Println(expr)

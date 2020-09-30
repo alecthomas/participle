@@ -1,9 +1,11 @@
 package participle
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"reflect"
+	"strings"
 
 	"github.com/alecthomas/participle/lexer"
 )
@@ -98,8 +100,8 @@ func (p *Parser) Lexer() lexer.Definition {
 }
 
 // Lex uses the parser's lexer to tokenise input.
-func (p *Parser) Lex(r io.Reader) ([]lexer.Token, error) {
-	lex, err := p.lex.LexReader("", r)
+func (p *Parser) Lex(filename string, r io.Reader) ([]lexer.Token, error) {
+	lex, err := p.lex.Lex(filename, r)
 	if err != nil {
 		return nil, err
 	}
@@ -150,15 +152,15 @@ func (p *Parser) ParseFromLexer(lex *lexer.PeekingLexer, v interface{}, options 
 	return p.parseOne(ctx, rv)
 }
 
-// ParseReader from r into grammar v which must be of the same type as the grammar passed to
+// Parse from r into grammar v which must be of the same type as the grammar passed to
 // Build().
 //
 // This may return a Error.
-func (p *Parser) ParseReader(filename string, r io.Reader, v interface{}, options ...ParseOption) (err error) {
+func (p *Parser) Parse(filename string, r io.Reader, v interface{}, options ...ParseOption) (err error) {
 	if filename == "" {
 		filename = lexer.NameOfReader(r)
 	}
-	lex, err := p.lex.LexReader(filename, r)
+	lex, err := p.lex.Lex(filename, r)
 	if err != nil {
 		return err
 	}
@@ -174,15 +176,7 @@ func (p *Parser) ParseReader(filename string, r io.Reader, v interface{}, option
 //
 // This may return a Error.
 func (p *Parser) ParseString(filename string, s string, v interface{}, options ...ParseOption) error {
-	lex, err := p.lex.LexString(filename, s)
-	if err != nil {
-		return err
-	}
-	peeker, err := lexer.Upgrade(lex, p.getElidedTypes()...)
-	if err != nil {
-		return err
-	}
-	return p.ParseFromLexer(peeker, v, options...)
+	return p.Parse(filename, strings.NewReader(s), v, options...)
 }
 
 // ParseBytes from b into grammar v which must be of the same type as the grammar passed to
@@ -190,15 +184,7 @@ func (p *Parser) ParseString(filename string, s string, v interface{}, options .
 //
 // This may return a Error.
 func (p *Parser) ParseBytes(filename string, b []byte, v interface{}, options ...ParseOption) error {
-	lex, err := p.lex.LexBytes(filename, b)
-	if err != nil {
-		return err
-	}
-	peeker, err := lexer.Upgrade(lex, p.getElidedTypes()...)
-	if err != nil {
-		return err
-	}
-	return p.ParseFromLexer(peeker, v, options...)
+	return p.Parse(filename, bytes.NewReader(b), v, options...)
 }
 
 func (p *Parser) parseStreaming(ctx *parseContext, rv reflect.Value) error {

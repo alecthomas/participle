@@ -208,7 +208,7 @@ func main() {
 		thrift := &Thrift{}
 		r, err := os.Open(file)
 		kingpin.FatalIfError(err, "")
-		err = parser.ParseReader("", r, thrift)
+		err = parser.Parse("", r, thrift)
 		kingpin.FatalIfError(err, "")
 		repr.Println(thrift)
 	}

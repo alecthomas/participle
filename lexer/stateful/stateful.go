@@ -381,13 +381,13 @@ restart:
 		}
 	}
 
-	return lexer.Simple(&Definition{
+	return &Definition{
 		rules:   compiled,
 		symbols: symbols,
-	}), nil
+	}, nil
 }
 
-func (d *Definition) LexReader(filename string, r io.Reader) (lexer.Lexer, error) { // nolint: golint
+func (d *Definition) Lex(filename string, r io.Reader) (lexer.Lexer, error) { // nolint: golint
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
