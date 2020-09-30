@@ -22,11 +22,7 @@ type Definition interface {
 	// value of -1, "Ident" might be -2, and so on.
 	Symbols() map[string]rune
 	// Lex an io.Reader.
-	LexReader(filename string, r io.Reader) (Lexer, error)
-	// Lex a string.
-	LexString(filename string, s string) (Lexer, error)
-	// Lex a byte stream.
-	LexBytes(filename string, b []byte) (Lexer, error)
+	Lex(filename string, r io.Reader) (Lexer, error)
 }
 
 // A Lexer returns tokens from a source.

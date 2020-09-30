@@ -73,7 +73,7 @@ func main() {
 	r, err := os.Open(cli.File)
 	ctx.FatalIfErrorf(err)
 	defer r.Close()
-	err = tomlParser.ParseReader(cli.File, r, toml)
+	err = tomlParser.Parse(cli.File, r, toml)
 	ctx.FatalIfErrorf(err)
 	repr.Println(toml)
 }

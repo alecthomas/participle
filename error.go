@@ -37,7 +37,7 @@ func FormatError(err Error) string {
 	return msg
 }
 
-// UnexpectedTokenError is returned by ParseReader when an unexpected token is encountered.
+// UnexpectedTokenError is returned by Parse when an unexpected token is encountered.
 //
 // This is useful for composing parsers in order to detect when a sub-parser has terminated.
 type UnexpectedTokenError struct {

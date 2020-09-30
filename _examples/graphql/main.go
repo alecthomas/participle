@@ -91,7 +91,7 @@ func main() {
 		ast := &File{}
 		r, err := os.Open(file)
 		ctx.FatalIfErrorf(err)
-		err = parser.ParseReader("", r, ast)
+		err = parser.Parse("", r, ast)
 		r.Close()
 		repr.Println(ast)
 		ctx.FatalIfErrorf(err)

@@ -20,7 +20,7 @@ func TestUpper(t *testing.T) {
 		{"Ident", `\w+`, nil},
 	}))
 	parser := mustTestParser(t, &grammar, participle.Lexer(def), participle.Upper("Ident"))
-	actual, err := parser.Lex(strings.NewReader("hello world"))
+	actual, err := parser.Lex("", strings.NewReader("hello world"))
 	require.NoError(t, err)
 
 	expected := []lexer.Token{
@@ -44,7 +44,7 @@ func TestUnquote(t *testing.T) {
 		{"RawString", "`[^`]*`", nil},
 	}))
 	parser := mustTestParser(t, &grammar, participle.Lexer(lex), participle.Unquote("String", "RawString"))
-	actual, err := parser.Lex(strings.NewReader("hello world \"quoted\\tstring\" `backtick quotes`"))
+	actual, err := parser.Lex("", strings.NewReader("hello world \"quoted\\tstring\" `backtick quotes`"))
 	require.NoError(t, err)
 	expected := []lexer.Token{
 		{Type: -3, Value: "hello", Pos: lexer.Position{Line: 1, Column: 1}},
