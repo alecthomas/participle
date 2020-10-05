@@ -38,14 +38,15 @@ func (u UnexpectedTokenError) Message() string { // nolint: golint
 }
 func (u UnexpectedTokenError) Token() lexer.Token { return u.Unexpected } // nolint: golint
 
-type parseError struct {
+// ParseError represents a parsing error in a given location
+type ParseError struct {
 	Msg string
 	Tok lexer.Token
 }
 
-func (p *parseError) Error() string      { return lexer.FormatError(p.Tok.Pos, p.Msg) }
-func (p *parseError) Message() string    { return p.Msg }
-func (p *parseError) Token() lexer.Token { return p.Tok }
+func (p *ParseError) Error() string      { return lexer.FormatError(p.Tok.Pos, p.Msg) }
+func (p *ParseError) Message() string    { return p.Msg } // nolint: golint
+func (p *ParseError) Token() lexer.Token { return p.Tok } // nolint: golint
 
 // AnnotateError wraps an existing error with a position.
 //
@@ -54,17 +55,17 @@ func AnnotateError(pos lexer.Position, err error) error {
 	if perr, ok := err.(Error); ok {
 		return perr
 	}
-	return &parseError{Msg: err.Error(), Tok: lexer.Token{Pos: pos}}
+	return &ParseError{Msg: err.Error(), Tok: lexer.Token{Pos: pos}}
 }
 
 // Errorf creats a new Error at the given position.
 func Errorf(pos lexer.Position, format string, args ...interface{}) error {
-	return &parseError{Msg: fmt.Sprintf(format, args...), Tok: lexer.Token{Pos: pos}}
+	return &ParseError{Msg: fmt.Sprintf(format, args...), Tok: lexer.Token{Pos: pos}}
 }
 
 // ErrorWithTokenf creats a new Error with the given token as context.
 func ErrorWithTokenf(tok lexer.Token, format string, args ...interface{}) error {
-	return &parseError{Msg: fmt.Sprintf(format, args...), Tok: tok}
+	return &ParseError{Msg: fmt.Sprintf(format, args...), Tok: tok}
 }
 
 // Wrapf attempts to wrap an existing participle.Error in a new message.
