@@ -63,7 +63,7 @@ func Must(def Definition, err error) Definition {
 
 // ConsumeAll reads all tokens from a Lexer.
 func ConsumeAll(lexer Lexer) ([]Token, error) {
-	tokens := []Token{}
+	tokens := make([]Token, 0, 1024)
 	for {
 		token, err := lexer.Next()
 		if err != nil {
