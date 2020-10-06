@@ -219,41 +219,46 @@ type RulesAction interface {
 	applyRules(state string, rule int, rules compiledRules) error
 }
 
-// ActionFunc is a function that is also a Action.
-type ActionFunc func(*Lexer, []string) error
+// ActionPop pops to the previous state when the Rule matches.
+type ActionPop struct{}
 
-func (m ActionFunc) applyAction(lexer *Lexer, groups []string) error { return m(lexer, groups) } // nolint: golint
+func (p ActionPop) applyAction(lexer *Lexer, groups []string) error {
+	if groups[0] == "" {
+		return errors.New("did not consume any input")
+	}
+	lexer.stack = lexer.stack[:len(lexer.stack)-1]
+	return nil
+}
 
 // Pop to the previous state.
 func Pop() Action {
-	return ActionFunc(func(lexer *Lexer, groups []string) error {
-		if groups[0] == "" {
-			return errors.New("did not consume any input")
-		}
-		lexer.stack = lexer.stack[:len(lexer.stack)-1]
-		return nil
-	})
+	return ActionPop{}
 }
 
-var returnToParent = Rule{"popIfEmpty", "", nil}
+var returnToParent = Rule{"returnToParent", "", nil}
 
 // Return to the parent state.
 //
 // Useful as the last rule in a sub-state.
 func Return() Rule { return returnToParent }
 
+// ActionPush pushes the current state and switches to "State" when the Rule matches.
+type ActionPush struct{ State string }
+
+func (p ActionPush) applyAction(lexer *Lexer, groups []string) error {
+	if groups[0] == "" {
+		return errors.New("did not consume any input")
+	}
+	lexer.stack = append(lexer.stack, lexerState{name: p.State, groups: groups})
+	return nil
+}
+
 // Push to the given state.
 //
 // The target state will then be the set of rules used for matching
 // until another Push or Pop is encountered.
 func Push(state string) Action {
-	return ActionFunc(func(lexer *Lexer, groups []string) error {
-		if groups[0] == "" {
-			return errors.New("did not consume any input")
-		}
-		lexer.stack = append(lexer.stack, lexerState{name: state, groups: groups})
-		return nil
-	})
+	return ActionPush{state}
 }
 
 type include struct{ state string }
@@ -286,7 +291,7 @@ type Definition struct {
 
 // MustSimple creates a new lexer definition based on a single state described by `rules`.
 // panics if the rules trigger an error
-func MustSimple(rules []Rule) lexer.Definition {
+func MustSimple(rules []Rule) *Definition {
 	def, err := NewSimple(rules)
 	if err != nil {
 		panic(err)
@@ -295,12 +300,12 @@ func MustSimple(rules []Rule) lexer.Definition {
 }
 
 // NewSimple creates a new stateful lexer with a single "Root" state.
-func NewSimple(rules []Rule) (lexer.Definition, error) {
+func NewSimple(rules []Rule) (*Definition, error) {
 	return New(Rules{"Root": rules})
 }
 
 // Must creates a new stateful lexer and panics if it is incorrect.
-func Must(rules Rules) lexer.Definition {
+func Must(rules Rules) *Definition {
 	def, err := New(rules)
 	if err != nil {
 		panic(err)
@@ -309,7 +314,7 @@ func Must(rules Rules) lexer.Definition {
 }
 
 // New constructs a new stateful lexer from rules.
-func New(rules Rules) (lexer.Definition, error) {
+func New(rules Rules) (*Definition, error) {
 	compiled := compiledRules{}
 	for key, set := range rules {
 		if _, ok := compiled[key]; !ok {
@@ -387,11 +392,18 @@ restart:
 	}, nil
 }
 
-func (d *Definition) Lex(filename string, r io.Reader) (lexer.Lexer, error) { // nolint: golint
-	data, err := ioutil.ReadAll(r)
-	if err != nil {
-		return nil, err
+// Rules returns the user-provided Rules used to construct the lexer.
+func (d *Definition) Rules() Rules {
+	out := Rules{}
+	for state, rules := range d.rules {
+		for _, rule := range rules.rules {
+			out[state] = append(out[state], rule.Rule)
+		}
 	}
+	return out
+}
+
+func (d *Definition) LexBytes(filename string, data []byte) (lexer.Lexer, error) { // nolint: golint
 	return &Lexer{
 		def:   d,
 		data:  data,
@@ -402,6 +414,14 @@ func (d *Definition) Lex(filename string, r io.Reader) (lexer.Lexer, error) { //
 			Column:   1,
 		},
 	}, nil
+}
+
+func (d *Definition) Lex(filename string, r io.Reader) (lexer.Lexer, error) { // nolint: golint
+	data, err := ioutil.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+	return d.LexBytes(filename, data)
 }
 
 func (d *Definition) Symbols() map[string]rune { // nolint: golint
