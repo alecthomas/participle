@@ -6,18 +6,19 @@
 <!-- TOC depthFrom:2 insertAnchor:true updateOnSave:true -->
 
 - [Introduction](#introduction)
-- [Limitations](#limitations)
 - [Tutorial](#tutorial)
 - [Overview](#overview)
 - [Annotation syntax](#annotation-syntax)
 - [Capturing](#capturing)
 - [Streaming](#streaming)
 - [Lexing](#lexing)
+    - [Experimental - code generation](#experimental---code-generation)
 - [Options](#options)
 - [Examples](#examples)
 - [Performance](#performance)
 - [Concurrency](#concurrency)
 - [Error reporting](#error-reporting)
+- [Limitations](#limitations)
 - [EBNF](#ebnf)
 
 <!-- /TOC -->
@@ -32,16 +33,6 @@ Participle's method of defining grammars should be familiar to any Go
 programmer who has used the `encoding/json` package: struct field tags define
 what and how input is mapped to those same fields. This is not unusual for Go
 encoders, but is unusual for a parser.
-
-<a id="markdown-limitations" name="limitations"></a>
-## Limitations
-
-Participle grammars are LL(k), though the implementation is recursive descent.
-Among other things, this means that they do not support left recursion.
-
-The default value of K is 1 but this can be controlled with `participle.UseLookahead(k)`.
-
-Left recursion must be eliminated by restructuring your grammar.
 
 <a id="markdown-tutorial" name="tutorial"></a>
 ## Tutorial
@@ -198,18 +189,31 @@ for token := range tokens {
 <a id="markdown-lexing" name="lexing"></a>
 ## Lexing
 
-Participle operates on tokens and thus relies on a lexer to convert character
-streams to tokens.
+Participle relies on distinct lexing and parsing phases. The lexer takes raw
+bytes and produces tokens which the parser consumes. The parser transforms
+these tokens into Go values.
 
-Two lexers are provided, one that is extremely fast but limited based on the
-Go stdlib's `text/scanner` package, and a full-featured stateful lexer based on
-regular expressions that resides in `participle/lexer`.
+The default lexer is based on the Go `text/scanner` package and thus produces
+tokens for Go-like source code. This is surprisingly useful, but if you do require
+more control over lexing the builtin `participle/lexer/stateful` lexer should
+cover most other cases. If that in turn is not flexible enough, you can implement
+your own lexer.
 
 Configure your parser with a lexer via `participle.Lexer()`.
 
 To use your own Lexer you will need to implement two interfaces:
 [Definition](https://godoc.org/github.com/alecthomas/participle/lexer#Definition)
 and [Lexer](https://godoc.org/github.com/alecthomas/participle/lexer#Lexer).
+
+<a id="markdown-experimental---code-generation" name="experimental---code-generation"></a>
+### Experimental - code generation
+
+Participle v1 now has experimental support for generating code to perform
+lexing. Use `participle/experimental/codegen.GenerateLexer()` to compile a
+`stateful` lexer to Go code.
+
+This will generally provide around a 10x improvement in lexing performance
+while producing O(1) garbage.
 
 <a id="markdown-options" name="options"></a>
 ## Options
@@ -377,6 +381,15 @@ There are a few areas where Participle can provide useful feedback to users of y
    populated with _all_ tokens captured by the node, _including_ elided tokens.
 
 These related pieces of information can be combined to provide fairly comprehensive error reporting.
+
+<a id="markdown-limitations" name="limitations"></a>
+## Limitations
+
+Internally, Participle is a recursive descent parser with backtracking (see
+`UseLookahead(K)`).
+
+Among other things, this means that they do not support left recursion. Left
+recursion must be eliminated by restructuring your grammar.
 
 <a id="markdown-ebnf" name="ebnf"></a>
 ## EBNF

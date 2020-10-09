@@ -9,9 +9,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/alecthomas/participle/experimental/codegen"
 	"github.com/alecthomas/participle/lexer"
 	"github.com/alecthomas/participle/lexer/stateful"
-	"github.com/alecthomas/participle/lexer/stateful/codegen"
 )
 
 var (
@@ -38,7 +38,7 @@ var (
 
 func TestGenerate(t *testing.T) {
 	w := &bytes.Buffer{}
-	err := codegen.Generate(w, "codegen_test", exprLexer)
+	err := codegen.GenerateLexer(w, "codegen_test", exprLexer)
 	require.NoError(t, err)
 	source := w.String()
 	// cmd := exec.Command("pbcopy")

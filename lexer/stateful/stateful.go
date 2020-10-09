@@ -416,8 +416,30 @@ func (d *Definition) LexBytes(filename string, data []byte) (lexer.Lexer, error)
 	}, nil
 }
 
+type zeroCopyWriter struct{ b []byte }
+
+func (z *zeroCopyWriter) Write(p []byte) (n int, err error) {
+	z.b = p
+	return len(p), nil
+}
+
 func (d *Definition) Lex(filename string, r io.Reader) (lexer.Lexer, error) { // nolint: golint
-	data, err := ioutil.ReadAll(r)
+	var (
+		data []byte
+		err  error
+	)
+	switch r := r.(type) {
+	case *bytes.Reader:
+		w := &zeroCopyWriter{}
+		_, err = r.WriteTo(w)
+		data = w.b
+
+	case *bytes.Buffer:
+		data = r.Bytes()
+
+	default:
+		data, err = ioutil.ReadAll(r)
+	}
 	if err != nil {
 		return nil, err
 	}

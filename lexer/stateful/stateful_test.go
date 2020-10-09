@@ -1,6 +1,8 @@
 package stateful
 
 import (
+	"bytes"
+	"fmt"
 	"log"
 	"strings"
 	"testing"
@@ -423,4 +425,22 @@ func BenchmarkStatefulBasic(b *testing.B) {
 			b.Fatalf("%d != 401", len(tokens))
 		}
 	}
+}
+
+func TestZeroCopyBytesReader(t *testing.T) {
+	s := []byte("hello")
+	b := bytes.NewReader(s)
+	def := MustSimple([]Rule{{"Ident", `\w+`, nil}})
+	l, err := def.Lex("", b)
+	require.NoError(t, err)
+	require.Equal(t, fmt.Sprintf("%p", s), fmt.Sprintf("%p", l.(*Lexer).data))
+}
+
+func TestZeroCopyBytesBuffer(t *testing.T) {
+	s := []byte("hello")
+	b := bytes.NewBuffer(s)
+	def := MustSimple([]Rule{{"Ident", `\w+`, nil}})
+	l, err := def.Lex("", b)
+	require.NoError(t, err)
+	require.Equal(t, fmt.Sprintf("%p", s), fmt.Sprintf("%p", l.(*Lexer).data))
 }

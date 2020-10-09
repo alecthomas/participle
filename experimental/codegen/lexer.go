@@ -79,7 +79,7 @@ func (d definitionImpl) Lex(filename string, r io.Reader) (lexer.Lexer, error) {
 	if err != nil {
 		return nil, err
 	}
-	return d.LexString(filename, s.String())
+	return d.LexString(filename, s)
 }
 
 type lexerState struct {
@@ -159,10 +159,10 @@ func (l *lexerImpl) sgroups(match []int) []string {
 
 `))
 
-// Generate Go code for the given stateful lexer.
+// GenerateLexer generates Go code implementing the given stateful lexer.
 //
 // The generated code should in general by around 10x faster and produce zero garbage per token.
-func Generate(w io.Writer, pkg string, def *stateful.Definition) error {
+func GenerateLexer(w io.Writer, pkg string, def *stateful.Definition) error {
 	type ctx struct {
 		Package string
 		Def     *stateful.Definition
