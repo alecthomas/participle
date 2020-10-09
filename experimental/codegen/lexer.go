@@ -38,6 +38,7 @@ var tmpl = template.Must(template.New("lexgen").Funcs(template.FuncMap{
 package {{.Package}}
 
 import (
+	"io"
 	"strings"
 	"unicode/utf8"
 
