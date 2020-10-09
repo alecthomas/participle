@@ -6,6 +6,7 @@
 <!-- TOC depthFrom:2 insertAnchor:true updateOnSave:true -->
 
 - [Introduction](#introduction)
+- [Changes](#changes)
 - [Tutorial](#tutorial)
 - [Overview](#overview)
 - [Annotation syntax](#annotation-syntax)
@@ -33,6 +34,11 @@ Participle's method of defining grammars should be familiar to any Go
 programmer who has used the `encoding/json` package: struct field tags define
 what and how input is mapped to those same fields. This is not unusual for Go
 encoders, but is unusual for a parser.
+
+<a id="markdown-changes" name="changes"></a>
+## Changes
+
+See the [Change Log](CHANGES.md) for details.
 
 <a id="markdown-tutorial" name="tutorial"></a>
 ## Tutorial
