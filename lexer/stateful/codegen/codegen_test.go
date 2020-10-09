@@ -41,23 +41,23 @@ func TestGenerate(t *testing.T) {
 	err := codegen.Generate(w, "codegen_test", exprLexer)
 	require.NoError(t, err)
 	source := w.String()
-	cmd := exec.Command("pbcopy")
-	cmd.Stdin = strings.NewReader(source)
-	err = cmd.Run()
-	require.NoError(t, err)
+	// cmd := exec.Command("pbcopy")
+	// cmd.Stdin = strings.NewReader(source)
+	// err = cmd.Run()
+	// require.NoError(t, err)
 
 	formatted := &bytes.Buffer{}
-	cmd = exec.Command("goimports")
+	cmd := exec.Command("gofmt", "-s")
 	cmd.Stdin = strings.NewReader(source)
 	cmd.Stdout = formatted
 	cmd.Stderr = os.Stderr
 	err = cmd.Run()
 	require.NoError(t, err, source)
 
-	cmd = exec.Command("pbcopy")
-	cmd.Stdin = formatted
-	err = cmd.Run()
-	require.NoError(t, err)
+	// cmd = exec.Command("pbcopy")
+	// cmd.Stdin = formatted
+	// err = cmd.Run()
+	// require.NoError(t, err)
 }
 
 func BenchmarkStatefulGenerated(b *testing.B) {

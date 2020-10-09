@@ -25,6 +25,18 @@ type Definition interface {
 	Lex(filename string, r io.Reader) (Lexer, error)
 }
 
+// StringDefinition is an optional interface lexer Definition's can implement
+// to offer a fast path for lexing strings.
+type StringDefinition interface {
+	LexString(filename string, input string) (Lexer, error)
+}
+
+// BytesDefinition is an optional interface lexer Definition's can implement
+// to offer a fast path for lexing byte slices.
+type BytesDefinition interface {
+	LexBytes(filename string, input []byte) (Lexer, error)
+}
+
 // A Lexer returns tokens from a source.
 type Lexer interface {
 	// Next consumes and returns the next token.
