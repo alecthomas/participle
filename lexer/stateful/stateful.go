@@ -185,7 +185,7 @@ func (group *compiledRuleGroup) tryMatch(l *Lexer) (*compiledRule, []int, error)
 
 		// FIXME: what about one char rules ?
 
-		if rule.Rule == returnToParent {
+		if rule.Rule == ReturnRule {
 			return rule, []int{}, nil
 		}
 
@@ -235,12 +235,13 @@ func Pop() Action {
 	return ActionPop{}
 }
 
-var returnToParent = Rule{"returnToParent", "", nil}
+// ReturnRule signals the lexer to return immediately.
+var ReturnRule = Rule{"returnToParent", "", nil}
 
 // Return to the parent state.
 //
 // Useful as the last rule in a sub-state.
-func Return() Rule { return returnToParent }
+func Return() Rule { return ReturnRule }
 
 // ActionPush pushes the current state and switches to "State" when the Rule matches.
 type ActionPush struct{ State string }
@@ -481,7 +482,7 @@ func (l *Lexer) Next() (lexer.Token, error) { // nolint: golint
 			return lexer.Token{}, err // FIXME
 		}
 
-		if rule != nil && rule.Rule == returnToParent {
+		if rule != nil && rule.Rule == ReturnRule {
 			l.stack = l.stack[:len(l.stack)-1]
 			parent = l.stack[len(l.stack)-1]
 			rules = l.def.rules[parent.name]

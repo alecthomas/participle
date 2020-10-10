@@ -25,6 +25,9 @@ var tmpl = template.Must(template.New("lexgen").Funcs(template.FuncMap{
 		_, ok := r.Action.(stateful.ActionPop)
 		return ok
 	},
+	"IsReturn": func(r stateful.Rule) bool {
+		return r == stateful.ReturnRule
+	},
 	"HaveBackrefs": func(def *stateful.Definition, state string) bool {
 		for _, rule := range def.Rules()[state] {
 			if backrefRe.MatchString(rule.Pattern) {
@@ -113,13 +116,16 @@ func (l *lexerImpl) Next() (lexer.Token, error) {
 		if match := match{{.Name}}(l.s, l.p); match[1] != 0 {
 			sym = {{index $.Def.Symbols .Name}}
 			groups = match[:]
-{{- else}}
+{{- else if .|IsReturn -}}
 		if true {
 {{- end}}
 {{- if .|IsPush}}
 			l.states = append(l.states, lexerState{name: "{{.|IsPush}}"{{if HaveBackrefs $.Def $state}}, groups: l.sgroups(groups){{end}}})
-{{- else if .|IsPop}}
+{{- else if (or (.|IsPop) (.|IsReturn))}}
 			l.states = l.states[:len(l.states)-1]
+{{- if .|IsReturn}}
+			return l.Next()
+{{- end}}
 {{- else if not .Action}}
 {{- else}}
 		Unsupported action {{.Action}}

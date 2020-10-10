@@ -2,10 +2,9 @@ package codegen_test
 
 import (
 	"bytes"
-	"os"
-	"os/exec"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -32,6 +31,7 @@ var (
 			{`Oper`, `[-+/*%]`, nil},
 			{"Ident", `\w+`, nil},
 			{"ExprEnd", `}`, stateful.Pop()},
+			stateful.Return(),
 		},
 	})
 )
@@ -40,32 +40,17 @@ func TestGenerate(t *testing.T) {
 	w := &bytes.Buffer{}
 	err := codegen.GenerateLexer(w, "codegen_test", exprLexer)
 	require.NoError(t, err)
-	source := w.String()
+	t.Log(w.String())
 	// cmd := exec.Command("pbcopy")
 	// cmd.Stdin = strings.NewReader(source)
-	// err = cmd.Run()
-	// require.NoError(t, err)
-
-	formatted := &bytes.Buffer{}
-	cmd := exec.Command("gofmt", "-s")
-	cmd.Stdin = strings.NewReader(source)
-	cmd.Stdout = formatted
-	cmd.Stderr = os.Stderr
-	err = cmd.Run()
-	require.NoError(t, err, source)
-
-	// cmd = exec.Command("pbcopy")
-	// cmd.Stdin = formatted
 	// err = cmd.Run()
 	// require.NoError(t, err)
 }
 
 func BenchmarkStatefulGenerated(b *testing.B) {
 	b.ReportAllocs()
-	b.ReportMetric(float64(len(benchmarkInput)), "B")
-	slex := Lexer.(interface {
-		LexString(string, string) (lexer.Lexer, error)
-	})
+	slex := Lexer.(lexer.StringDefinition)
+	start := time.Now()
 	for i := 0; i < b.N; i++ {
 		lex, err := slex.LexString("", benchmarkInput)
 		if err != nil {
@@ -81,12 +66,13 @@ func BenchmarkStatefulGenerated(b *testing.B) {
 			}
 		}
 	}
+	b.ReportMetric(float64(len(benchmarkInput)*b.N)*float64(time.Since(start)/time.Second)/1024/1024, "MiB/s")
 }
 
 func BenchmarkStatefulRegex(b *testing.B) {
 	b.ReportAllocs()
-	b.ReportMetric(float64(len(benchmarkInput)), "B")
 	input := []byte(benchmarkInput)
+	start := time.Now()
 	for i := 0; i < b.N; i++ {
 		lex, err := exprLexer.LexBytes("", input)
 		if err != nil {
@@ -102,4 +88,5 @@ func BenchmarkStatefulRegex(b *testing.B) {
 			}
 		}
 	}
+	b.ReportMetric(float64(len(benchmarkInput)*b.N)/float64(time.Since(start)/time.Second)/1024/1024, "MiB/s")
 }
