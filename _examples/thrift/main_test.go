@@ -3,10 +3,10 @@ package main
 import (
   "strings"
   "testing"
+  "time"
 
+  thriftparser "github.com/alecthomas/go-thrift/parser"
   "github.com/stretchr/testify/require"
-
-  "github.com/alecthomas/go-thrift/parser"
 
   "github.com/alecthomas/participle"
 )
@@ -59,30 +59,53 @@ service Twitter {
 )
 
 func BenchmarkParticipleThrift(b *testing.B) {
-  b.ReportAllocs()
-  parser, err := participle.Build(&Thrift{})
-  require.NoError(b, err)
-
   thrift := &Thrift{}
-  err = parser.ParseString("", source, thrift)
+  err := parser.ParseString("", source, thrift)
   require.NoError(b, err)
 
   b.ResetTimer()
+  b.ReportAllocs()
 
+  start := time.Now()
   for i := 0; i < b.N; i++ {
     thrift := &Thrift{}
     _ = parser.ParseString("", source, thrift)
   }
+  b.ReportMetric(float64(len(source)*b.N)*float64(time.Since(start)/time.Second)/1024/1024, "MiB/s")
 }
 
-func BenchmarkGoThriftParser(b *testing.B) {
-  b.ReportAllocs()
-  _, err := parser.ParseReader("user.thrift", strings.NewReader(source))
+func BenchmarkParticipleThriftGenerated(b *testing.B) {
+  parser := participle.MustBuild(&Thrift{},
+    participle.Lexer(Lexer),
+    participle.Unquote(),
+    participle.Elide("Whitespace"),
+  )
+
+  thrift := &Thrift{}
+  err := parser.ParseString("", source, thrift)
   require.NoError(b, err)
 
   b.ResetTimer()
+  b.ReportAllocs()
 
+  start := time.Now()
   for i := 0; i < b.N; i++ {
-    _, _ = parser.ParseReader("user.thrift", strings.NewReader(source))
+    thrift := &Thrift{}
+    _ = parser.ParseString("", source, thrift)
   }
+  b.ReportMetric(float64(len(source)*b.N)*float64(time.Since(start)/time.Second)/1024/1024, "MiB/s")
+}
+
+func BenchmarkGoThriftParser(b *testing.B) {
+  _, err := thriftparser.ParseReader("user.thrift", strings.NewReader(source))
+  require.NoError(b, err)
+
+  b.ResetTimer()
+  b.ReportAllocs()
+
+  start := time.Now()
+  for i := 0; i < b.N; i++ {
+    _, _ = thriftparser.ParseReader("user.thrift", strings.NewReader(source))
+  }
+  b.ReportMetric(float64(len(source)*b.N)*float64(time.Since(start)/time.Second)/1024/1024, "MiB/s")
 }

@@ -11,16 +11,22 @@ import (
 	"os"
 	"strings"
 
+	"github.com/alecthomas/kong"
 	"gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/alecthomas/repr"
 
 	"github.com/alecthomas/participle"
+	"github.com/alecthomas/participle/experimental/codegen"
 	"github.com/alecthomas/participle/lexer"
+	"github.com/alecthomas/participle/lexer/stateful"
 )
 
 var (
-	files = kingpin.Arg("thrift", "Thrift files.").Required().Strings()
+	cli struct {
+		Gen   bool     `help:"Generate lexer."`
+		Files []string `help:"Thrift files."`
+	}
 )
 
 type Namespace struct {
@@ -44,7 +50,7 @@ type Annotation struct {
 
 type Field struct {
 	Pos         lexer.Position
-	ID          string        `@Int ":"`
+	ID          string        `@Number ":"`
 	Requirement string        `@[ "optional" | "required" ]`
 	Type        *Type         `@@`
 	Name        string        `@Ident`
@@ -69,14 +75,14 @@ type Struct struct {
 
 type Argument struct {
 	Pos  lexer.Position
-	ID   string `@Int ":"`
+	ID   string `@Number ":"`
 	Type *Type  `@@`
 	Name string `@Ident`
 }
 
 type Throw struct {
 	Pos  lexer.Position
-	ID   string `@Int ":"`
+	ID   string `@Number ":"`
 	Type *Type  `@@`
 	Name string `@Ident`
 }
@@ -102,8 +108,7 @@ type Service struct {
 type Literal struct {
 	Pos       lexer.Position
 	Str       *string    `  @String`
-	Float     *float64   `| @Float`
-	Int       *int64     `| @Int`
+	Number    *float64   `| @Number`
 	Bool      *string    `| @( "true" | "false" )`
 	Reference *string    `| @Ident { @"." @Ident }`
 	Minus     *Literal   `| "-" @@`
@@ -115,10 +120,8 @@ func (l *Literal) GoString() string {
 	switch {
 	case l.Str != nil:
 		return fmt.Sprintf("%q", *l.Str)
-	case l.Float != nil:
-		return fmt.Sprintf("%v", *l.Float)
-	case l.Int != nil:
-		return fmt.Sprintf("%v", *l.Int)
+	case l.Number != nil:
+		return fmt.Sprintf("%v", *l.Number)
 	case l.Bool != nil:
 		return fmt.Sprintf("%v", *l.Bool)
 	case l.Reference != nil:
@@ -198,13 +201,35 @@ type Thrift struct {
 	Entries []*Entry `{ @@ }`
 }
 
+var (
+	def = stateful.MustSimple([]stateful.Rule{
+		{"Number", `\d+`, nil},
+		{"Ident", `\w+`, nil},
+		{"String", `"[^"]*"`, nil},
+		{"Whitespace", `\s+`, nil},
+		{"Punct", `[,.<>(){}=:]`, nil},
+		{"Comment", `//.*`, nil},
+	})
+	parser = participle.MustBuild(&Thrift{},
+		participle.Lexer(def),
+		participle.Unquote(),
+		participle.Elide("Whitespace"),
+	)
+)
+
 func main() {
-	kingpin.Parse()
+	ctx := kong.Parse(&cli)
 
-	parser, err := participle.Build(&Thrift{})
-	kingpin.FatalIfError(err, "")
+	if cli.Gen {
+		w, err := os.Create("lexer_gen.go")
+		ctx.FatalIfErrorf(err)
+		defer w.Close()
+		err = codegen.GenerateLexer(w, "main", def)
+		ctx.FatalIfErrorf(err)
+		return
+	}
 
-	for _, file := range *files {
+	for _, file := range cli.Files {
 		thrift := &Thrift{}
 		r, err := os.Open(file)
 		kingpin.FatalIfError(err, "")
