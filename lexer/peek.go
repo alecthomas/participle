@@ -72,6 +72,20 @@ func (p *PeekingLexer) Peek(n int) (Token, error) {
 	return p.eof, nil
 }
 
+// PeekRaw ahead at the raw token n+1. ie. PeekRaw(0) will peek at the next token.
+//
+// Unlike Peek, this will include elided tokens.
+func (p *PeekingLexer) PeekRaw(n int) (Token, error) {
+	for i := p.cursor; i < len(p.tokens); i++ {
+		t := p.tokens[i]
+		if n == 0 {
+			return t, nil
+		}
+		n--
+	}
+	return p.eof, nil
+}
+
 // Clone creates a clone of this PeekingLexer at its current token.
 //
 // The parent and clone are completely independent.

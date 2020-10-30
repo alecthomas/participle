@@ -115,7 +115,7 @@ func (s *strct) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Va
 		return nil, nil
 	}
 	end := ctx.Cursor()
-	t, _ = ctx.Peek(0)
+	t, _ = ctx.PeekRaw(0)
 	s.maybeInjectEndToken(t, sv)
 	s.maybeInjectTokens(ctx.Range(start, end), sv)
 	return []reflect.Value{sv}, ctx.Apply()

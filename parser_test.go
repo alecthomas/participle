@@ -1315,3 +1315,37 @@ func TestCaptureIntoToken(t *testing.T) {
 	}
 	require.Equal(t, expected, actual)
 }
+
+func TestEndPos(t *testing.T) {
+	type Ident struct {
+		Pos    lexer.Position
+		EndPos lexer.Position
+		Text   string `parser:"@Ident"`
+	}
+
+	type AST struct {
+		First  *Ident `parser:"@@"`
+		Second *Ident `parser:"@@"`
+	}
+
+	var (
+		Lexer = lexer.Must(stateful.New(stateful.Rules{
+			"Root": {
+				{"Ident", `[\w:]+`, nil},
+				{"Whitespace", `[\r\t ]+`, nil},
+			},
+		}))
+
+		Parser = participle.MustBuild(
+			&AST{},
+			participle.Lexer(Lexer),
+			participle.Elide("Whitespace"),
+		)
+	)
+
+	mod := &AST{}
+	err := Parser.Parse("", strings.NewReader("foo bar"), mod)
+	require.NoError(t, err)
+	require.Equal(t, 0, mod.First.Pos.Offset)
+	require.Equal(t, 3, mod.First.EndPos.Offset)
+}

@@ -40,7 +40,7 @@ var (
 			{"Escaped", `\\.`, nil},
 			{"StringEnd", `"`, stateful.Pop()},
 			{"Expr", `\${`, stateful.Push("Expr")},
-			{"Char", `[^$"\\]+`, nil},
+			{"Char", `\$|[^$"\\]+`, nil},
 		},
 		"Expr": {
 			stateful.Include("Root"),
@@ -56,7 +56,7 @@ var (
 
 func main() {
 	actual := &String{}
-	err := parser.ParseString("", `"hello ${first + "${last}"}"`, actual)
+	err := parser.ParseString("", `"hello $(world) ${first + "${last}"}"`, actual)
 	if err != nil {
 		log.Fatal(err)
 	}
