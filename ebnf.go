@@ -64,7 +64,7 @@ func ebnf(n node, seen map[node]bool, p *ebnfp, outp *[]*ebnfp) {
 		ebnf(n.node, seen, p, outp)
 
 	case *reference:
-		p.out += strings.ToLower(n.identifier)
+		p.out += "<" + strings.ToLower(n.identifier) + ">"
 
 	case *optional:
 		ebnf(n.node, seen, p, outp)

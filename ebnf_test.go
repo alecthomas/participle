@@ -11,12 +11,12 @@ func TestEBNF(t *testing.T) {
 	parser := mustTestParser(t, &EBNF{})
 	expected := `
 EBNF = Production* .
-Production = ident "=" Expression Expression* "." .
+Production = <ident> "=" Expression Expression* "." .
 Expression = Sequence ("|" Sequence)* .
 Sequence = Term Term* .
-Term = ident | Literal | Range | Group | EBNFOption | Repetition .
-Literal = string .
-Range = string "…" string .
+Term = <ident> | Literal | Range | Group | EBNFOption | Repetition .
+Literal = <string> .
+Range = <string> "…" <string> .
 Group = "(" Expression ")" .
 EBNFOption = "[" Expression "]" .
 Repetition = "{" Expression "}" .
