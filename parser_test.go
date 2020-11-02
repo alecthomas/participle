@@ -1349,3 +1349,45 @@ func TestEndPos(t *testing.T) {
 	require.Equal(t, 0, mod.First.Pos.Offset)
 	require.Equal(t, 3, mod.First.EndPos.Offset)
 }
+
+func TestBug(t *testing.T) {
+	type A struct {
+		Shared string `parser:"@'1'"`
+		Diff   string `parser:"@A"`
+	}
+	type B struct {
+		Shared string `parser:"@'1'"`
+		Diff   string `parser:"@B"`
+	}
+	type AST struct {
+		Branch string `parser:"@'branch'"`
+		A      *A     `parser:"( @@"`
+		B      *B     `parser:"| @@ )"`
+	}
+	var (
+		lexer = lexer.Must(stateful.New(stateful.Rules{
+			"Root": {
+				{"A", `@`, nil},
+				{"B", `!`, nil},
+				{"Ident", `[\w:]+`, nil},
+				{"Whitespace", `[\r\t ]+`, nil},
+			},
+		}))
+		parser = participle.MustBuild(
+			&AST{},
+			participle.Lexer(lexer),
+			participle.Elide("Whitespace"),
+		)
+	)
+	expected := &AST{
+		Branch: "branch",
+		B: &B{
+			Shared: "1",
+			Diff:   "!",
+		},
+	}
+	actual := &AST{}
+	err := parser.Parse("name", strings.NewReader(`branch 1!`), actual)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
+}

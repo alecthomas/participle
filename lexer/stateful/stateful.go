@@ -342,7 +342,7 @@ next:
 			} else {
 				sample = string(l.data[:16]) + "..."
 			}
-			return lexer.Token{}, participle.Errorf(l.pos, "no lexer rules in state %q matched input text %q", parent.name, sample)
+			return lexer.Token{}, participle.Errorf(l.pos, "invalid input text %q", sample)
 		}
 
 		if rule.Action != nil {

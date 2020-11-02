@@ -101,7 +101,7 @@ func (s *strct) String() string { return stringer(s) }
 
 func (s *strct) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	sv := reflect.New(s.typ).Elem()
-	start := ctx.Cursor()
+	start := ctx.RawCursor()
 	t, err := ctx.Peek(0)
 	if err != nil {
 		return nil, err
@@ -114,8 +114,8 @@ func (s *strct) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Va
 	} else if out == nil {
 		return nil, nil
 	}
-	end := ctx.Cursor()
-	t, _ = ctx.PeekRaw(0)
+	end := ctx.RawCursor()
+	t, _ = ctx.RawPeek(0)
 	s.maybeInjectEndToken(t, sv)
 	s.maybeInjectTokens(ctx.Range(start, end), sv)
 	return []reflect.Value{sv}, ctx.Apply()
@@ -309,10 +309,10 @@ type capture struct {
 func (c *capture) String() string { return stringer(c) }
 
 func (c *capture) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
-	start := ctx.Cursor()
+	start := ctx.RawCursor()
 	v, err := c.node.Parse(ctx, parent)
 	if v != nil {
-		ctx.Defer(ctx.Range(start, ctx.Cursor()), parent, c.field, v)
+		ctx.Defer(ctx.Range(start, ctx.RawCursor()), parent, c.field, v)
 	}
 	if err != nil {
 		return []reflect.Value{parent}, err
