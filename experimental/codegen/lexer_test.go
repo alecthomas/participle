@@ -71,10 +71,9 @@ func BenchmarkStatefulGenerated(b *testing.B) {
 
 func BenchmarkStatefulRegex(b *testing.B) {
 	b.ReportAllocs()
-	input := []byte(benchmarkInput)
 	start := time.Now()
 	for i := 0; i < b.N; i++ {
-		lex, err := exprLexer.LexBytes("", input)
+		lex, err := exprLexer.LexString("", benchmarkInput)
 		if err != nil {
 			b.Fatal(err)
 		}

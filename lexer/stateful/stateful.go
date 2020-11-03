@@ -25,11 +25,9 @@
 package stateful
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"regexp"
 	"sort"
 	"strconv"
@@ -248,10 +246,10 @@ func (d *Definition) Rules() Rules {
 	return out
 }
 
-func (d *Definition) LexBytes(filename string, data []byte) (lexer.Lexer, error) { // nolint: golint
+func (d *Definition) LexString(filename string, s string) (lexer.Lexer, error) { // nolint: golint
 	return &Lexer{
 		def:   d,
-		data:  data,
+		data:  s,
 		stack: []lexerState{{name: "Root"}},
 		pos: lexer.Position{
 			Filename: filename,
@@ -261,34 +259,13 @@ func (d *Definition) LexBytes(filename string, data []byte) (lexer.Lexer, error)
 	}, nil
 }
 
-type zeroCopyWriter struct{ b []byte }
-
-func (z *zeroCopyWriter) Write(p []byte) (n int, err error) {
-	z.b = p
-	return len(p), nil
-}
-
 func (d *Definition) Lex(filename string, r io.Reader) (lexer.Lexer, error) { // nolint: golint
-	var (
-		data []byte
-		err  error
-	)
-	switch r := r.(type) {
-	case *bytes.Reader:
-		w := &zeroCopyWriter{}
-		_, err = r.WriteTo(w)
-		data = w.b
-
-	case *bytes.Buffer:
-		data = r.Bytes()
-
-	default:
-		data, err = ioutil.ReadAll(r)
-	}
+	w := &strings.Builder{}
+	_, err := io.Copy(w, r)
 	if err != nil {
 		return nil, err
 	}
-	return d.LexBytes(filename, data)
+	return d.LexString(filename, w.String())
 }
 
 func (d *Definition) Symbols() map[string]rune { // nolint: golint
@@ -304,7 +281,7 @@ type lexerState struct {
 type Lexer struct {
 	stack []lexerState
 	def   *Definition
-	data  []byte
+	data  string
 	pos   lexer.Position
 }
 
@@ -329,7 +306,7 @@ next:
 			if err != nil {
 				return lexer.Token{}, participle.Wrapf(l.pos, err, "rule %q", candidate.Name)
 			}
-			match = re.FindSubmatchIndex(l.data)
+			match = re.FindStringSubmatchIndex(l.data)
 			if match != nil {
 				rule = &candidate // nolint: scopelint
 				break
@@ -364,13 +341,13 @@ next:
 		// Update position.
 		pos := l.pos
 		l.pos.Offset += match[1]
-		lines := bytes.Count(span, eolBytes)
+		lines := strings.Count(span, "\n")
 		l.pos.Line += lines
 		// Update column.
 		if lines == 0 {
-			l.pos.Column += utf8.RuneCount(span)
+			l.pos.Column += utf8.RuneCountInString(span)
 		} else {
-			l.pos.Column = utf8.RuneCount(span[bytes.LastIndex(span, eolBytes):])
+			l.pos.Column = utf8.RuneCountInString(span[strings.LastIndex(span, "\n"):])
 		}
 		if rule.ignore {
 			parent = l.stack[len(l.stack)-1]
