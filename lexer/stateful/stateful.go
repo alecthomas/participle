@@ -41,7 +41,6 @@ import (
 )
 
 var (
-	eolBytes       = []byte("\n")
 	backrefReplace = regexp.MustCompile(`(\\+)(\d)`)
 )
 
@@ -315,9 +314,9 @@ next:
 		if match == nil || rule == nil {
 			sample := ""
 			if len(l.data) < 16 {
-				sample = string(l.data)
+				sample = l.data
 			} else {
-				sample = string(l.data[:16]) + "..."
+				sample = l.data[:16] + "..."
 			}
 			return lexer.Token{}, participle.Errorf(l.pos, "invalid input text %q", sample)
 		}
@@ -325,7 +324,7 @@ next:
 		if rule.Action != nil {
 			groups := make([]string, 0, len(match)/2)
 			for i := 0; i < len(match); i += 2 {
-				groups = append(groups, string(l.data[match[i]:match[i+1]]))
+				groups = append(groups, l.data[match[i]:match[i+1]])
 			}
 			if err := rule.Action.applyAction(l, groups); err != nil {
 				return lexer.Token{}, participle.Errorf(l.pos, "rule %q: %s", rule.Name, err)
@@ -356,7 +355,7 @@ next:
 		}
 		return lexer.Token{
 			Type:  l.def.symbols[rule.Name],
-			Value: string(span),
+			Value: span,
 			Pos:   pos,
 		}, nil
 	}

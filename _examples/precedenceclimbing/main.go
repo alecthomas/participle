@@ -12,8 +12,9 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"strconv"
-	"text/scanner"
+	"strings"
 
 	"github.com/alecthomas/repr"
 
@@ -56,73 +57,75 @@ func (e *Expr) Parse(lex *lexer.PeekingLexer) error {
 
 // (1 + 2) * 3
 func parseExpr(lex *lexer.PeekingLexer, minPrec int) *Expr {
-	lhs := next(lex)
+	lhs := parseAtom(lex)
 	for {
-		op := peek(lex)
-		if op == nil || info[op.Op].Priority < minPrec {
+		tok := peek(lex)
+		if tok.EOF() || !isOp(tok.Type) || info[tok.Value].Priority < minPrec {
 			break
 		}
-		nextMinPrec := info[op.Op].Priority
-		if !info[op.Op].RightAssociative {
+		op := tok.Value
+		nextMinPrec := info[op].Priority
+		if !info[op].RightAssociative {
 			nextMinPrec++
 		}
-		next(lex)
+		lex.Next()
 		rhs := parseExpr(lex, nextMinPrec)
 		lhs = parseOp(op, lhs, rhs)
 	}
 	return lhs
 }
-
-func parseOp(op *Expr, lhs *Expr, rhs *Expr) *Expr {
-	op.Left = lhs
-	op.Right = rhs
-	return op
-}
-
-func next(lex *lexer.PeekingLexer) *Expr {
-	e := peek(lex)
-	if e == nil {
-		return e
-	}
-	_, _ = lex.Next()
-	switch e.Op {
-	case "(":
-		return next(lex)
-	}
-	return e
-}
-
-func peek(lex *lexer.PeekingLexer) *Expr {
-	t, err := lex.Peek(0)
-	if err != nil {
-		panic(err)
-	}
-	if t.EOF() {
-		return nil
-	}
-	switch t.Type {
-	case scanner.Int:
-		n, err := strconv.ParseInt(t.Value, 10, 64)
-		if err != nil {
-			panic(err)
+func parseAtom(lex *lexer.PeekingLexer) *Expr {
+	tok := peek(lex)
+	if tok.Type == '(' {
+		lex.Next()
+		val := parseExpr(lex, 1)
+		if peek(lex).Value != ")" {
+			panic("unmatched (")
 		}
-		ni := int(n)
-		return &Expr{Terminal: &ni}
-
-	case ')':
-		_, _ = lex.Next()
-		return nil
-
-	default:
-		return &Expr{Op: t.Value}
+		lex.Next()
+		return val
+	} else if tok.EOF() {
+		panic("unexpected EOF")
+	} else if isOp(tok.Type) {
+		panic("expected a terminal not " + tok.String())
+	} else {
+		lex.Next()
+		n, err := strconv.ParseInt(tok.Value, 10, 64)
+		if err != nil {
+			panic("invalid number " + tok.Value)
+		}
+		in := int(n)
+		return &Expr{Terminal: &in}
 	}
 }
 
-var parser = participle.MustBuild(&Expr{})
+func isOp(rn rune) bool {
+	return strings.ContainsRune("+-*/^", rn)
+}
+
+func peek(lex *lexer.PeekingLexer) lexer.Token {
+	tok, err := lex.Peek(0)
+	if err != nil {
+		panic("??")
+	}
+	return tok
+}
+
+func parseOp(op string, lhs *Expr, rhs *Expr) *Expr {
+	return &Expr{
+		Op:    op,
+		Left:  lhs,
+		Right: rhs,
+	}
+}
+
+var (
+	parser = participle.MustBuild(&Expr{})
+)
 
 func main() {
 	e := &Expr{}
-	err := parser.ParseString("", `(1 + 3) * 2 ^ 2 + 1`, e)
+	err := parser.ParseString("", strings.Join(os.Args[1:], " "), e)
 	if err != nil {
 		panic(err)
 	}
