@@ -30,6 +30,8 @@
 
 This is version 2 of Participle. The list of changes between v0 and v2 can be found [here](https://github.com/alecthomas/participle/issues/108).
 
+> **Note:** that semantic versioning API guarantees do not apply to the [experimental](https://pkg.go.dev/github.com/alecthomas/participle/v2/experimental) packages.
+
 It can be installed with:
 
 ```shell
@@ -435,3 +437,5 @@ Value = ident .
 Schema = "schema" "{" Field* "}" .
 Enum = "enum" ident "{" ident* "}" .
 ```
+
+Participle also [includes a parser](https://pkg.go.dev/github.com/alecthomas/participle/v2/ebnf) for this form of EBNF (naturally).
