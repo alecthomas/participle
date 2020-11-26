@@ -5,6 +5,7 @@
 
 <!-- TOC depthFrom:2 insertAnchor:true updateOnSave:true -->
 
+- [Old version](#old-version)
 - [Introduction](#introduction)
 - [Limitations](#limitations)
 - [Tutorial](#tutorial)
@@ -21,6 +22,11 @@
 - [EBNF](#ebnf)
 
 <!-- /TOC -->
+
+<a id="markdown-old-version" name="old-version"></a>
+## Old version
+
+This is an outdated version of Participle. See [here](https://pkg.go.dev/github.com/alecthomas/participle/?tab=versions) for a full list of available versions.
 
 <a id="markdown-introduction" name="introduction"></a>
 ## Introduction
