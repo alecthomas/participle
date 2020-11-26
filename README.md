@@ -5,6 +5,7 @@
 
 <!-- TOC depthFrom:2 insertAnchor:true updateOnSave:true -->
 
+- [V2](#v2)
 - [Introduction](#introduction)
 - [Changes](#changes)
 - [Tutorial](#tutorial)
@@ -23,6 +24,23 @@
 - [EBNF](#ebnf)
 
 <!-- /TOC -->
+
+<a id="markdown-v2" name="v2"></a>
+## V2
+
+This is version 2 of Participle. The list of changes between v0 and v2 can be found [here](https://github.com/alecthomas/participle/issues/108).
+
+It can be installed with:
+
+```shell
+$ go get github.com/alecthomas/participle/v2@latest
+```
+
+v0.7.0 is the most recent previous stable version and can be obtained via:
+
+```shell
+$ go get github.com/alecthomas/participle@v0.7.0
+```
 
 <a id="markdown-introduction" name="introduction"></a>
 ## Introduction
