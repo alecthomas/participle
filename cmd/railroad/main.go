@@ -6,7 +6,7 @@ import (
 
 	"github.com/alecthomas/repr"
 
-	"github.com/alecthomas/participle/ebnf"
+	"github.com/alecthomas/participle/v2/ebnf"
 )
 
 const (

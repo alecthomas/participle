@@ -8,7 +8,7 @@ import (
 
 	"github.com/alecthomas/repr"
 
-	"github.com/alecthomas/participle"
+	"github.com/alecthomas/participle/v2"
 )
 
 type Evaluatable interface {

@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/alecthomas/participle"
+	"github.com/alecthomas/participle/v2"
 )
 
 func TestIssue3Example1(t *testing.T) {

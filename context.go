@@ -3,7 +3,7 @@ package participle
 import (
 	"reflect"
 
-	"github.com/alecthomas/participle/lexer"
+	"github.com/alecthomas/participle/v2/lexer"
 )
 
 type contextFieldSet struct {

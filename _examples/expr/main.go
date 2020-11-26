@@ -10,7 +10,7 @@ import (
 
 	"github.com/alecthomas/kong"
 
-	"github.com/alecthomas/participle"
+	"github.com/alecthomas/participle/v2"
 )
 
 var cli struct {

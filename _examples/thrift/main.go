@@ -16,10 +16,10 @@ import (
 
 	"github.com/alecthomas/repr"
 
-	"github.com/alecthomas/participle"
-	"github.com/alecthomas/participle/experimental/codegen"
-	"github.com/alecthomas/participle/lexer"
-	"github.com/alecthomas/participle/lexer/stateful"
+	"github.com/alecthomas/participle/v2"
+	"github.com/alecthomas/participle/v2/experimental/codegen"
+	"github.com/alecthomas/participle/v2/lexer"
+	"github.com/alecthomas/participle/v2/lexer/stateful"
 )
 
 var (

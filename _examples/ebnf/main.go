@@ -9,7 +9,7 @@ import (
 
 	"gopkg.in/alecthomas/kingpin.v2"
 
-	"github.com/alecthomas/participle"
+	"github.com/alecthomas/participle/v2"
 )
 
 var (

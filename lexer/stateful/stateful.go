@@ -36,8 +36,8 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/alecthomas/participle"
-	"github.com/alecthomas/participle/lexer"
+	"github.com/alecthomas/participle/v2"
+	"github.com/alecthomas/participle/v2/lexer"
 )
 
 var (

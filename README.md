@@ -1,7 +1,7 @@
 # A dead simple parser package for Go
 
-[![Godoc](https://godoc.org/github.com/alecthomas/participle?status.svg)](http://godoc.org/github.com/alecthomas/participle) [![CircleCI](https://img.shields.io/circleci/project/github/alecthomas/participle.svg)](https://circleci.com/gh/alecthomas/participle)
- [![Go Report Card](https://goreportcard.com/badge/github.com/alecthomas/participle)](https://goreportcard.com/report/github.com/alecthomas/participle) [![Slack chat](https://img.shields.io/static/v1?logo=slack&style=flat&label=slack&color=green&message=gophers)](https://gophers.slack.com/messages/CN9DS8YF3)
+[![PkgGoDev](https://pkg.go.dev/badge/github.com/alecthomas/participle/v2)](https://pkg.go.dev/github.com/alecthomas/participle/v2) [![CircleCI](https://img.shields.io/circleci/project/github/alecthomas/participle.svg)](https://circleci.com/gh/alecthomas/participle)
+ [![Go Report Card](https://goreportcard.com/badge/github.com/alecthomas/participle/v2)](https://goreportcard.com/report/github.com/alecthomas/participle/v2) [![Slack chat](https://img.shields.io/static/v1?logo=slack&style=flat&label=slack&color=green&message=gophers)](https://gophers.slack.com/messages/CN9DS8YF3)
 
 <!-- TOC depthFrom:2 insertAnchor:true updateOnSave:true -->
 
@@ -208,8 +208,8 @@ your own lexer.
 Configure your parser with a lexer via `participle.Lexer()`.
 
 To use your own Lexer you will need to implement two interfaces:
-[Definition](https://godoc.org/github.com/alecthomas/participle/lexer#Definition)
-and [Lexer](https://godoc.org/github.com/alecthomas/participle/lexer#Lexer).
+[Definition](https://pkg.go.dev/github.com/alecthomas/participle/v2#Definition)
+and [Lexer](https://pkg.go.dev/github.com/alecthomas/participle/v2#Lexer).
 
 <a id="markdown-experimental---code-generation" name="experimental---code-generation"></a>
 ### Experimental - code generation
@@ -224,25 +224,25 @@ while producing O(1) garbage.
 <a id="markdown-options" name="options"></a>
 ## Options
 
-The Parser's behaviour can be configured via [Options](https://godoc.org/github.com/alecthomas/participle#Option).
+The Parser's behaviour can be configured via [Options](https://pkg.go.dev/github.com/alecthomas/participle/v2#Option).
 
 <a id="markdown-examples" name="examples"></a>
 ## Examples
 
-There are several [examples](https://github.com/alecthomas/participle/tree/master/_examples) included:
+There are several [examples](https://github.com/alecthomas/participle/v2/tree/master/_examples) included:
 
 Example | Description
 --------|---------------
-[BASIC](https://github.com/alecthomas/participle/tree/master/_examples/basic) | A lexer, parser and interpreter for a [rudimentary dialect](https://caml.inria.fr/pub/docs/oreilly-book/html/book-ora058.html) of BASIC.
-[EBNF](https://github.com/alecthomas/participle/tree/master/_examples/ebnf) | Parser for the form of EBNF used by Go.
-[Expr](https://github.com/alecthomas/participle/tree/master/_examples/expr) | A basic mathematical expression parser and evaluator.
-[GraphQL](https://github.com/alecthomas/participle/tree/master/_examples/graphql) | Lexer+parser for GraphQL schemas
-[HCL](https://github.com/alecthomas/participle/tree/master/_examples/hcl) | A parser for the [HashiCorp Configuration Language](https://github.com/hashicorp/hcl).
-[INI](https://github.com/alecthomas/participle/tree/master/_examples/ini) | An INI file parser.
-[Protobuf](https://github.com/alecthomas/participle/tree/master/_examples/protobuf) | A full [Protobuf](https://developers.google.com/protocol-buffers/) version 2 and 3 parser.
-[SQL](https://github.com/alecthomas/participle/tree/master/_examples/sql) | A *very* rudimentary SQL SELECT parser.
-[Thrift](https://github.com/alecthomas/participle/tree/master/_examples/thrift) | A full [Thrift](https://thrift.apache.org/docs/idl) parser.
-[TOML](https://github.com/alecthomas/participle/blob/master/_examples/toml/main.go) | A [TOML](https://github.com/toml-lang/toml) parser.
+[BASIC](https://github.com/alecthomas/participle/v2/tree/master/_examples/basic) | A lexer, parser and interpreter for a [rudimentary dialect](https://caml.inria.fr/pub/docs/oreilly-book/html/book-ora058.html) of BASIC.
+[EBNF](https://github.com/alecthomas/participle/v2/tree/master/_examples/ebnf) | Parser for the form of EBNF used by Go.
+[Expr](https://github.com/alecthomas/participle/v2/tree/master/_examples/expr) | A basic mathematical expression parser and evaluator.
+[GraphQL](https://github.com/alecthomas/participle/v2/tree/master/_examples/graphql) | Lexer+parser for GraphQL schemas
+[HCL](https://github.com/alecthomas/participle/v2/tree/master/_examples/hcl) | A parser for the [HashiCorp Configuration Language](https://github.com/hashicorp/hcl).
+[INI](https://github.com/alecthomas/participle/v2/tree/master/_examples/ini) | An INI file parser.
+[Protobuf](https://github.com/alecthomas/participle/v2/tree/master/_examples/protobuf) | A full [Protobuf](https://developers.google.com/protocol-buffers/) version 2 and 3 parser.
+[SQL](https://github.com/alecthomas/participle/v2/tree/master/_examples/sql) | A *very* rudimentary SQL SELECT parser.
+[Thrift](https://github.com/alecthomas/participle/v2/tree/master/_examples/thrift) | A full [Thrift](https://thrift.apache.org/docs/idl) parser.
+[TOML](https://github.com/alecthomas/participle/v2/blob/master/_examples/toml/main.go) | A [TOML](https://github.com/toml-lang/toml) parser.
 
 Included below is a full GraphQL lexer and parser:
 
@@ -256,9 +256,9 @@ import (
 	"github.com/alecthomas/kong"
 	"github.com/alecthomas/repr"
 
-	"github.com/alecthomas/participle"
-	"github.com/alecthomas/participle/lexer"
-	"github.com/alecthomas/participle/lexer/stateful"
+	"github.com/alecthomas/participle/v2"
+	"github.com/alecthomas/participle/v2/lexer"
+	"github.com/alecthomas/participle/v2/lexer/stateful"
 )
 
 type File struct {
@@ -377,7 +377,7 @@ A compiled `Parser` instance can be used concurrently. A `LexerDefinition` can b
 
 There are a few areas where Participle can provide useful feedback to users of your parser.
 
-1. Errors returned by [Parser.Parse*()](https://godoc.org/github.com/alecthomas/participle#Parser.ParseReader) will be of type [Error](https://godoc.org/github.com/alecthomas/participle#Error). This will contain positional information where available.
+1. Errors returned by [Parser.Parse*()](https://pkg.go.dev/github.com/alecthomas/participle/v2#Parser.ParseReader) will be of type [Error](https://pkg.go.dev/github.com/alecthomas/participle/v2#Error). This will contain positional information where available.
 2. Participle will make a best effort to return as much of the AST up to the error location as possible.
 3. Any node in the AST containing a field `Pos lexer.Position` will be automatically
    populated from the nearest matching token.
@@ -403,7 +403,7 @@ recursion must be eliminated by restructuring your grammar.
 Participle supports outputting an EBNF grammar from a Participle parser. Once
 the parser is constructed simply call `String()`.
 
-eg. The [GraphQL example](https://github.com/alecthomas/participle/blob/cbe0cc62a3ad95955311002abd642f11543cb8ed/_examples/graphql/main.go#L14-L61)
+eg. The [GraphQL example](https://github.com/alecthomas/participle/v2/blob/cbe0cc62a3ad95955311002abd642f11543cb8ed/_examples/graphql/main.go#L14-L61)
 gives in the following EBNF:
 
 ```ebnf

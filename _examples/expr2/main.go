@@ -6,7 +6,7 @@ import (
 	"github.com/alecthomas/kong"
 	"github.com/alecthomas/repr"
 
-	"github.com/alecthomas/participle"
+	"github.com/alecthomas/participle/v2"
 )
 
 // Based on http://www.craftinginterpreters.com/parsing-expressions.html

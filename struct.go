@@ -8,7 +8,7 @@ import (
 	"text/scanner"
 	"unicode/utf8"
 
-	"github.com/alecthomas/participle/lexer"
+	"github.com/alecthomas/participle/v2/lexer"
 )
 
 // A structLexer lexes over the tags of struct fields while tracking the current field.

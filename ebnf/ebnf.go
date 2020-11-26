@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/alecthomas/participle"
+	"github.com/alecthomas/participle/v2"
 )
 
 var parser = participle.MustBuild(&EBNF{})

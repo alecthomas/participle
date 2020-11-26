@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/alecthomas/participle/lexer"
+	"github.com/alecthomas/participle/v2/lexer"
 )
 
 // A Parser for a particular grammar and lexer.
