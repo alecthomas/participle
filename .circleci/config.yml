@@ -12,7 +12,7 @@ jobs:
           name: Prepare
           command: |
             go get -v github.com/jstemmer/go-junit-report
-            curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | bash -s v1.26.0
+            curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | bash -s v1.32.2
             mkdir ~/report
           when: always
       - run:

@@ -136,6 +136,7 @@ func (s *stringerVisitor) visit(n node, depth int) { // nolint: gocognit
 			fmt.Fprintf(s, "*")
 		case groupMatchOneOrMore:
 			fmt.Fprintf(s, "+")
+		case groupMatchOnce:
 		}
 
 	default:

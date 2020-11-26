@@ -492,7 +492,7 @@ func conform(t reflect.Type, values []reflect.Value) (out []reflect.Value, err e
 		}
 
 		kind := t.Kind()
-		switch kind {
+		switch kind { // nolint: exhaustive
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 			n, err := strconv.ParseInt(v.String(), 0, sizeOfKind(kind))
 			if err != nil {
@@ -527,7 +527,7 @@ func conform(t reflect.Type, values []reflect.Value) (out []reflect.Value, err e
 }
 
 func sizeOfKind(kind reflect.Kind) int {
-	switch kind {
+	switch kind { // nolint: exhaustive
 	case reflect.Int8, reflect.Uint8:
 		return 8
 	case reflect.Int16, reflect.Uint16:
@@ -630,7 +630,7 @@ func setField(tokens []lexer.Token, strct reflect.Value, field structLexerField,
 
 	fv := fieldValue[0]
 
-	switch f.Kind() {
+	switch f.Kind() { // nolint: exhaustive
 	// Numeric types will increment if the token can not be coerced.
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		if fv.Type() != f.Type() {

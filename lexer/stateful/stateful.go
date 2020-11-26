@@ -307,7 +307,7 @@ next:
 			}
 			match = re.FindStringSubmatchIndex(l.data)
 			if match != nil {
-				rule = &candidate // nolint: scopelint
+				rule = &candidate // nolint
 				break
 			}
 		}

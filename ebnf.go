@@ -118,6 +118,7 @@ func ebnf(root bool, n node, seen map[node]bool, p *ebnfp, outp *[]*ebnfp) {
 			p.out += "*"
 		case groupMatchOneOrMore:
 			p.out += "+"
+		case groupMatchOnce:
 		}
 		return
 

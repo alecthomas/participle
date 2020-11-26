@@ -25,6 +25,14 @@ linters:
     - nestif
     - testpackage
     - nolintlint
+    - exhaustivestruct
+    - wrapcheck
+    - gci
+    - gofumpt
+    - gocritic
+    - nlreturn
+    - errorlint
+    - nakedret
 
 linters-settings:
   govet:

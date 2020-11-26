@@ -34,7 +34,7 @@ func (g *generatorContext) parseType(t reflect.Type) (_ node, returnedError erro
 	if reflect.PtrTo(t).Implements(parseableType) {
 		return &parseable{t}, nil
 	}
-	switch t.Kind() {
+	switch t.Kind() { // nolint: exhaustive
 	case reflect.Slice, reflect.Ptr:
 		t = indirectType(t.Elem())
 		if t.Kind() != reflect.Struct {
