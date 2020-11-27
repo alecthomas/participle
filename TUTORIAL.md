@@ -249,7 +249,7 @@ Then create a root node and parse into it with `parser.Parse{,String,Bytes}()`:
 
 ```go
 ini := &INI{}
-err = parser.ParseString(`
+err = parser.ParseString("", `
 age = 21
 name = "Bob Smith"
 

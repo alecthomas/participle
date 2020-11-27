@@ -19,10 +19,10 @@ func (b *Bool) Capture(v []string) error { *b = v[0] == "true"; return nil }
 
 type Value struct {
 	Boolean    *Bool    `  @("true"|"false")`
-	Identifier *string  `| @Ident { @"." @Ident }`
+	Identifier *string  `| @Ident ( @"." @Ident )*`
 	String     *string  `| @(String|Char|RawString)`
 	Number     *float64 `| @(Float|Int)`
-	Array      []*Value `| "[" { @@ [ "," ] } "]"`
+	Array      []*Value `| "[" ( @@ ","? )* "]"`
 }
 
 func (l *Value) GoString() string {
@@ -48,16 +48,16 @@ func (l *Value) GoString() string {
 type Entry struct {
 	Key   string `@Ident`
 	Value *Value `( "=" @@`
-	Block *Block `| @@ )`
+	Block *Block `  | @@ )`
 }
 
 type Block struct {
-	Parameters []*Value `{ @@ }`
-	Entries    []*Entry `"{" { @@ } "}"`
+	Parameters []*Value `@@*`
+	Entries    []*Entry `"{" @@* "}"`
 }
 
 type Config struct {
-	Entries []*Entry `{ @@ }`
+	Entries []*Entry `@@*`
 }
 
 func main() {

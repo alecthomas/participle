@@ -16,7 +16,7 @@ func TestIssue3Example1(t *testing.T) {
 	}
 
 	type LAT1Module struct {
-		Decls []*LAT1Decl `{ @@ }`
+		Decls []*LAT1Decl `@@*`
 	}
 
 	g := &LAT1Module{}
@@ -38,7 +38,7 @@ func TestIssue3Example1(t *testing.T) {
 }
 
 type LAT2Config struct {
-	Entries []*LAT2Entry `@@ { @@ }`
+	Entries []*LAT2Entry `@@+`
 }
 
 type LAT2Entry struct {
@@ -53,7 +53,7 @@ type LAT2Attribute struct {
 
 type LAT2Group struct {
 	Name    string       `@Ident "{"`
-	Entries []*LAT2Entry `@@ { @@ } "}"`
+	Entries []*LAT2Entry `@@+ "}"`
 }
 
 func TestIssue3Example2(t *testing.T) {
@@ -90,7 +90,7 @@ type LAT3Grammar struct {
 
 type LAT3Expense struct {
 	Name   string     `@Ident "paid"`
-	Amount *LAT3Value `@@ { Ident } "."`
+	Amount *LAT3Value `@@ Ident* "."`
 }
 
 type LAT3Value struct {
@@ -285,30 +285,6 @@ func TestLookaheadWithConvergingTokens(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// type leftRecursionType struct {
-// 	Type     string                 `  @("int" | "float" | "string")`
-// 	Function *leftRecursionFuncType `| @@`
-// }
-
-// type leftRecursionFuncType struct {
-// 	Return   *leftRecursionType   `@@`
-// 	Function string               `@Ident`
-// 	Args     []*leftRecursionType `"(" @@ { "," @@ } ")"`
-// }
-
-// func TestLeftRecursion(t *testing.T) {
-// 	p := mustTestParser(t, &leftRecursionType{}, participle.UseLookahead(5))
-// 	actual := &leftRecursionType{}
-// 	err := p.ParseString(`int f()`, actual)
-// 	require.NoError(t, err)
-// 	require.Equal(t, &leftRecursionType{
-// 		Function: &leftRecursionFuncType{
-// 			Return:   &leftRecursionType{Type: "int"},
-// 			Function: "f",
-// 		},
-// 	}, actual)
-// }
-
 func TestIssue27(t *testing.T) {
 	type grammar struct {
 		Number int    `  @(["-"] Int)`
@@ -385,7 +361,7 @@ func TestRewindOptional(t *testing.T) {
 
 func TestRewindRepetition(t *testing.T) {
 	type grammar struct {
-		Ints  []string `{ @"int" }`
+		Ints  []string `(@"int")*`
 		Ident string   `@Ident`
 	}
 	p := mustTestParser(t, &grammar{}, participle.UseLookahead(3))

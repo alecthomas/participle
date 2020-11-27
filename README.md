@@ -74,13 +74,13 @@ parser from the tutorial.
 
  ```go
  type INI struct {
-   Properties []*Property `{ @@ }`
-   Sections   []*Section  `{ @@ }`
+   Properties []*Property `@@*`
+   Sections   []*Section  `@@*`
  }
 
  type Section struct {
    Identifier string      `"[" @Ident "]"`
-   Properties []*Property `{ @@ }`
+   Properties []*Property `@@*`
  }
 
  type Property struct {
@@ -133,10 +133,6 @@ The following modifiers can be used after any expression:
 - `+` Expression must match one or more times.
 - `?` Expression can match zero or once.
 - `!` Require a non-empty match (this is useful with a sequence of optional matches eg. `("a"? "b"? "c"?)!`).
-
-Supported but deprecated:
-- `{ ... }` Match 0 or more times (**DEPRECATED** - prefer `( ... )*`).
-- `[ ... ]` Optional (**DEPRECATED** - prefer `( ... )?`).
 
 Notes:
 
@@ -294,36 +290,36 @@ type Entry struct {
 
 type Enum struct {
 	Name  string   `"enum" @Ident`
-	Cases []string `"{" { @Ident } "}"`
+	Cases []string `"{" @Ident* "}"`
 }
 
 type Schema struct {
-	Fields []*Field `"schema" "{" { @@ } "}"`
+	Fields []*Field `"schema" "{" @@* "}"`
 }
 
 type Type struct {
 	Name       string   `"type" @Ident`
-	Implements string   `[ "implements" @Ident ]`
-	Fields     []*Field `"{" { @@ } "}"`
+	Implements string   `( "implements" @Ident )?`
+	Fields     []*Field `"{" @@* "}"`
 }
 
 type Field struct {
 	Name       string      `@Ident`
-	Arguments  []*Argument `[ "(" [ @@ { "," @@ } ] ")" ]`
+	Arguments  []*Argument `( "(" ( @@ ( "," @@ )* )? ")" )?`
 	Type       *TypeRef    `":" @@`
-	Annotation string      `[ "@" @Ident ]`
+	Annotation string      `( "@" @Ident )?`
 }
 
 type Argument struct {
 	Name    string   `@Ident`
 	Type    *TypeRef `":" @@`
-	Default *Value   `[ "=" @@ ]`
+	Default *Value   `( "=" @@ )`
 }
 
 type TypeRef struct {
 	Array       *TypeRef `(   "[" @@ "]"`
 	Type        string   `  | @Ident )`
-	NonNullable bool     `[ @"!" ]`
+	NonNullable bool     `( @"!" )?`
 }
 
 type Value struct {
@@ -423,6 +419,8 @@ recursion must be eliminated by restructuring your grammar.
 Participle supports outputting an EBNF grammar from a Participle parser. Once
 the parser is constructed simply call `String()`.
 
+Participle also [includes a parser](https://pkg.go.dev/github.com/alecthomas/participle/v2/ebnf) for this form of EBNF (naturally).
+
 eg. The [GraphQL example](https://github.com/alecthomas/participle/v2/blob/cbe0cc62a3ad95955311002abd642f11543cb8ed/_examples/graphql/main.go#L14-L61)
 gives in the following EBNF:
 
@@ -437,5 +435,3 @@ Value = ident .
 Schema = "schema" "{" Field* "}" .
 Enum = "enum" ident "{" ident* "}" .
 ```
-
-Participle also [includes a parser](https://pkg.go.dev/github.com/alecthomas/participle/v2/ebnf) for this form of EBNF (naturally).

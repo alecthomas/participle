@@ -26,7 +26,7 @@ func TestProductionCapture(t *testing.T) {
 
 func TestTermCapture(t *testing.T) {
 	type grammar struct {
-		A string `@{"."}`
+		A string `@"."*`
 	}
 
 	parser := mustTestParser(t, &grammar{})
@@ -136,7 +136,7 @@ func TestAccumulateNested(t *testing.T) {
 		C string `@"two"`
 	}
 	type testAccumulateNested struct {
-		A []*nestedInner `@@ { @@ }`
+		A []*nestedInner `@@+`
 	}
 
 	parser := mustTestParser(t, &testAccumulateNested{})
@@ -150,7 +150,7 @@ func TestAccumulateNested(t *testing.T) {
 
 func TestRepititionNoMatch(t *testing.T) {
 	type grammar struct {
-		A []string `{ @"." }`
+		A []string `@"."*`
 	}
 	parser := mustTestParser(t, &grammar{})
 
@@ -163,7 +163,7 @@ func TestRepititionNoMatch(t *testing.T) {
 
 func TestRepitition(t *testing.T) {
 	type grammar struct {
-		A []string `{ @"." }`
+		A []string `@"."*`
 	}
 	parser := mustTestParser(t, &grammar{})
 
@@ -176,7 +176,7 @@ func TestRepitition(t *testing.T) {
 
 func TestRepititionAcrossFields(t *testing.T) {
 	type testRepitition struct {
-		A []string `{ @"." }`
+		A []string `@"."*`
 		B *string  `(@"b" |`
 		C *string  ` @"c")`
 	}
@@ -215,7 +215,7 @@ func TestRepititionAcrossFields(t *testing.T) {
 
 func TestAccumulateString(t *testing.T) {
 	type testAccumulateString struct {
-		A string `@"." { @"." }`
+		A string `@"."+`
 	}
 
 	parser := mustTestParser(t, &testAccumulateString{})
@@ -260,20 +260,20 @@ type Term struct {
 }
 
 type Sequence struct {
-	Terms []*Term `@@ { @@ }`
+	Terms []*Term `@@+`
 }
 
 type Expression struct {
-	Alternatives []*Sequence `@@ { "|" @@ }`
+	Alternatives []*Sequence `@@ ( "|" @@ )*`
 }
 
 type Production struct {
 	Name       string        `@Ident "="`
-	Expression []*Expression `@@ { @@ } "."`
+	Expression []*Expression `@@+ "."`
 }
 
 type EBNF struct {
-	Productions []*Production `{ @@ }`
+	Productions []*Production `@@*`
 }
 
 func TestEBNFParser(t *testing.T) {
@@ -464,10 +464,10 @@ Repetition  = "{" Expression "}" .
 
 func TestParseExpression(t *testing.T) {
 	type testNestA struct {
-		A string `":" @{ "a" }`
+		A string `":" @"a"*`
 	}
 	type testNestB struct {
-		B string `";" @{ "b" }`
+		B string `";" @"b"*`
 	}
 	type testExpression struct {
 		A *testNestA `@@ |`
@@ -489,7 +489,7 @@ func TestParseExpression(t *testing.T) {
 
 func TestParseOptional(t *testing.T) {
 	type testOptional struct {
-		A string `[ @"a" @"b" ]`
+		A string `( @"a" @"b" )?`
 		B string `@"c"`
 	}
 
@@ -546,8 +546,8 @@ Repetition  = "{" Expression "}" .
 
 func TestRepeatAcrossFields(t *testing.T) {
 	type grammar struct {
-		A string `{ @("." ">") |`
-		B string `  @("," "<") }`
+		A string `( @("." ">") |`
+		B string `  @("," "<") )*`
 	}
 
 	parser := mustTestParser(t, &grammar{})
@@ -563,12 +563,12 @@ func TestRepeatAcrossFields(t *testing.T) {
 func TestPosInjection(t *testing.T) {
 	type subgrammar struct {
 		Pos    lexer.Position
-		B      string `@{ "," }`
+		B      string `@","*`
 		EndPos lexer.Position
 	}
 	type grammar struct {
 		Pos    lexer.Position
-		A      string      `@{ "." }`
+		A      string      `@"."*`
 		B      *subgrammar `@@`
 		C      string      `@"."`
 		EndPos lexer.Position
@@ -619,7 +619,7 @@ func (c *parseableCount) Capture(values []string) error {
 
 func TestCaptureInterface(t *testing.T) {
 	type grammar struct {
-		Count parseableCount `{ @"a" }`
+		Count parseableCount `@"a"*`
 	}
 
 	parser := mustTestParser(t, &grammar{})
@@ -723,7 +723,7 @@ func TestParseable(t *testing.T) {
 
 func TestStringConcat(t *testing.T) {
 	type grammar struct {
-		Field string `@"." { @"." }`
+		Field string `@"."+`
 	}
 
 	parser, err := participle.Build(&grammar{})
@@ -738,7 +738,7 @@ func TestStringConcat(t *testing.T) {
 
 func TestParseIntSlice(t *testing.T) {
 	type grammar struct {
-		Field []int `@Int { @Int }`
+		Field []int `@Int+`
 	}
 
 	parser := mustTestParser(t, &grammar{})
@@ -808,7 +808,7 @@ func TestMixinFieldsAreParsed(t *testing.T) {
 
 func TestNestedOptional(t *testing.T) {
 	type grammar struct {
-		Args []string `"(" [ @Ident { "," @Ident } ] ")"`
+		Args []string `"(" [ @Ident ( "," @Ident )* ] ")"`
 	}
 	p := mustTestParser(t, &grammar{})
 	actual := &grammar{}
@@ -926,7 +926,7 @@ func TestCaseInsensitive(t *testing.T) {
 
 func TestTokenAfterRepeatErrors(t *testing.T) {
 	type grammar struct {
-		Text string `{ @Ident } "foo"`
+		Text string `@Ident* "foo"`
 	}
 	p := mustTestParser(t, &grammar{})
 	ast := &grammar{}
@@ -936,7 +936,7 @@ func TestTokenAfterRepeatErrors(t *testing.T) {
 
 func TestEOFAfterRepeat(t *testing.T) {
 	type grammar struct {
-		Text string `{ @Ident }`
+		Text string `@Ident*`
 	}
 	p := mustTestParser(t, &grammar{})
 	ast := &grammar{}

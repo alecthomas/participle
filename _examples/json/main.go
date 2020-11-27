@@ -9,7 +9,7 @@ import (
 )
 
 type pathExpr struct {
-	Parts []part `@@ { "." @@ }`
+	Parts []part `@@ ( "." @@ )*`
 }
 
 type part struct {

@@ -22,7 +22,7 @@ func Parse(r io.Reader) (*Program, error) {
 type Program struct {
 	Pos lexer.Position
 
-	Commands []*Command `{ @@ }`
+	Commands []*Command `@@*`
 
 	Table map[int]*Command
 }
@@ -53,7 +53,7 @@ type Call struct {
 	Pos lexer.Position
 
 	Name string        `@Ident`
-	Args []*Expression `"(" [ @@ { "," @@ } ] ")"`
+	Args []*Expression `"(" ( @@ ( "," @@ )* )? ")"`
 }
 
 type Print struct {
@@ -109,7 +109,7 @@ type Factor struct {
 	Pos lexer.Position
 
 	Base     *Value `@@`
-	Exponent *Value `[ "^" @@ ]`
+	Exponent *Value `( "^" @@ )?`
 }
 
 type OpFactor struct {
@@ -123,7 +123,7 @@ type Term struct {
 	Pos lexer.Position
 
 	Left  *Factor     `@@`
-	Right []*OpFactor `{ @@ }`
+	Right []*OpFactor `@@*`
 }
 
 type OpTerm struct {
@@ -137,7 +137,7 @@ type Cmp struct {
 	Pos lexer.Position
 
 	Left  *Term     `@@`
-	Right []*OpTerm `{ @@ }`
+	Right []*OpTerm `@@*`
 }
 
 type OpCmp struct {
@@ -151,5 +151,5 @@ type Expression struct {
 	Pos lexer.Position
 
 	Left  *Cmp     `@@`
-	Right []*OpCmp `{ @@ }`
+	Right []*OpCmp `@@*`
 }

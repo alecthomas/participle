@@ -20,44 +20,44 @@ func (b *Boolean) Capture(values []string) error {
 
 // Select based on http://www.h2database.com/html/grammar.html
 type Select struct {
-	Top        *Term             `"SELECT" [ "TOP" @@ ]`
-	Distinct   bool              `[  @"DISTINCT"`
-	All        bool              ` | @"ALL" ]`
+	Top        *Term             `"SELECT" ( "TOP" @@ )?`
+	Distinct   bool              `(  @"DISTINCT"`
+	All        bool              ` | @"ALL" )?`
 	Expression *SelectExpression `@@`
 	From       *From             `"FROM" @@`
-	Limit      *Expression       `[ "LIMIT" @@ ]`
-	Offset     *Expression       `[ "OFFSET" @@ ]`
-	GroupBy    *Expression       `[ "GROUP" "BY" @@ ]`
+	Limit      *Expression       `( "LIMIT" @@ )?`
+	Offset     *Expression       `( "OFFSET" @@ )?`
+	GroupBy    *Expression       `( "GROUP" "BY" @@ )?`
 }
 
 type From struct {
-	TableExpressions []*TableExpression `@@ { "," @@ }`
-	Where            *Expression        `[ "WHERE" @@ ]`
+	TableExpressions []*TableExpression `@@ ( "," @@ )*`
+	Where            *Expression        `( "WHERE" @@ )?`
 }
 
 type TableExpression struct {
-	Table  string        `( @Ident { "." @Ident }`
+	Table  string        `( @Ident ( "." @Ident )*`
 	Select *Select       `  | "(" @@ ")"`
-	Values []*Expression `  | "VALUES" "(" @@ { "," @@ } ")")`
-	As     string        `[ "AS" @Ident ]`
+	Values []*Expression `  | "VALUES" "(" @@ ( "," @@ )* ")")`
+	As     string        `( "AS" @Ident )?`
 }
 
 type SelectExpression struct {
 	All         bool                 `  @"*"`
-	Expressions []*AliasedExpression `| @@ { "," @@ }`
+	Expressions []*AliasedExpression `| @@ ( "," @@ )*`
 }
 
 type AliasedExpression struct {
 	Expression *Expression `@@`
-	As         string      `[ "AS" @Ident ]`
+	As         string      `( "AS" @Ident )?`
 }
 
 type Expression struct {
-	Or []*OrCondition `@@ { "OR" @@ }`
+	Or []*OrCondition `@@ ( "OR" @@ )*`
 }
 
 type OrCondition struct {
-	And []*Condition `@@ { "AND" @@ }`
+	And []*Condition `@@ ( "AND" @@ )*`
 }
 
 type Condition struct {
@@ -68,7 +68,7 @@ type Condition struct {
 
 type ConditionOperand struct {
 	Operand      *Operand      `@@`
-	ConditionRHS *ConditionRHS `[ @@ ]`
+	ConditionRHS *ConditionRHS `@@?`
 }
 
 type ConditionRHS struct {
@@ -110,11 +110,11 @@ type Between struct {
 
 type In struct {
 	Select      *Select       `  @@`
-	Expressions []*Expression `| @@ { "," @@ }`
+	Expressions []*Expression `| @@ ( "," @@ )*`
 }
 
 type Operand struct {
-	Summand []*Summand `@@ { "|" "|" @@ }`
+	Summand []*Summand `@@ ( "|" "|" @@ )*`
 }
 
 type Summand struct {
@@ -125,8 +125,8 @@ type Summand struct {
 
 type Factor struct {
 	LHS *Term  `@@`
-	Op  string `[ @("*" | "/" | "%")`
-	RHS *Term  `  @@ ]`
+	Op  string `( @("*" | "/" | "%")`
+	RHS *Term  `  @@ )?`
 }
 
 type Term struct {
@@ -137,8 +137,8 @@ type Term struct {
 }
 
 type SymbolRef struct {
-	Symbol     string        `@Ident @{ "." Ident }`
-	Parameters []*Expression `[ "(" @@ { "," @@ } ")" ]`
+	Symbol     string        `@Ident @( "." Ident )*`
+	Parameters []*Expression `( "(" @@ ( "," @@ )* ")" )?`
 }
 
 type Value struct {
@@ -151,7 +151,7 @@ type Value struct {
 }
 
 type Array struct {
-	Expressions []*Expression `"(" @@ { "," @@ } ")"`
+	Expressions []*Expression `"(" @@ ( "," @@ )* ")"`
 }
 
 var (

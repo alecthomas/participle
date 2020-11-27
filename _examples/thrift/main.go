@@ -32,45 +32,45 @@ var (
 type Namespace struct {
 	Pos       lexer.Position
 	Language  string `"namespace" @Ident`
-	Namespace string `@Ident { @"." @Ident }`
+	Namespace string `@Ident ( @"." @Ident )*`
 }
 
 type Type struct {
 	Pos     lexer.Position
-	Name    string `@Ident { @"." @Ident }`
-	TypeOne *Type  `[ "<" @@ [ ","`
-	TypeTwo *Type  `           @@ ] ">" ]`
+	Name    string `@Ident ( @"." @Ident )*`
+	TypeOne *Type  `( "<" @@ ( ","`
+	TypeTwo *Type  `           @@ )? ">" )?`
 }
 
 type Annotation struct {
 	Pos   lexer.Position
-	Key   string   `@Ident { @"." @Ident }`
-	Value *Literal `[ "=" @@ ]`
+	Key   string   `@Ident ( @"." @Ident )*`
+	Value *Literal `( "=" @@ )?`
 }
 
 type Field struct {
 	Pos         lexer.Position
 	ID          string        `@Number ":"`
-	Requirement string        `@[ "optional" | "required" ]`
+	Requirement string        `@( "optional" | "required" )?`
 	Type        *Type         `@@`
 	Name        string        `@Ident`
-	Default     *Literal      `[ "=" @@ ]`
-	Annotations []*Annotation `[ "(" @@ { "," @@ } ")" ] [ ";" ]`
+	Default     *Literal      `( "=" @@ )?`
+	Annotations []*Annotation `( "(" @@ ( "," @@ )* ")" )? ";"?`
 }
 
 type Exception struct {
 	Pos         lexer.Position
 	Name        string        `"exception" @Ident "{"`
-	Fields      []*Field      `@@ { @@ } "}"`
-	Annotations []*Annotation `[ "(" @@ { "," @@ } ")" ]`
+	Fields      []*Field      `@@ @@* "}"`
+	Annotations []*Annotation `( "(" @@ ( "," @@ )* ")" )?`
 }
 
 type Struct struct {
 	Pos         lexer.Position
 	Union       bool          `( "struct" | @"union" )`
 	Name        string        `@Ident "{"`
-	Fields      []*Field      `{ @@ } "}"`
-	Annotations []*Annotation `[ "(" @@ { "," @@ } ")" ]`
+	Fields      []*Field      `@@* "}"`
+	Annotations []*Annotation `( "(" @@ ( "," @@ )* ")" )?`
 }
 
 type Argument struct {
@@ -91,17 +91,17 @@ type Method struct {
 	Pos         lexer.Position
 	ReturnType  *Type         `@@`
 	Name        string        `@Ident`
-	Arguments   []*Argument   `"(" [ @@ { "," @@ } ] ")"`
-	Throws      []*Throw      `[ "throws" "(" @@ { "," @@ } ")" ]`
-	Annotations []*Annotation `[ "(" @@ { "," @@ } ")" ]`
+	Arguments   []*Argument   `"(" ( @@ ( "," @@ )* )? ")"`
+	Throws      []*Throw      `( "throws" "(" @@ ( "," @@ )* ")" )?`
+	Annotations []*Annotation `( "(" @@ ( "," @@ )* ")" )?`
 }
 
 type Service struct {
 	Pos         lexer.Position
 	Name        string        `"service" @Ident`
-	Extends     string        `[ "extends" @Ident { @"." @Ident } ]`
-	Methods     []*Method     `"{" { @@ [ ";" ] } "}"`
-	Annotations []*Annotation `[ "(" @@ { "," @@ } ")" ]`
+	Extends     string        `( "extends" @Ident ( @"." @Ident )* )?`
+	Methods     []*Method     `"{" ( @@ ";"? )* "}"`
+	Annotations []*Annotation `( "(" @@ ( "," @@ )* ")" )?`
 }
 
 // Literal is a "union" type, where only one matching value will be present.
@@ -110,10 +110,10 @@ type Literal struct {
 	Str       *string    `  @String`
 	Number    *float64   `| @Number`
 	Bool      *string    `| @( "true" | "false" )`
-	Reference *string    `| @Ident { @"." @Ident }`
+	Reference *string    `| @Ident ( @"." @Ident )*`
 	Minus     *Literal   `| "-" @@`
-	List      []*Literal `| "[" { @@ [ "," ] } "]"`
-	Map       []*MapItem `| "{" { @@ [ "," ] } "}"`
+	List      []*Literal `| "[" ( @@ ","? )* "]"`
+	Map       []*MapItem `| "{" ( @@ ","? )* "}"`
 }
 
 func (l *Literal) GoString() string {
@@ -157,15 +157,15 @@ func (m *MapItem) GoString() string {
 type Case struct {
 	Pos         lexer.Position
 	Name        string        `@Ident`
-	Annotations []*Annotation `[ "(" @@ { "," @@ } ")" ]`
-	Value       *Literal      `[ "=" @@ ] [ "," | ";" ]`
+	Annotations []*Annotation `( "(" @@ ( "," @@ )* ")" )?`
+	Value       *Literal      `( "=" @@ )? ( "," | ";" )?`
 }
 
 type Enum struct {
 	Pos         lexer.Position
 	Name        string        `"enum" @Ident "{"`
-	Cases       []*Case       `{ @@ } "}"`
-	Annotations []*Annotation `[ "(" @@ { "," @@ } ")" ]`
+	Cases       []*Case       `@@* "}"`
+	Annotations []*Annotation `( "(" @@ ( "," @@ )* ")" )?`
 }
 
 type Typedef struct {
@@ -178,7 +178,7 @@ type Const struct {
 	Pos   lexer.Position
 	Type  *Type    `"const" @@`
 	Name  string   `@Ident`
-	Value *Literal `"=" @@ [ ";" ]`
+	Value *Literal `"=" @@ ";"?`
 }
 
 type Entry struct {
@@ -198,7 +198,7 @@ type Entry struct {
 // The grammar
 type Thrift struct {
 	Pos     lexer.Position
-	Entries []*Entry `{ @@ }`
+	Entries []*Entry `@@*`
 }
 
 var (

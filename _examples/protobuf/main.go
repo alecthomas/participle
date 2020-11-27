@@ -15,14 +15,14 @@ import (
 type Proto struct {
 	Pos lexer.Position
 
-	Entries []*Entry `{ @@ { ";" } }`
+	Entries []*Entry `( @@ ";"* )*`
 }
 
 type Entry struct {
 	Pos lexer.Position
 
 	Syntax  string   `  "syntax" "=" @String`
-	Package string   `| "package" @(Ident { "." Ident })`
+	Package string   `| "package" @(Ident ( "." Ident )*)`
 	Import  string   `| "import" @String`
 	Message *Message `| @@`
 	Service *Service `| @@`
@@ -34,8 +34,8 @@ type Entry struct {
 type Option struct {
 	Pos lexer.Position
 
-	Name  string  `( "(" @Ident @{ "." Ident } ")" | @Ident @{ "." @Ident } )`
-	Attr  *string `[ "." @Ident { "." @Ident } ]`
+	Name  string  `( "(" @Ident @( "." Ident )* ")" | @Ident @( "." @Ident )* )`
+	Attr  *string `( "." @Ident ( "." @Ident )* )?`
 	Value *Value  `"=" @@`
 }
 
@@ -46,7 +46,7 @@ type Value struct {
 	Number    *float64 `| @Float`
 	Int       *int64   `| @Int`
 	Bool      *bool    `| (@"true" | "false")`
-	Reference *string  `| @Ident @{ "." Ident }`
+	Reference *string  `| @Ident @( "." Ident )*`
 	Map       *Map     `| @@`
 	Array     *Array   `| @@`
 }
@@ -54,53 +54,53 @@ type Value struct {
 type Array struct {
 	Pos lexer.Position
 
-	Elements []*Value `"[" [ @@ { [ "," ] @@ } ] "]"`
+	Elements []*Value `"[" ( @@ ( ","? @@ )* )? "]"`
 }
 
 type Map struct {
 	Pos lexer.Position
 
-	Entries []*MapEntry `"{" [ @@ { [ "," ] @@ } ] "}"`
+	Entries []*MapEntry `"{" ( @@ ( ( "," )? @@ )* )? "}"`
 }
 
 type MapEntry struct {
 	Pos lexer.Position
 
 	Key   *Value `@@`
-	Value *Value `[ ":" ] @@`
+	Value *Value `":"? @@`
 }
 
 type Extensions struct {
 	Pos lexer.Position
 
-	Extensions []Range `"extensions" @@ { "," @@ }`
+	Extensions []Range `"extensions" @@ ( "," @@ )*`
 }
 
 type Reserved struct {
 	Pos lexer.Position
 
-	Reserved []Range `"reserved" @@ { "," @@ }`
+	Reserved []Range `"reserved" @@ ( "," @@ )*`
 }
 
 type Range struct {
 	Ident string `  @String`
 	Start int    `| ( @Int`
-	End   *int   `  [ "to" ( @Int`
-	Max   bool   `           | @"max" ) ] )`
+	End   *int   `  ( "to" ( @Int`
+	Max   bool   `           | @"max" ) )? )`
 }
 
 type Extend struct {
 	Pos lexer.Position
 
-	Reference string   `"extend" @Ident { "." @Ident }`
-	Fields    []*Field `"{" { @@ [ ";" ] } "}"`
+	Reference string   `"extend" @Ident ( "." @Ident )*`
+	Fields    []*Field `"{" ( @@ ";"? )* "}"`
 }
 
 type Service struct {
 	Pos lexer.Position
 
 	Name  string          `"service" @Ident`
-	Entry []*ServiceEntry `"{" { @@ [ ";" ] } "}"`
+	Entry []*ServiceEntry `"{" ( @@ ";"? )* "}"`
 }
 
 type ServiceEntry struct {
@@ -114,18 +114,18 @@ type Method struct {
 	Pos lexer.Position
 
 	Name              string    `"rpc" @Ident`
-	StreamingRequest  bool      `"(" [ @"stream" ]`
+	StreamingRequest  bool      `"(" @"stream"?`
 	Request           *Type     `    @@ ")"`
-	StreamingResponse bool      `"returns" "(" [ @"stream" ]`
+	StreamingResponse bool      `"returns" "(" @"stream"?`
 	Response          *Type     `              @@ ")"`
-	Options           []*Option `[ "{" { "option" @@ ";" } "}" ]`
+	Options           []*Option `( "{" ( "option" @@ ";" )* "}" )?`
 }
 
 type Enum struct {
 	Pos lexer.Position
 
 	Name   string       `"enum" @Ident`
-	Values []*EnumEntry `"{" { @@ { ";" } } "}"`
+	Values []*EnumEntry `"{" ( @@ ( ";" )* )* "}"`
 }
 
 type EnumEntry struct {
@@ -141,14 +141,14 @@ type EnumValue struct {
 	Key   string `@Ident`
 	Value int    `"=" @( [ "-" ] Int )`
 
-	Options []*Option `[ "[" @@ { "," @@ } "]" ]`
+	Options []*Option `( "[" @@ ( "," @@ )* "]" )?`
 }
 
 type Message struct {
 	Pos lexer.Position
 
 	Name    string          `"message" @Ident`
-	Entries []*MessageEntry `"{" { @@ } "}"`
+	Entries []*MessageEntry `"{" @@* "}"`
 }
 
 type MessageEntry struct {
@@ -161,14 +161,14 @@ type MessageEntry struct {
 	Extend     *Extend     ` | @@`
 	Reserved   *Reserved   ` | @@`
 	Extensions *Extensions ` | @@`
-	Field      *Field      ` | @@ ) { ";" }`
+	Field      *Field      ` | @@ ) ";"*`
 }
 
 type Oneof struct {
 	Pos lexer.Position
 
 	Name    string        `"oneof" @Ident`
-	Entries []*OneofEntry `"{" { @@ { ";" } } "}"`
+	Entries []*OneofEntry `"{" ( @@ ";"* )* "}"`
 }
 
 type OneofEntry struct {
@@ -181,15 +181,15 @@ type OneofEntry struct {
 type Field struct {
 	Pos lexer.Position
 
-	Optional bool `[   @"optional"`
+	Optional bool `(   @"optional"`
 	Required bool `  | @"required"`
-	Repeated bool `  | @"repeated" ]`
+	Repeated bool `  | @"repeated" )?`
 
 	Type *Type  `@@`
 	Name string `@Ident`
 	Tag  int    `"=" @Int`
 
-	Options []*Option `[ "[" @@ { "," @@ } "]" ]`
+	Options []*Option `( "[" @@ ( "," @@ )* "]" )?`
 }
 
 type Scalar int
@@ -249,7 +249,7 @@ type Type struct {
 
 	Scalar    Scalar   `  @@`
 	Map       *MapType `| @@`
-	Reference string   `| @(Ident { "." Ident })`
+	Reference string   `| @(Ident ( "." Ident )*)`
 }
 
 type MapType struct {

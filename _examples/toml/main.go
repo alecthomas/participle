@@ -15,7 +15,7 @@ import (
 type TOML struct {
 	Pos lexer.Position
 
-	Entries []*Entry `{ @@ }`
+	Entries []*Entry `@@*`
 }
 
 type Entry struct {
@@ -35,12 +35,12 @@ type Value struct {
 	Time     *string  `| @Time`
 	Bool     *bool    `| (@"true" | "false")`
 	Number   *float64 `| @Number`
-	List     []*Value `| "[" [ @@ { "," @@ } ] "]"`
+	List     []*Value `| "[" ( @@ ( "," @@ )* )? "]"`
 }
 
 type Section struct {
-	Name   string   `"[" @(Ident { "." Ident }) "]"`
-	Fields []*Field `{ @@ }`
+	Name   string   `"[" @(Ident ( "." Ident )*) "]"`
+	Fields []*Field `@@*`
 }
 
 var (

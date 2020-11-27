@@ -48,7 +48,7 @@ type Value struct {
 
 type Factor struct {
 	Base     *Value `@@`
-	Exponent *Value `[ "^" @@ ]`
+	Exponent *Value `( "^" @@ )?`
 }
 
 type OpFactor struct {
@@ -58,7 +58,7 @@ type OpFactor struct {
 
 type Term struct {
 	Left  *Factor     `@@`
-	Right []*OpFactor `{ @@ }`
+	Right []*OpFactor `@@*`
 }
 
 type OpTerm struct {
@@ -68,7 +68,7 @@ type OpTerm struct {
 
 type Expression struct {
 	Left  *Term     `@@`
-	Right []*OpTerm `{ @@ }`
+	Right []*OpTerm `@@*`
 }
 
 // Display

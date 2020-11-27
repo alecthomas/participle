@@ -42,7 +42,7 @@ func (r *Repetition) String() string {
 
 type Literal struct {
 	Start string `@String` // Lexer token "String"
-	End   string `[ "…" @String ]`
+	End   string `( "…" @String )?`
 }
 
 func (l *Literal) String() string {
@@ -78,7 +78,7 @@ func (t *Term) String() string {
 }
 
 type Sequence struct {
-	Terms []*Term `@@ { @@ }`
+	Terms []*Term `@@+`
 }
 
 func (s *Sequence) String() string {
@@ -90,7 +90,7 @@ func (s *Sequence) String() string {
 }
 
 type Expression struct {
-	Alternatives []*Sequence `@@ { "|" @@ }`
+	Alternatives []*Sequence `@@ ( "|" @@ )*`
 }
 
 func (e *Expression) String() string {
@@ -113,7 +113,7 @@ func (e Expressions) String() string {
 
 type Production struct {
 	Name        string      `@Ident "="`
-	Expressions Expressions `@@ { @@ } "."`
+	Expressions Expressions `@@+ "."`
 }
 
 func (p *Production) String() string {
@@ -125,7 +125,7 @@ func (p *Production) String() string {
 }
 
 type EBNF struct {
-	Productions []*Production `{ @@ }`
+	Productions []*Production `@@*`
 }
 
 func (e *EBNF) String() string {

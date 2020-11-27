@@ -25,36 +25,36 @@ type Entry struct {
 
 type Enum struct {
 	Name  string   `"enum" @Ident`
-	Cases []string `"{" { @Ident } "}"`
+	Cases []string `"{" @Ident* "}"`
 }
 
 type Schema struct {
-	Fields []*Field `"schema" "{" { @@ } "}"`
+	Fields []*Field `"schema" "{" @@* "}"`
 }
 
 type Type struct {
 	Name       string   `"type" @Ident`
-	Implements string   `[ "implements" @Ident ]`
-	Fields     []*Field `"{" { @@ } "}"`
+	Implements string   `( "implements" @Ident )?`
+	Fields     []*Field `"{" @@* "}"`
 }
 
 type Field struct {
 	Name       string      `@Ident`
-	Arguments  []*Argument `[ "(" [ @@ { "," @@ } ] ")" ]`
+	Arguments  []*Argument `( "(" ( @@ ( "," @@ )* )? ")" )?`
 	Type       *TypeRef    `":" @@`
-	Annotation string      `[ "@" @Ident ]`
+	Annotation string      `( "@" @Ident )?`
 }
 
 type Argument struct {
 	Name    string   `@Ident`
 	Type    *TypeRef `":" @@`
-	Default *Value   `[ "=" @@ ]`
+	Default *Value   `( "=" @@ )?`
 }
 
 type TypeRef struct {
 	Array       *TypeRef `(   "[" @@ "]"`
 	Type        string   `  | @Ident )`
-	NonNullable bool     `[ @"!" ]`
+	NonNullable bool     `@"!"?`
 }
 
 type Value struct {

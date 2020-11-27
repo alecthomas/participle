@@ -20,11 +20,6 @@
 //		- `?` Expression can match zero or once.
 //		- `!` Require a non-empty match (this is useful with a sequence of optional matches eg. `("a"? "b"? "c"?)!`).
 //
-// Supported but deprecated:
-//
-//		- `{ ... }` Match 0 or more times (**DEPRECATED** - prefer `( ... )*`).
-//		- `[ ... ]` Optional (**DEPRECATED** - prefer `( ... )?`).
-//
 // Here's an example of an EBNF grammar.
 //
 //     type Group struct {
@@ -49,7 +44,7 @@
 //         Literal    *Literal    `| @@`
 //         Group      *Group      `| @@`
 //         Option     *Option     `| @@`
-//         Repetition *Repetition `| @@`
+//         Repetition *Expression `| "(" @@ ")"`
 //     }
 //
 //     type Sequence struct {
