@@ -1227,7 +1227,7 @@ func TestNegationWithPattern(t *testing.T) {
 	p := mustTestParser(t, &grammar{}, participle.Unquote())
 	// j, err := json.MarshalIndent(p.root, "", "  ")
 	// log.Print(j)
-	// log.Print(stringer(p.root))
+	// log.Print(ebnf(p.root))
 	ast := &grammar{}
 	err := p.ParseString("", `hello world ; "some-str"`, ast)
 	require.NoError(t, err)

@@ -7,16 +7,9 @@ import (
 
 // String returns the EBNF for the grammar.
 //
-// Productions are always upper case. Lexer tokens are always lower case.
+// Productions are always upper cased. Lexer tokens are always lower case.
 func (p *Parser) String() string {
-	seen := map[node]bool{}
-	outp := []*ebnfp{}
-	ebnf(true, p.root, seen, nil, &outp)
-	out := []string{}
-	for _, p := range outp {
-		out = append(out, fmt.Sprintf("%s = %s .", p.name, p.out))
-	}
-	return strings.Join(out, "\n")
+	return ebnf(p.root)
 }
 
 type ebnfp struct {
@@ -24,7 +17,17 @@ type ebnfp struct {
 	out  string
 }
 
-func ebnf(root bool, n node, seen map[node]bool, p *ebnfp, outp *[]*ebnfp) {
+func ebnf(n node) string {
+	outp := []*ebnfp{}
+	buildEBNF(true, n, map[node]bool{}, nil, &outp)
+	out := []string{}
+	for _, p := range outp {
+		out = append(out, fmt.Sprintf("%s = %s .", p.name, p.out))
+	}
+	return strings.Join(out, "\n")
+}
+
+func buildEBNF(root bool, n node, seen map[node]bool, p *ebnfp, outp *[]*ebnfp) {
 	switch n := n.(type) {
 	case *disjunction:
 		if !root {
@@ -34,7 +37,7 @@ func ebnf(root bool, n node, seen map[node]bool, p *ebnfp, outp *[]*ebnfp) {
 			if i > 0 {
 				p.out += " | "
 			}
-			ebnf(false, next, seen, p, outp)
+			buildEBNF(false, next, seen, p, outp)
 		}
 		if !root {
 			p.out += ")"
@@ -52,7 +55,7 @@ func ebnf(root bool, n node, seen map[node]bool, p *ebnfp, outp *[]*ebnfp) {
 		seen[n] = true
 		p = &ebnfp{name: name}
 		*outp = append(*outp, p)
-		ebnf(true, n.expr, seen, p, outp)
+		buildEBNF(true, n.expr, seen, p, outp)
 		return
 
 	case *sequence:
@@ -61,7 +64,7 @@ func ebnf(root bool, n node, seen map[node]bool, p *ebnfp, outp *[]*ebnfp) {
 			p.out += "("
 		}
 		for n != nil {
-			ebnf(false, n.node, seen, p, outp)
+			buildEBNF(false, n.node, seen, p, outp)
 			n = n.next
 			if n != nil {
 				p.out += " "
@@ -76,22 +79,22 @@ func ebnf(root bool, n node, seen map[node]bool, p *ebnfp, outp *[]*ebnfp) {
 		p.out += n.t.Name()
 
 	case *capture:
-		ebnf(false, n.node, seen, p, outp)
+		buildEBNF(false, n.node, seen, p, outp)
 
 	case *reference:
 		p.out += "<" + strings.ToLower(n.identifier) + ">"
 
 	case *optional:
-		ebnf(false, n.node, seen, p, outp)
+		buildEBNF(false, n.node, seen, p, outp)
 		p.out += "?"
 
 	case *repetition:
-		ebnf(false, n.node, seen, p, outp)
+		buildEBNF(false, n.node, seen, p, outp)
 		p.out += "*"
 
 	case *negation:
 		p.out += "!"
-		ebnf(false, n.node, seen, p, outp)
+		buildEBNF(false, n.node, seen, p, outp)
 		return
 
 	case *literal:
@@ -99,15 +102,15 @@ func ebnf(root bool, n node, seen map[node]bool, p *ebnfp, outp *[]*ebnfp) {
 
 	case *group:
 		if child, ok := n.expr.(*group); ok && child.mode == groupMatchOnce {
-			ebnf(false, child.expr, seen, p, outp)
+			buildEBNF(false, child.expr, seen, p, outp)
 		} else if child, ok := n.expr.(*capture); ok {
 			if grandchild, ok := child.node.(*group); ok && grandchild.mode == groupMatchOnce {
-				ebnf(false, grandchild.expr, seen, p, outp)
+				buildEBNF(false, grandchild.expr, seen, p, outp)
 			} else {
-				ebnf(false, n.expr, seen, p, outp)
+				buildEBNF(false, n.expr, seen, p, outp)
 			}
 		} else {
-			ebnf(false, n.expr, seen, p, outp)
+			buildEBNF(false, n.expr, seen, p, outp)
 		}
 		switch n.mode {
 		case groupMatchNonEmpty:

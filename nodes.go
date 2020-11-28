@@ -54,7 +54,7 @@ type parseable struct {
 	t reflect.Type
 }
 
-func (p *parseable) String() string { return stringer(p) }
+func (p *parseable) String() string { return ebnf(p) }
 
 func (p *parseable) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	rv := reflect.New(p.t)
@@ -97,7 +97,7 @@ func newStrct(typ reflect.Type) *strct {
 	return s
 }
 
-func (s *strct) String() string { return stringer(s) }
+func (s *strct) String() string { return ebnf(s) }
 
 func (s *strct) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	sv := reflect.New(s.typ).Elem()
@@ -164,7 +164,7 @@ type group struct {
 	mode groupMatchMode
 }
 
-func (g *group) String() string { return stringer(g) }
+func (g *group) String() string { return ebnf(g) }
 func (g *group) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	// Configure min/max matches.
 	min := 1
@@ -230,7 +230,7 @@ type disjunction struct {
 	nodes []node
 }
 
-func (d *disjunction) String() string { return stringer(d) }
+func (d *disjunction) String() string { return ebnf(d) }
 
 func (d *disjunction) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	var (
@@ -276,7 +276,7 @@ type sequence struct {
 	next *sequence
 }
 
-func (s *sequence) String() string { return stringer(s) }
+func (s *sequence) String() string { return ebnf(s) }
 
 func (s *sequence) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	for n := s; n != nil; n = n.next {
@@ -306,7 +306,7 @@ type capture struct {
 	node  node
 }
 
-func (c *capture) String() string { return stringer(c) }
+func (c *capture) String() string { return ebnf(c) }
 
 func (c *capture) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	start := ctx.RawCursor()
@@ -329,7 +329,7 @@ type reference struct {
 	identifier string // Used for informational purposes.
 }
 
-func (r *reference) String() string { return stringer(r) }
+func (r *reference) String() string { return ebnf(r) }
 
 func (r *reference) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	token, err := ctx.Peek(0)
@@ -348,7 +348,7 @@ type optional struct {
 	node node
 }
 
-func (o *optional) String() string { return stringer(o) }
+func (o *optional) String() string { return ebnf(o) }
 
 func (o *optional) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	branch := ctx.Branch()
@@ -372,7 +372,7 @@ type repetition struct {
 	node node
 }
 
-func (r *repetition) String() string { return stringer(r) }
+func (r *repetition) String() string { return ebnf(r) }
 
 // Parse a repetition. Once a repetition is encountered it will always match, so grammars
 // should ensure that branches are differentiated prior to the repetition.
@@ -412,7 +412,7 @@ type literal struct {
 	tt string // Used for display purposes - symbolic name of t.
 }
 
-func (l *literal) String() string { return stringer(l) }
+func (l *literal) String() string { return ebnf(l) }
 
 func (l *literal) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	token, err := ctx.Peek(0)
@@ -439,7 +439,7 @@ type negation struct {
 	node node
 }
 
-func (n *negation) String() string { return "!" + stringer(n.node) }
+func (n *negation) String() string { return ebnf(n) }
 
 func (n *negation) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	// Create a branch to avoid advancing the parser, but call neither Stop nor Accept on it
