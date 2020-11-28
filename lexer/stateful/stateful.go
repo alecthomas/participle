@@ -21,7 +21,7 @@
 // will match the corresponding capture group from the immediate parent group. This
 // can be used to parse, among other things, heredocs.
 //
-// See the example and tests in this package for details.
+// See the README, example and tests in this package for details.
 package stateful
 
 import (
@@ -312,13 +312,11 @@ next:
 			}
 		}
 		if match == nil || rule == nil {
-			sample := ""
-			if len(l.data) < 16 {
-				sample = l.data
-			} else {
-				sample = l.data[:16] + "..."
+			sample := []rune(l.data)
+			if len(sample) > 16 {
+				sample = append(sample[:16], []rune("...")...)
 			}
-			return lexer.Token{}, participle.Errorf(l.pos, "invalid input text %q", sample)
+			return lexer.Token{}, participle.Errorf(l.pos, "invalid input text %q", string(sample))
 		}
 
 		if rule.Action != nil {

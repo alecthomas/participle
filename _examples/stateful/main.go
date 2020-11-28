@@ -6,7 +6,6 @@ import (
 	"github.com/alecthomas/repr"
 
 	"github.com/alecthomas/participle/v2"
-	"github.com/alecthomas/participle/v2/lexer"
 	"github.com/alecthomas/participle/v2/lexer/stateful"
 )
 
@@ -32,7 +31,7 @@ type String struct {
 }
 
 var (
-	def = lexer.Must(stateful.New(stateful.Rules{
+	def = stateful.Must(stateful.Rules{
 		"Root": {
 			{`String`, `"`, stateful.Push("String")},
 		},
@@ -49,7 +48,7 @@ var (
 			{"Ident", `\w+`, nil},
 			{"ExprEnd", `}`, stateful.Pop()},
 		},
-	}))
+	})
 	parser = participle.MustBuild(&String{}, participle.Lexer(def),
 		participle.Elide("Whitespace"))
 )

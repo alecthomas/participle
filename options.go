@@ -29,6 +29,9 @@ func UseLookahead(n int) Option {
 }
 
 // CaseInsensitive allows the specified token types to be matched case-insensitively.
+//
+// Note that the lexer itself will also have to be case-insensitive; this option
+// just controls whether literals in the grammar are matched case insensitively.
 func CaseInsensitive(tokens ...string) Option {
 	return func(p *Parser) error {
 		for _, token := range tokens {

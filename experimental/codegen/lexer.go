@@ -6,6 +6,7 @@ import (
 	"io"
 	"regexp"
 	"regexp/syntax"
+	"sort"
 	"text/template"
 	"unicode/utf8"
 
@@ -14,7 +15,7 @@ import (
 
 var backrefRe = regexp.MustCompile(`(\\+)(\d)`)
 
-var tmpl = template.Must(template.New("lexgen").Funcs(template.FuncMap{
+var tmpl *template.Template = template.Must(template.New("lexgen").Funcs(template.FuncMap{
 	"IsPush": func(r stateful.Rule) string {
 		if p, ok := r.Action.(stateful.ActionPush); ok {
 			return p.State
@@ -28,6 +29,7 @@ var tmpl = template.Must(template.New("lexgen").Funcs(template.FuncMap{
 	"IsReturn": func(r stateful.Rule) bool {
 		return r == stateful.ReturnRule
 	},
+	"OrderRules": orderRules,
 	"HaveBackrefs": func(def *stateful.Definition, state string) bool {
 		for _, rule := range def.Rules()[state] {
 			if backrefRe.MatchString(rule.Pattern) {
@@ -108,9 +110,9 @@ func (l *lexerImpl) Next() (lexer.Token, error) {
 		sym rune
 	)
 	switch state.name {
-{{- range $state, $rules := .Def.Rules}}
-	case "{{$state}}":
-{{- range $i, $rule := $rules}}
+{{- range $state := .Def.Rules|OrderRules}}
+	case "{{$state.Name}}":
+{{- range $i, $rule := $state.Rules}}
 		{{- if $i}} else {{end -}}
 {{- if .Pattern -}}
 		if match := match{{.Name}}(l.s, l.p); match[1] != 0 {
@@ -120,7 +122,7 @@ func (l *lexerImpl) Next() (lexer.Token, error) {
 		if true {
 {{- end}}
 {{- if .|IsPush}}
-			l.states = append(l.states, lexerState{name: "{{.|IsPush}}"{{if HaveBackrefs $.Def $state}}, groups: l.sgroups(groups){{end}}})
+			l.states = append(l.states, lexerState{name: "{{.|IsPush}}"{{if HaveBackrefs $.Def $state.Name}}, groups: l.sgroups(groups){{end}}})
 {{- else if (or (.|IsPop) (.|IsReturn))}}
 			l.states = l.states[:len(l.states)-1]
 {{- if .|IsReturn}}
@@ -135,7 +137,11 @@ func (l *lexerImpl) Next() (lexer.Token, error) {
 {{- end}}
 	}
 	if groups == nil {
-		return lexer.Token{}, participle.Errorf(l.pos, "no lexer rules in state %q matched input text", l.states[len(l.states)-1])
+		sample := []rune(l.s[l.p:])
+		if len(sample) > 16 {
+			sample = append(sample[:16], []rune("...")...)
+		}
+		return lexer.Token{}, participle.Errorf(l.pos, "invalid input text %q", sample)
 	}
 	pos := l.pos
 	span := l.s[groups[0]:groups[1]]
@@ -180,8 +186,8 @@ func GenerateLexer(w io.Writer, pkg string, def *stateful.Definition) error {
 		return err
 	}
 	seen := map[string]bool{} // Rules can be duplicated by Include().
-	for _, rules := range rules {
-		for _, rule := range rules {
+	for _, rules := range orderRules(rules) {
+		for _, rule := range rules.Rules {
 			if rule.Name == "" {
 				panic(rule)
 			}
@@ -197,6 +203,25 @@ func GenerateLexer(w io.Writer, pkg string, def *stateful.Definition) error {
 		}
 	}
 	return nil
+}
+
+type orderedRule struct {
+	Name  string
+	Rules []stateful.Rule
+}
+
+func orderRules(rules stateful.Rules) []orderedRule {
+	orderedRules := []orderedRule{}
+	for name, rules := range rules {
+		orderedRules = append(orderedRules, orderedRule{
+			Name:  name,
+			Rules: rules,
+		})
+	}
+	sort.Slice(orderedRules, func(i, j int) bool {
+		return orderedRules[i].Name < orderedRules[j].Name
+	})
+	return orderedRules
 }
 
 func generateRegexMatch(w io.Writer, name, pattern string) error {

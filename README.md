@@ -7,13 +7,16 @@
 
 - [V2](#v2)
 - [Introduction](#introduction)
-- [Changes](#changes)
 - [Tutorial](#tutorial)
+- [Tag syntax](#tag-syntax)
 - [Overview](#overview)
 - [Annotation syntax](#annotation-syntax)
 - [Capturing](#capturing)
 - [Streaming](#streaming)
 - [Lexing](#lexing)
+    - [Stateful lexer](#stateful-lexer)
+    - [Example stateful lexer](#example-stateful-lexer)
+    - [Example simple/non-stateful lexer](#example-simplenon-stateful-lexer)
     - [Experimental - code generation](#experimental---code-generation)
 - [Options](#options)
 - [Examples](#examples)
@@ -29,9 +32,9 @@
 <a id="markdown-v2" name="v2"></a>
 ## V2
 
-This is version 2 of Participle. The list of changes between v0 and v2 can be found [here](https://github.com/alecthomas/participle/issues/108).
+This is version 2 of Participle. See the [Change Log](CHANGES.md) for details.
 
-> **Note:** that semantic versioning API guarantees do not apply to the [experimental](https://pkg.go.dev/github.com/alecthomas/participle/v2/experimental) packages.
+> **Note:** semantic versioning API guarantees do not apply to the [experimental](https://pkg.go.dev/github.com/alecthomas/participle/v2/experimental) packages - the API may break between minor point releases.
 
 It can be installed with:
 
@@ -39,10 +42,10 @@ It can be installed with:
 $ go get github.com/alecthomas/participle/v2@latest
 ```
 
-v0.7.0 is the most recent previous stable version and can be obtained via:
+The latest version from v0 can be installed via:
 
 ```shell
-$ go get github.com/alecthomas/participle@v0.7.0
+$ go get github.com/alecthomas/participle@latest
 ```
 
 <a id="markdown-introduction" name="introduction"></a>
@@ -56,15 +59,32 @@ programmer who has used the `encoding/json` package: struct field tags define
 what and how input is mapped to those same fields. This is not unusual for Go
 encoders, but is unusual for a parser.
 
-<a id="markdown-changes" name="changes"></a>
-## Changes
-
-See the [Change Log](CHANGES.md) for details.
-
 <a id="markdown-tutorial" name="tutorial"></a>
 ## Tutorial
 
 A [tutorial](TUTORIAL.md) is available, walking through the creation of an .ini parser.
+
+<a id="markdown-tag-syntax" name="tag-syntax"></a>
+## Tag syntax
+
+Participle supports two forms of struct tag grammar syntax.
+
+The easiest to read is when the grammar uses the entire struct tag content, eg.
+
+```go
+Field string `@Ident @("," Ident)*`
+```
+
+However, this does not coexist well with other tags such as JSON, etc. and
+may cause issues with linters. If this is an issue then you can use the
+`parser:""` tag format. In this case single quotes can be used to quote
+literals making the tags somewhat easier to write, eg.
+
+```go
+Field string `parser:"@ident (',' Ident)*" json:"field"`
+```
+
+
 
 <a id="markdown-overview" name="overview"></a>
 ## Overview
@@ -216,22 +236,117 @@ Participle relies on distinct lexing and parsing phases. The lexer takes raw
 bytes and produces tokens which the parser consumes. The parser transforms
 these tokens into Go values.
 
-The default lexer is based on the Go `text/scanner` package and thus produces
-tokens for Go-like source code. This is surprisingly useful, but if you do require
-more control over lexing the builtin `participle/lexer/stateful` lexer should
-cover most other cases. If that in turn is not flexible enough, you can implement
-your own lexer.
+The default lexer, if one is not explicitly configured, is based on the Go
+`text/scanner` package and thus produces tokens for C/Go-like source code. This
+is surprisingly useful, but if you do require more control over lexing the
+builtin [`participle/lexer/stateful`](#markdown-stateful-lexer) lexer should
+cover most other cases. If that in turn is not flexible enough, you can
+implement your own lexer.
 
-Configure your parser with a lexer via `participle.Lexer()`.
+Configure your parser with a lexer using the `participle.Lexer()` option.
 
 To use your own Lexer you will need to implement two interfaces:
 [Definition](https://pkg.go.dev/github.com/alecthomas/participle/v2#Definition)
 and [Lexer](https://pkg.go.dev/github.com/alecthomas/participle/v2#Lexer).
 
+<a id="markdown-stateful-lexer" name="stateful-lexer"></a>
+### Stateful lexer
+
+Participle's included stateful/modal lexer provides powerful yet convenient
+construction of most lexers (notably, indentation based lexers cannot be
+expressed).
+
+It is sometimes the case that a simple lexer cannot fully express the tokens
+required by a parser. The canonical example of this is interpolated strings
+within a larger language. eg.
+
+```go
+let a = "hello ${name + ", ${last + "!"}"}"
+```
+
+This is impossible to tokenise with a normal lexer due to the arbitrarily
+deep nesting of expressions.
+
+To support this case Participle's lexer is now stateful by default.
+
+The lexer is a state machine defined by a map of rules keyed by the state
+name. Each rule within the state includes the name of the produced token, the
+regex to match, and an optional operation to apply when the rule matches.
+
+As a convenience, any `Rule` starting with a lowercase letter will be elided from output.
+
+Lexing starts in the `Root` group. Each rule is matched in order, with the first
+successful match producing a lexeme. If the matching rule has an associated Action
+it will be executed. The name of each non-root rule is prefixed with the name
+of its group to yield the token identifier used during matching.
+
+A state change can be introduced with the Action `Push(state)`. `Pop()` will
+return to the previous state.
+
+To reuse rules from another state, use `Include(state)`.
+
+A special named rule `Return()` can also be used as the final rule in a state
+to always return to the previous state.
+
+As a special case, regexes containing backrefs in the form `\N` (where `N` is
+a digit) will match the corresponding capture group from the immediate parent
+group. This can be used to parse, among other things, heredocs. See the
+[tests](https://github.com/alecthomas/participle/blob/master/lexer/stateful/stateful_test.go#L59)
+for an example of this, among others.
+
+<a id="markdown-example-stateful-lexer" name="example-stateful-lexer"></a>
+### Example stateful lexer
+
+Here's a cut down example of the string interpolation described above. Refer to
+the [stateful example](https://github.com/alecthomas/participle/v2/tree/master/_examples/stateful)
+for the corresponding parser.
+
+```go
+var lexer = stateful.Must(Rules{
+	"Root": {
+		{`String`, `"`, Push("String")},
+	},
+	"String": {
+		{"Escaped", `\\.`, nil},
+		{"StringEnd", `"`, Pop()},
+		{"Expr", `\${`, Push("Expr")},
+		{"Char", `[^$"\\]+`, nil},
+	},
+	"Expr": {
+		Include("Root"),
+		{`whitespace`, `\s+`, nil},
+		{`Oper`, `[-+/*%]`, nil},
+		{"Ident", `\w+`, nil},
+		{"ExprEnd", `}`, Pop()},
+	},
+})
+```
+
+<a id="markdown-example-simplenon-stateful-lexer" name="example-simplenon-stateful-lexer"></a>
+### Example simple/non-stateful lexer
+
+The Stateful lexer is now the only custom lexer supported by Participle, but
+most parsers won't need this level of flexibility. To support this common
+case, which replaces the old `Regex` and `EBNF` lexers, you can use
+`stateful.MustSimple()` and `stateful.NewSimple()`.
+
+eg. The lexer for a form of BASIC:
+
+```go
+var basicLexer = stateful.MustSimple([]stateful.Rule{
+    {"Comment", `(?i)rem[^\n]*`, nil},
+    {"String", `"(\\"|[^"])*"`, nil},
+    {"Number", `[-+]?(\d*\.)?\d+`, nil},
+    {"Ident", `[a-zA-Z_]\w*`, nil},
+    {"Punct", `[-[!@#$%^&*()+_={}\|:;"'<,>.?/]|]`, nil},
+    {"EOL", `[\n\r]+`, nil},
+    {"whitespace", `[ \t]+`, nil},
+})
+```
 <a id="markdown-experimental---code-generation" name="experimental---code-generation"></a>
 ### Experimental - code generation
 
-Participle v1 now has experimental support for generating code to perform
+Participle v2 now has experimental support for generating code to perform
 lexing. Use `participle/experimental/codegen.GenerateLexer()` to compile a
 `stateful` lexer to Go code.
 
@@ -258,6 +373,7 @@ Example | Description
 [INI](https://github.com/alecthomas/participle/v2/tree/master/_examples/ini) | An INI file parser.
 [Protobuf](https://github.com/alecthomas/participle/v2/tree/master/_examples/protobuf) | A full [Protobuf](https://developers.google.com/protocol-buffers/) version 2 and 3 parser.
 [SQL](https://github.com/alecthomas/participle/v2/tree/master/_examples/sql) | A *very* rudimentary SQL SELECT parser.
+[Stateful](https://github.com/alecthomas/participle/v2/tree/master/_examples/stateful) | A basic example of a stateful lexer and corresponding parser.
 [Thrift](https://github.com/alecthomas/participle/v2/tree/master/_examples/thrift) | A full [Thrift](https://thrift.apache.org/docs/idl) parser.
 [TOML](https://github.com/alecthomas/participle/v2/blob/master/_examples/toml/main.go) | A [TOML](https://github.com/toml-lang/toml) parser.
 
@@ -328,13 +444,13 @@ type Value struct {
 }
 
 var (
-	graphQLLexer = lexer.Must(stateful.NewSimple([]stateful.Rule{
+	graphQLLexer = stateful.MustSimple([]stateful.Rule{
 		{"Comment", `(?:#|//)[^\n]*\n?`, nil},
 		{"Ident", `[a-zA-Z]\w*`, nil},
 		{"Number", `(?:\d*\.)?\d+`, nil},
 		{"Punct", `[-[!@#$%^&*()+_={}\|:;"'<,>.?/]|]`, nil},
 		{"Whitespace", `[ \t\n\r]+`, nil},
-	}))
+	})
 	parser = participle.MustBuild(&File{},
 		participle.Lexer(graphQLLexer),
 		participle.Elide("Comment", "Whitespace"),

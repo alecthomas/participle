@@ -119,7 +119,11 @@ func (l *lexerImpl) Next() (lexer.Token, error) {
 		}
 	}
 	if groups == nil {
-		return lexer.Token{}, participle.Errorf(l.pos, "no lexer rules in state %q matched input text", l.states[len(l.states)-1])
+		sample := []rune(l.s[l.p:])
+		if len(sample) > 16 {
+			sample = append(sample[:16], []rune("...")...)
+		}
+		return lexer.Token{}, participle.Errorf(l.pos, "invalid input text %q", sample)
 	}
 	pos := l.pos
 	span := l.s[groups[0]:groups[1]]
@@ -146,119 +150,6 @@ func (l *lexerImpl) sgroups(match []int) []string {
 		sgroups[i/2] = l.s[l.p+match[i] : l.p+match[i+1]]
 	}
 	return sgroups
-}
-
-// \\(?-s:.)
-func matchEscaped(s string, p int) (groups [2]int) {
-	// \\ (Literal)
-	l0 := func(s string, p int) int {
-		if p < len(s) && s[p] == '\\' {
-			return p + 1
-		}
-		return -1
-	}
-	// (?-s:.) (AnyCharNotNL)
-	l1 := func(s string, p int) int {
-		var (
-			rn rune
-			n  int
-		)
-		if s[p] < utf8.RuneSelf {
-			rn, n = rune(s[p]), 1
-		} else {
-			rn, n = utf8.DecodeRuneInString(s[p:])
-		}
-		if len(s) <= p+n || rn == '\n' {
-			return -1
-		}
-		return p + n
-	}
-	// \\(?-s:.) (Concat)
-	l2 := func(s string, p int) int {
-		if p = l0(s, p); p == -1 {
-			return -1
-		}
-		if p = l1(s, p); p == -1 {
-			return -1
-		}
-		return p
-	}
-	np := l2(s, p)
-	if np == -1 {
-		return
-	}
-	groups[0] = p
-	groups[1] = np
-	return
-}
-
-// "
-func matchStringEnd(s string, p int) (groups [2]int) {
-	if p < len(s) && s[p] == '"' {
-		groups[0] = p
-		groups[1] = p + 1
-	}
-	return
-}
-
-// \$\{
-func matchExpr(s string, p int) (groups [2]int) {
-	if p+2 < len(s) && s[p:p+2] == "${" {
-		groups[0] = p
-		groups[1] = p + 2
-	}
-	return
-}
-
-// [^"\$\\]+
-func matchChar(s string, p int) (groups [2]int) {
-	// [^"\$\\] (CharClass)
-	l0 := func(s string, p int) int {
-		if len(s) <= p {
-			return -1
-		}
-		var (
-			rn rune
-			n  int
-		)
-		if s[p] < utf8.RuneSelf {
-			rn, n = rune(s[p]), 1
-		} else {
-			rn, n = utf8.DecodeRuneInString(s[p:])
-		}
-		switch {
-		case rn >= '\x00' && rn <= '!':
-			return p + 1
-		case rn == '#':
-			return p + 1
-		case rn >= '%' && rn <= '[':
-			return p + 1
-		case rn >= ']' && rn <= '\U0010ffff':
-			return p + n
-		}
-		return -1
-	}
-	// [^"\$\\]+ (Plus)
-	l1 := func(s string, p int) int {
-		if p = l0(s, p); p == -1 {
-			return -1
-		}
-		for len(s) > p {
-			if np := l0(s, p); np == -1 {
-				return p
-			} else {
-				p = np
-			}
-		}
-		return p
-	}
-	np := l1(s, p)
-	if np == -1 {
-		return
-	}
-	groups[0] = p
-	groups[1] = np
-	return
 }
 
 // "
@@ -389,5 +280,118 @@ func matchExprEnd(s string, p int) (groups [2]int) {
 		groups[0] = p
 		groups[1] = p + 1
 	}
+	return
+}
+
+// \\(?-s:.)
+func matchEscaped(s string, p int) (groups [2]int) {
+	// \\ (Literal)
+	l0 := func(s string, p int) int {
+		if p < len(s) && s[p] == '\\' {
+			return p + 1
+		}
+		return -1
+	}
+	// (?-s:.) (AnyCharNotNL)
+	l1 := func(s string, p int) int {
+		var (
+			rn rune
+			n  int
+		)
+		if s[p] < utf8.RuneSelf {
+			rn, n = rune(s[p]), 1
+		} else {
+			rn, n = utf8.DecodeRuneInString(s[p:])
+		}
+		if len(s) <= p+n || rn == '\n' {
+			return -1
+		}
+		return p + n
+	}
+	// \\(?-s:.) (Concat)
+	l2 := func(s string, p int) int {
+		if p = l0(s, p); p == -1 {
+			return -1
+		}
+		if p = l1(s, p); p == -1 {
+			return -1
+		}
+		return p
+	}
+	np := l2(s, p)
+	if np == -1 {
+		return
+	}
+	groups[0] = p
+	groups[1] = np
+	return
+}
+
+// "
+func matchStringEnd(s string, p int) (groups [2]int) {
+	if p < len(s) && s[p] == '"' {
+		groups[0] = p
+		groups[1] = p + 1
+	}
+	return
+}
+
+// \$\{
+func matchExpr(s string, p int) (groups [2]int) {
+	if p+2 < len(s) && s[p:p+2] == "${" {
+		groups[0] = p
+		groups[1] = p + 2
+	}
+	return
+}
+
+// [^"\$\\]+
+func matchChar(s string, p int) (groups [2]int) {
+	// [^"\$\\] (CharClass)
+	l0 := func(s string, p int) int {
+		if len(s) <= p {
+			return -1
+		}
+		var (
+			rn rune
+			n  int
+		)
+		if s[p] < utf8.RuneSelf {
+			rn, n = rune(s[p]), 1
+		} else {
+			rn, n = utf8.DecodeRuneInString(s[p:])
+		}
+		switch {
+		case rn >= '\x00' && rn <= '!':
+			return p + 1
+		case rn == '#':
+			return p + 1
+		case rn >= '%' && rn <= '[':
+			return p + 1
+		case rn >= ']' && rn <= '\U0010ffff':
+			return p + n
+		}
+		return -1
+	}
+	// [^"\$\\]+ (Plus)
+	l1 := func(s string, p int) int {
+		if p = l0(s, p); p == -1 {
+			return -1
+		}
+		for len(s) > p {
+			if np := l0(s, p); np == -1 {
+				return p
+			} else {
+				p = np
+			}
+		}
+		return p
+	}
+	np := l1(s, p)
+	if np == -1 {
+		return
+	}
+	groups[0] = p
+	groups[1] = np
 	return
 }

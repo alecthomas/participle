@@ -276,7 +276,7 @@ int main(void)
     putint(sum(2, a)); // prints 147
     return 0;
 }
-	`
+`
 
 func main() {
 	ast := &Program{}
