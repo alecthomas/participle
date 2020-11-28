@@ -4,7 +4,6 @@ import (
 	"os"
 
 	"github.com/alecthomas/participle/v2"
-	"github.com/alecthomas/participle/v2/lexer"
 	"github.com/alecthomas/participle/v2/lexer/stateful"
 
 	"github.com/alecthomas/repr"
@@ -12,14 +11,14 @@ import (
 
 // A custom lexer for INI files. This illustrates a relatively complex Regexp lexer, as well
 // as use of the Unquote filter, which unquotes string tokens.
-var iniLexer = lexer.Must(stateful.NewSimple([]stateful.Rule{
+var iniLexer = stateful.MustSimple([]stateful.Rule{
 	{`Ident`, `[a-zA-Z][a-zA-Z_\d]*`, nil},
 	{`String`, `"(?:\\.|[^"])*"`, nil},
 	{`Float`, `\d+(?:\.\d+)?`, nil},
 	{`Punct`, `[][=]`, nil},
 	{"comment", `[#;][^\n]*`, nil},
 	{"whitespace", `\s+`, nil},
-}))
+})
 
 type INI struct {
 	Properties []*Property `@@*`
@@ -41,16 +40,14 @@ type Value struct {
 	Number *float64 `| @Float`
 }
 
+var parser = participle.MustBuild(&INI{},
+	participle.Lexer(iniLexer),
+	participle.Unquote("String"),
+)
+
 func main() {
-	parser, err := participle.Build(&INI{},
-		participle.Lexer(iniLexer),
-		participle.Unquote("String"),
-	)
-	if err != nil {
-		panic(err)
-	}
 	ini := &INI{}
-	err = parser.Parse("", os.Stdin, ini)
+	err := parser.Parse("", os.Stdin, ini)
 	if err != nil {
 		panic(err)
 	}

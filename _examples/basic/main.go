@@ -7,12 +7,11 @@ import (
 	"github.com/alecthomas/kong"
 
 	"github.com/alecthomas/participle/v2"
-	"github.com/alecthomas/participle/v2/lexer"
 	"github.com/alecthomas/participle/v2/lexer/stateful"
 )
 
 var (
-	basicLexer = lexer.Must(stateful.NewSimple([]stateful.Rule{
+	basicLexer = stateful.MustSimple([]stateful.Rule{
 		{"Comment", `(?i)rem[^\n]*`, nil},
 		{"String", `"(\\"|[^"])*"`, nil},
 		{"Number", `[-+]?(\d*\.)?\d+`, nil},
@@ -20,7 +19,7 @@ var (
 		{"Punct", `[-[!@#$%^&*()+_={}\|:;"'<,>.?/]|]`, nil},
 		{"EOL", `[\n\r]+`, nil},
 		{"whitespace", `[ \t]+`, nil},
-	}))
+	})
 
 	basicParser = participle.MustBuild(&Program{},
 		participle.Lexer(basicLexer),

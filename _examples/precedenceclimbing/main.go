@@ -119,9 +119,7 @@ func parseOp(op string, lhs *Expr, rhs *Expr) *Expr {
 	}
 }
 
-var (
-	parser = participle.MustBuild(&Expr{})
-)
+var parser = participle.MustBuild(&Expr{})
 
 func main() {
 	e := &Expr{}

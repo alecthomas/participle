@@ -228,19 +228,16 @@ type CallFunc struct {
 }
 
 var (
-	lex = lexer.Must(stateful.New(stateful.Rules{
-		"Root": {
-			{"comment", `//.*|/\*.*?\*/`, nil},
-			{"whitespace", `\s+`, nil},
+	lex = stateful.MustSimple([]stateful.Rule{
+		{"comment", `//.*|/\*.*?\*/`, nil},
+		{"whitespace", `\s+`, nil},
 
-			{"Type", `\b(int|char)\b`, nil},
-			{"Ident", `\b([a-zA-Z_][a-zA-Z0-9_]*)\b`, nil},
-			{"Punct", `[-,()*/+%{};&!=:<>]|\[|\]`, nil},
-			{"Int", `\d+`, nil},
-		},
-	}))
-	intType = lex.Symbols()["Int"]
-	parser  = participle.MustBuild(&Program{},
+		{"Type", `\b(int|char)\b`, nil},
+		{"Ident", `\b([a-zA-Z_][a-zA-Z0-9_]*)\b`, nil},
+		{"Punct", `[-,()*/+%{};&!=:<>]|\[|\]`, nil},
+		{"Int", `\d+`, nil},
+	})
+	parser = participle.MustBuild(&Program{},
 		participle.Lexer(lex),
 		participle.UseLookahead(2))
 )

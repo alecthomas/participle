@@ -63,15 +63,16 @@ type Primary struct {
 	SubExpression *Expression `| "(" @@ ")" `
 }
 
+var parser = participle.MustBuild(&Expression{}, participle.UseLookahead(2))
+
 func main() {
 	var cli struct {
 		Expr []string `arg required help:"Expression to parse."`
 	}
 	ctx := kong.Parse(&cli)
-	p := participle.MustBuild(&Expression{}, participle.UseLookahead(2))
 
 	expr := &Expression{}
-	err := p.ParseString("", strings.Join(cli.Expr, " "), expr)
+	err := parser.ParseString("", strings.Join(cli.Expr, " "), expr)
 	ctx.FatalIfErrorf(err)
 
 	repr.Println(expr)

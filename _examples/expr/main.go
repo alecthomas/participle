@@ -186,17 +186,16 @@ func (e *Expression) Eval(ctx Context) float64 {
 
 type Context map[string]float64
 
+var parser = participle.MustBuild(&Expression{})
+
 func main() {
 	ctx := kong.Parse(&cli,
 		kong.Description("A basic expression parser and evaluator."),
 		kong.UsageOnError(),
 	)
 
-	parser, err := participle.Build(&Expression{})
-	ctx.FatalIfErrorf(err)
-
 	expr := &Expression{}
-	err = parser.ParseString("", strings.Join(cli.Expression, " "), expr)
+	err := parser.ParseString("", strings.Join(cli.Expression, " "), expr)
 	ctx.FatalIfErrorf(err)
 
 	if cli.AST {

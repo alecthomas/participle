@@ -136,6 +136,8 @@ func (e *EBNF) String() string {
 	return w.String()
 }
 
+var parser = participle.MustBuild(&EBNF{})
+
 func main() {
 	kingpin.CommandLine.Help = `An EBNF parser compatible with Go"s exp/ebnf. The grammar is
 in the form:
@@ -150,11 +152,8 @@ in the form:
 `
 	kingpin.Parse()
 
-	parser, err := participle.Build(&EBNF{})
-	kingpin.FatalIfError(err, "")
-
 	ebnf := &EBNF{}
-	err = parser.Parse("", os.Stdin, ebnf)
+	err := parser.Parse("", os.Stdin, ebnf)
 	kingpin.FatalIfError(err, "")
 
 	if *jsonFlag {

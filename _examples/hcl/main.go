@@ -60,14 +60,13 @@ type Config struct {
 	Entries []*Entry `@@*`
 }
 
+var parser = participle.MustBuild(&Config{}, participle.Unquote())
+
 func main() {
 	kingpin.Parse()
 
-	parser, err := participle.Build(&Config{})
-	kingpin.FatalIfError(err, "")
-
 	expr := &Config{}
-	err = parser.Parse("", os.Stdin, expr)
+	err := parser.Parse("", os.Stdin, expr)
 	kingpin.FatalIfError(err, "")
 
 	repr.Println(expr)
