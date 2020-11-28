@@ -148,15 +148,6 @@ func (l *lexerImpl) sgroups(match []int) []string {
 	return sgroups
 }
 
-// "
-func matchString(s string, p int) (groups [2]int) {
-	if p < len(s) && s[p] == '"' {
-		groups[0] = p
-		groups[1] = p + 1
-	}
-	return
-}
-
 // \\(?-s:.)
 func matchEscaped(s string, p int) (groups [2]int) {
 	// \\ (Literal)
@@ -267,6 +258,15 @@ func matchChar(s string, p int) (groups [2]int) {
 	}
 	groups[0] = p
 	groups[1] = np
+	return
+}
+
+// "
+func matchString(s string, p int) (groups [2]int) {
+	if p < len(s) && s[p] == '"' {
+		groups[0] = p
+		groups[1] = p + 1
+	}
 	return
 }
 

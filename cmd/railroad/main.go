@@ -1,3 +1,4 @@
+// Package main generates Railroad Diagrams from Participle grammar EBNF.
 package main
 
 import (
@@ -11,7 +12,7 @@ import (
 
 const (
 	mergeRefThreshold  = -1
-	mergeSizeThreshold = 1
+	mergeSizeThreshold = 0
 )
 
 type production struct {

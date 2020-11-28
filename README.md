@@ -22,6 +22,7 @@
 - [Error reporting](#error-reporting)
 - [Limitations](#limitations)
 - [EBNF](#ebnf)
+- [Syntax/Railroad Diagrams](#syntaxrailroad-diagrams)
 
 <!-- /TOC -->
 
@@ -435,3 +436,14 @@ Value = ident .
 Schema = "schema" "{" Field* "}" .
 Enum = "enum" ident "{" ident* "}" .
 ```
+
+<a id="markdown-syntaxrailroad-diagrams" name="syntaxrailroad-diagrams"></a>
+## Syntax/Railroad Diagrams
+
+Participle includes a [command-line utility]() to take an EBNF representation of a Participle grammar
+(as returned by `Parser.String()`) and produce a Railroad Diagram using
+[tabatkins/railroad-diagrams](https://github.com/tabatkins/railroad-diagrams).
+
+Here's what the GraphQL grammar looks like:
+
+![EBNF Railroad Diagram](railroad.png)
