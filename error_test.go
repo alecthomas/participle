@@ -1,11 +1,14 @@
 package participle_test
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/alecthomas/participle/v2"
+	"github.com/alecthomas/participle/v2/lexer"
 )
 
 func TestErrorReporting(t *testing.T) {
@@ -36,4 +39,11 @@ func TestErrorReporting(t *testing.T) {
 	assert.EqualError(t, err, `1:8: unexpected token "struct" (expected "union" <ident>)`)
 	err = p.ParseString("", `public class 1;`, ast)
 	assert.EqualError(t, err, `1:14: unexpected token "1" (expected <ident>)`)
+}
+
+func TestErrorWrap(t *testing.T) {
+	expected := errors.New("badbad")
+	err := participle.Wrapf(lexer.Position{Line: 1, Column: 1}, expected, "bad: %d", 10)
+	require.Equal(t, expected, errors.Unwrap(err))
+	require.Equal(t, "1:1: bad: 10: badbad", err.Error())
 }

@@ -65,17 +65,30 @@ func (p *parseError) Error() string            { return FormatError(p) }
 func (p *parseError) Message() string          { return p.Msg }
 func (p *parseError) Position() lexer.Position { return p.Pos }
 
+type wrappingParseError struct {
+	err error
+	parseError
+}
+
+func (w *wrappingParseError) Unwrap() error { return w.err }
+
 // Errorf creats a new Error at the given position.
 func Errorf(pos lexer.Position, format string, args ...interface{}) Error {
 	return &parseError{Msg: fmt.Sprintf(format, args...), Pos: pos}
 }
 
-// Wrapf attempts to wrap an existing Error in a new message.
+// Wrapf attempts to wrap an existing error in a new message.
 //
 // If "err" is a participle.Error, its positional information will be uesd.
+//
+// The returned error implements the Unwrap() method supported by the errors package.
 func Wrapf(pos lexer.Position, err error, format string, args ...interface{}) Error {
+	var msg string
 	if perr, ok := err.(Error); ok {
-		return Errorf(perr.Position(), "%s: %s", fmt.Sprintf(format, args...), perr.Message())
+		pos = perr.Position()
+		msg = fmt.Sprintf("%s: %s", fmt.Sprintf(format, args...), perr.Message())
+	} else {
+		msg = fmt.Sprintf("%s: %s", fmt.Sprintf(format, args...), err.Error())
 	}
-	return Errorf(pos, "%s: %s", fmt.Sprintf(format, args...), err.Error())
+	return &wrappingParseError{err: err, parseError: parseError{Msg: msg, Pos: pos}}
 }
