@@ -1,7 +1,8 @@
 package codegen_test
 
 import (
-	"bytes"
+	"os"
+	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -14,7 +15,8 @@ import (
 )
 
 var (
-	benchmarkInput = `"` + strings.Repeat(`hello ${name} world what's the song that you're singing, come on get ${emotion}`, 1000) + `"`
+	testInput      = `hello ${name} world what's the song that you're singing, come on get ${emotion}`
+	benchmarkInput = `"` + strings.Repeat(testInput, 1000) + `"`
 	exprLexer      = stateful.Must(stateful.Rules{
 		"Root": {
 			{`String`, `"`, stateful.Push("String")},
@@ -31,20 +33,35 @@ var (
 			{`Oper`, `[-+/*%]`, nil},
 			{"Ident", `\w+`, nil},
 			{"ExprEnd", `}`, stateful.Pop()},
-			stateful.Return(),
 		},
 	})
 )
 
 func TestGenerate(t *testing.T) {
-	w := &bytes.Buffer{}
-	err := codegen.GenerateLexer(w, "codegen_test", exprLexer)
+	w, err := os.Create("lexer_gen_test.go")
 	require.NoError(t, err)
-	t.Log(w.String())
-	// cmd := exec.Command("pbcopy")
+	defer w.Close()
+	err = codegen.GenerateLexer(w, "codegen_test", exprLexer)
+	require.NoError(t, err)
+	err = exec.Command("gofmt", "-w", "lexer_gen_test.go").Run()
+	require.NoError(t, err)
 	// cmd.Stdin = strings.NewReader(source)
 	// err = cmd.Run()
 	// require.NoError(t, err)
+}
+
+func TestIdentical(t *testing.T) {
+	lex, err := exprLexer.LexString("", `"`+testInput+`"`)
+	require.NoError(t, err)
+	expected, err := lexer.ConsumeAll(lex)
+	require.NoError(t, err)
+
+	lex, err = Lexer.Lex("", strings.NewReader(`"`+testInput+`"`))
+	require.NoError(t, err)
+	actual, err := lexer.ConsumeAll(lex)
+	require.NoError(t, err)
+
+	require.Equal(t, expected, actual)
 }
 
 func BenchmarkStatefulGenerated(b *testing.B) {

@@ -51,7 +51,7 @@ issues:
   exclude-use-default: false
   exclude:
     # Captured by errcheck.
-    - '^(G104|G204):'
+    - '^(G104|G204|G307):'
     # Very commonly not checked.
     - 'Error return value of .(.*\.Help|.*\.MarkFlagRequired|(os\.)?std(out|err)\..*|.*Close|.*Flush|os\.Remove(All)?|.*printf?|os\.(Un)?Setenv). is not checked'
     - 'exported method `(.*\.MarshalJSON|.*\.UnmarshalJSON|.*\.EntityURN|.*\.GoString|.*\.Pos)` should have comment or be unexported'

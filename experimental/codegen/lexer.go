@@ -83,7 +83,7 @@ func (d definitionImpl) Lex(filename string, r io.Reader) (lexer.Lexer, error) {
 	if err != nil {
 		return nil, err
 	}
-	return d.LexString(filename, s)
+	return d.LexString(filename, s.String())
 }
 
 type lexerState struct {

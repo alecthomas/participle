@@ -33,7 +33,7 @@ func TestErrorReporting(t *testing.T) {
 	err = p.ParseString("", `public union A;`, ast)
 	assert.NoError(t, err)
 	err = p.ParseString("", `public struct Bar;`, ast)
-	assert.EqualError(t, err, `1:8: unexpected token "struct" (expected "union")`)
+	assert.EqualError(t, err, `1:8: unexpected token "struct" (expected "union" <ident>)`)
 	err = p.ParseString("", `public class 1;`, ast)
 	assert.EqualError(t, err, `1:14: unexpected token "1" (expected <ident>)`)
 }

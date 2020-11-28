@@ -19,12 +19,20 @@ type ebnfp struct {
 
 func ebnf(n node) string {
 	outp := []*ebnfp{}
-	buildEBNF(true, n, map[node]bool{}, nil, &outp)
-	out := []string{}
-	for _, p := range outp {
-		out = append(out, fmt.Sprintf("%s = %s .", p.name, p.out))
+	switch n.(type) {
+	case *strct:
+		buildEBNF(true, n, map[node]bool{}, nil, &outp)
+		out := []string{}
+		for _, p := range outp {
+			out = append(out, fmt.Sprintf("%s = %s .", p.name, p.out))
+		}
+		return strings.Join(out, "\n")
+
+	default:
+		out := &ebnfp{}
+		buildEBNF(true, n, map[node]bool{}, out, &outp)
+		return out.out
 	}
-	return strings.Join(out, "\n")
 }
 
 func buildEBNF(root bool, n node, seen map[node]bool, p *ebnfp, outp *[]*ebnfp) {
