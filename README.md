@@ -246,8 +246,8 @@ implement your own lexer.
 Configure your parser with a lexer using the `participle.Lexer()` option.
 
 To use your own Lexer you will need to implement two interfaces:
-[Definition](https://pkg.go.dev/github.com/alecthomas/participle/v2#Definition)
-and [Lexer](https://pkg.go.dev/github.com/alecthomas/participle/v2#Lexer).
+[Definition](https://pkg.go.dev/github.com/alecthomas/participle/v2/lexer#Definition)
+(and optionally [StringsDefinition](https://pkg.go.dev/github.com/alecthomas/participle/v2/lexer#StringDefinition) and [BytesDefinition](https://pkg.go.dev/github.com/alecthomas/participle/v2/lexer#BytesDefinition)) and [Lexer](https://pkg.go.dev/github.com/alecthomas/participle/v2/lexer#Lexer).
 
 <a id="markdown-stateful-lexer" name="stateful-lexer"></a>
 ### Stateful lexer
@@ -510,7 +510,7 @@ A compiled `Parser` instance can be used concurrently. A `LexerDefinition` can b
 
 There are a few areas where Participle can provide useful feedback to users of your parser.
 
-1. Errors returned by [Parser.Parse*()](https://pkg.go.dev/github.com/alecthomas/participle/v2#Parser.ParseReader) will be of type [Error](https://pkg.go.dev/github.com/alecthomas/participle/v2#Error). This will contain positional information where available.
+1. Errors returned by [Parser.Parse*()](https://pkg.go.dev/github.com/alecthomas/participle/v2#Parser.Parse) will be of type [Error](https://pkg.go.dev/github.com/alecthomas/participle/v2#Error). This will contain positional information where available.
 2. Participle will make a best effort to return as much of the AST up to the error location as possible.
 3. Any node in the AST containing a field `Pos lexer.Position` will be automatically
    populated from the nearest matching token.
