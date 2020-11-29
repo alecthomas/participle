@@ -298,7 +298,7 @@ for an example of this, among others.
 ### Example stateful lexer
 
 Here's a cut down example of the string interpolation described above. Refer to
-the [stateful example](https://github.com/alecthomas/participle/v2/tree/master/_examples/stateful)
+the [stateful example](https://github.com/alecthomas/participle/tree/master/_examples/stateful)
 for the corresponding parser.
 
 ```go
@@ -361,20 +361,20 @@ The Parser's behaviour can be configured via [Options](https://pkg.go.dev/github
 <a id="markdown-examples" name="examples"></a>
 ## Examples
 
-There are several [examples](https://github.com/alecthomas/participle/v2/tree/master/_examples) included:
+There are several [examples](https://github.com/alecthomas/participle/tree/master/_examples) included:
 
 Example | Description
 --------|---------------
-[BASIC](https://github.com/alecthomas/participle/v2/tree/master/_examples/basic) | A lexer, parser and interpreter for a [rudimentary dialect](https://caml.inria.fr/pub/docs/oreilly-book/html/book-ora058.html) of BASIC.
-[EBNF](https://github.com/alecthomas/participle/v2/tree/master/_examples/ebnf) | Parser for the form of EBNF used by Go.
-[Expr](https://github.com/alecthomas/participle/v2/tree/master/_examples/expr) | A basic mathematical expression parser and evaluator.
-[GraphQL](https://github.com/alecthomas/participle/v2/tree/master/_examples/graphql) | Lexer+parser for GraphQL schemas
-[HCL](https://github.com/alecthomas/participle/v2/tree/master/_examples/hcl) | A parser for the [HashiCorp Configuration Language](https://github.com/hashicorp/hcl).
-[INI](https://github.com/alecthomas/participle/v2/tree/master/_examples/ini) | An INI file parser.
-[Protobuf](https://github.com/alecthomas/participle/v2/tree/master/_examples/protobuf) | A full [Protobuf](https://developers.google.com/protocol-buffers/) version 2 and 3 parser.
-[SQL](https://github.com/alecthomas/participle/v2/tree/master/_examples/sql) | A *very* rudimentary SQL SELECT parser.
-[Stateful](https://github.com/alecthomas/participle/v2/tree/master/_examples/stateful) | A basic example of a stateful lexer and corresponding parser.
-[Thrift](https://github.com/alecthomas/participle/v2/tree/master/_examples/thrift) | A full [Thrift](https://thrift.apache.org/docs/idl) parser.
+[BASIC](https://github.com/alecthomas/participle/tree/master/_examples/basic) | A lexer, parser and interpreter for a [rudimentary dialect](https://caml.inria.fr/pub/docs/oreilly-book/html/book-ora058.html) of BASIC.
+[EBNF](https://github.com/alecthomas/participle/tree/master/_examples/ebnf) | Parser for the form of EBNF used by Go.
+[Expr](https://github.com/alecthomas/participle/tree/master/_examples/expr) | A basic mathematical expression parser and evaluator.
+[GraphQL](https://github.com/alecthomas/participle/tree/master/_examples/graphql) | Lexer+parser for GraphQL schemas
+[HCL](https://github.com/alecthomas/participle/tree/master/_examples/hcl) | A parser for the [HashiCorp Configuration Language](https://github.com/hashicorp/hcl).
+[INI](https://github.com/alecthomas/participle/tree/master/_examples/ini) | An INI file parser.
+[Protobuf](https://github.com/alecthomas/participle/tree/master/_examples/protobuf) | A full [Protobuf](https://developers.google.com/protocol-buffers/) version 2 and 3 parser.
+[SQL](https://github.com/alecthomas/participle/tree/master/_examples/sql) | A *very* rudimentary SQL SELECT parser.
+[Stateful](https://github.com/alecthomas/participle/tree/master/_examples/stateful) | A basic example of a stateful lexer and corresponding parser.
+[Thrift](https://github.com/alecthomas/participle/tree/master/_examples/thrift) | A full [Thrift](https://thrift.apache.org/docs/idl) parser.
 [TOML](https://github.com/alecthomas/participle/v2/blob/master/_examples/toml/main.go) | A [TOML](https://github.com/toml-lang/toml) parser.
 
 Included below is a full GraphQL lexer and parser:
