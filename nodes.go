@@ -576,11 +576,20 @@ func setField(tokens []lexer.Token, strct reflect.Value, field structLexerField,
 	}
 
 	if f.Kind() == reflect.Slice {
-		fieldValue, err = conform(f.Type().Elem(), fieldValue)
-		if err != nil {
-			return err
+		if d, ok := reflect.New(f.Type().Elem()).Interface().(Capture); ok {
+			for _, v := range fieldValue {
+				if err := d.Capture([]string{v.Interface().(string)}); err != nil {
+					return err
+				}
+				f.Set(reflect.Append(f, reflect.ValueOf(d).Elem()))
+			}
+		} else {
+			fieldValue, err = conform(f.Type().Elem(), fieldValue)
+			if err != nil {
+				return err
+			}
+			f.Set(reflect.Append(f, fieldValue...))
 		}
-		f.Set(reflect.Append(f, fieldValue...))
 		return nil
 	}
 
