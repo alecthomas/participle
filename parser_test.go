@@ -1391,3 +1391,36 @@ func TestBug(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, expected, actual)
 }
+
+type sliceCapture string
+
+func (c *sliceCapture) Capture(values []string) error {
+	*c = sliceCapture(strings.ToUpper(values[0]))
+	return nil
+}
+
+func TestCaptureOnSliceElements(t *testing.T) {
+	type capture struct {
+		Single *sliceCapture  `@Capture`
+		Slice  []sliceCapture `@Capture+`
+	}
+
+	parser := participle.MustBuild(&capture{}, []participle.Option{
+		participle.Lexer(stateful.MustSimple([]stateful.Rule{
+			{Name: "Capture", Pattern: `[a-z]{3}`},
+			{Name: "Whitespace", Pattern: `[\s|\n]+`},
+		})),
+		participle.Elide("Whitespace"),
+	}...)
+
+	captured := &capture{}
+	require.NoError(t, parser.ParseString("capture_slice", `abc def ijk`, captured))
+
+	expectedSingle := sliceCapture("ABC")
+	expected := &capture{
+		Single: &expectedSingle,
+		Slice:  []sliceCapture{"DEF", "IJK"},
+	}
+
+	require.Equal(t, expected, captured)
+}
