@@ -1399,25 +1399,7 @@ func (c *sliceCapture) Capture(values []string) error {
 	return nil
 }
 
-type sliceParse string
-
-func (s *sliceParse) Parse(lex *lexer.PeekingLexer) error {
-	token, err := lex.Peek(0)
-	if err != nil {
-		return err
-	}
-	if len(token.Value) != 3 {
-		return participle.NextMatch
-	}
-	_, err = lex.Next()
-	if err != nil {
-		return err
-	}
-	*s = sliceParse(strings.Repeat(token.Value, 2))
-	return nil
-}
-
-func TestCaptureOnSliceElements(t *testing.T) {
+func TestCaptureOnSliceElements(t *testing.T) { // nolint:dupl
 	type capture struct {
 		Single *sliceCapture  `@Capture`
 		Slice  []sliceCapture `@Capture+`
@@ -1443,13 +1425,31 @@ func TestCaptureOnSliceElements(t *testing.T) {
 	require.Equal(t, expected, captured)
 }
 
-func TestParseOnSliceElements(t *testing.T) {
-	type capture struct {
+type sliceParse string
+
+func (s *sliceParse) Parse(lex *lexer.PeekingLexer) error {
+	token, err := lex.Peek(0)
+	if err != nil {
+		return err
+	}
+	if len(token.Value) != 3 {
+		return participle.NextMatch
+	}
+	_, err = lex.Next()
+	if err != nil {
+		return err
+	}
+	*s = sliceParse(strings.Repeat(token.Value, 2))
+	return nil
+}
+
+func TestParseOnSliceElements(t *testing.T) { // nolint:dupl
+	type parse struct {
 		Single *sliceParse  `@@`
 		Slice  []sliceParse `@@+`
 	}
 
-	parser := participle.MustBuild(&capture{}, []participle.Option{
+	parser := participle.MustBuild(&parse{}, []participle.Option{
 		participle.Lexer(stateful.MustSimple([]stateful.Rule{
 			{Name: "Element", Pattern: `[a-z]{3}`},
 			{Name: "Whitespace", Pattern: `[\s|\n]+`},
@@ -1457,14 +1457,14 @@ func TestParseOnSliceElements(t *testing.T) {
 		participle.Elide("Whitespace"),
 	}...)
 
-	captured := &capture{}
-	require.NoError(t, parser.ParseString("capture_slice", `abc def ijk`, captured))
+	parsed := &parse{}
+	require.NoError(t, parser.ParseString("parse_slice", `abc def ijk`, parsed))
 
 	expectedSingle := sliceParse("abcabc")
-	expected := &capture{
+	expected := &parse{
 		Single: &expectedSingle,
 		Slice:  []sliceParse{"defdef", "ijkijk"},
 	}
 
-	require.Equal(t, expected, captured)
+	require.Equal(t, expected, parsed)
 }
