@@ -1399,6 +1399,24 @@ func (c *sliceCapture) Capture(values []string) error {
 	return nil
 }
 
+type sliceParse string
+
+func (s *sliceParse) Parse(lex *lexer.PeekingLexer) error {
+	token, err := lex.Peek(0)
+	if err != nil {
+		return err
+	}
+	if len(token.Value) != 3 {
+		return participle.NextMatch
+	}
+	_, err = lex.Next()
+	if err != nil {
+		return err
+	}
+	*s = sliceParse(strings.Repeat(token.Value, 2))
+	return nil
+}
+
 func TestCaptureOnSliceElements(t *testing.T) {
 	type capture struct {
 		Single *sliceCapture  `@Capture`
@@ -1420,6 +1438,32 @@ func TestCaptureOnSliceElements(t *testing.T) {
 	expected := &capture{
 		Single: &expectedSingle,
 		Slice:  []sliceCapture{"DEF", "IJK"},
+	}
+
+	require.Equal(t, expected, captured)
+}
+
+func TestParseOnSliceElements(t *testing.T) {
+	type capture struct {
+		Single *sliceParse  `@@`
+		Slice  []sliceParse `@@+`
+	}
+
+	parser := participle.MustBuild(&capture{}, []participle.Option{
+		participle.Lexer(stateful.MustSimple([]stateful.Rule{
+			{Name: "Element", Pattern: `[a-z]{3}`},
+			{Name: "Whitespace", Pattern: `[\s|\n]+`},
+		})),
+		participle.Elide("Whitespace"),
+	}...)
+
+	captured := &capture{}
+	require.NoError(t, parser.ParseString("capture_slice", `abc def ijk`, captured))
+
+	expectedSingle := sliceParse("abcabc")
+	expected := &capture{
+		Single: &expectedSingle,
+		Slice:  []sliceParse{"defdef", "ijkijk"},
 	}
 
 	require.Equal(t, expected, captured)
