@@ -1391,3 +1391,84 @@ func TestBug(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, expected, actual)
 }
+
+type sliceCapture string
+
+func (c *sliceCapture) Capture(values []string) error {
+	*c = sliceCapture(strings.ToUpper(values[0]))
+	return nil
+}
+
+func TestCaptureOnSliceElements(t *testing.T) { // nolint:dupl
+	type capture struct {
+		Single   *sliceCapture   `@Capture`
+		Slice    []sliceCapture  `@Capture @Capture`
+		SlicePtr []*sliceCapture `@Capture @Capture`
+	}
+
+	parser := participle.MustBuild(&capture{}, []participle.Option{
+		participle.Lexer(stateful.MustSimple([]stateful.Rule{
+			{Name: "Capture", Pattern: `[a-z]{3}`},
+			{Name: "Whitespace", Pattern: `[\s|\n]+`},
+		})),
+		participle.Elide("Whitespace"),
+	}...)
+
+	captured := &capture{}
+	require.NoError(t, parser.ParseString("capture_slice", `abc def ijk lmn opq`, captured))
+
+	expectedSingle := sliceCapture("ABC")
+	expectedSlicePtr1 := sliceCapture("LMN")
+	expectedSlicePtr2 := sliceCapture("OPQ")
+	expected := &capture{
+		Single:   &expectedSingle,
+		Slice:    []sliceCapture{"DEF", "IJK"},
+		SlicePtr: []*sliceCapture{&expectedSlicePtr1, &expectedSlicePtr2},
+	}
+
+	require.Equal(t, expected, captured)
+}
+
+type sliceParse string
+
+func (s *sliceParse) Parse(lex *lexer.PeekingLexer) error {
+	token, err := lex.Peek(0)
+	if err != nil {
+		return err
+	}
+	if len(token.Value) != 3 {
+		return participle.NextMatch
+	}
+	_, err = lex.Next()
+	if err != nil {
+		return err
+	}
+	*s = sliceParse(strings.Repeat(token.Value, 2))
+	return nil
+}
+
+func TestParseOnSliceElements(t *testing.T) { // nolint:dupl
+	type parse struct {
+		Single *sliceParse  `@@`
+		Slice  []sliceParse `@@+`
+	}
+
+	parser := participle.MustBuild(&parse{}, []participle.Option{
+		participle.Lexer(stateful.MustSimple([]stateful.Rule{
+			{Name: "Element", Pattern: `[a-z]{3}`},
+			{Name: "Whitespace", Pattern: `[\s|\n]+`},
+		})),
+		participle.Elide("Whitespace"),
+	}...)
+
+	parsed := &parse{}
+	require.NoError(t, parser.ParseString("parse_slice", `abc def ijk`, parsed))
+
+	expectedSingle := sliceParse("abcabc")
+	expected := &parse{
+		Single: &expectedSingle,
+		Slice:  []sliceParse{"defdef", "ijkijk"},
+	}
+
+	require.Equal(t, expected, parsed)
+}
