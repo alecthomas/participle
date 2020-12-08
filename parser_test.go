@@ -1401,8 +1401,9 @@ func (c *sliceCapture) Capture(values []string) error {
 
 func TestCaptureOnSliceElements(t *testing.T) { // nolint:dupl
 	type capture struct {
-		Single *sliceCapture  `@Capture`
-		Slice  []sliceCapture `@Capture+`
+		Single   *sliceCapture   `@Capture`
+		Slice    []sliceCapture  `@Capture @Capture`
+		SlicePtr []*sliceCapture `@Capture @Capture`
 	}
 
 	parser := participle.MustBuild(&capture{}, []participle.Option{
@@ -1414,12 +1415,15 @@ func TestCaptureOnSliceElements(t *testing.T) { // nolint:dupl
 	}...)
 
 	captured := &capture{}
-	require.NoError(t, parser.ParseString("capture_slice", `abc def ijk`, captured))
+	require.NoError(t, parser.ParseString("capture_slice", `abc def ijk lmn opq`, captured))
 
 	expectedSingle := sliceCapture("ABC")
+	expectedSlicePtr1 := sliceCapture("LMN")
+	expectedSlicePtr2 := sliceCapture("OPQ")
 	expected := &capture{
-		Single: &expectedSingle,
-		Slice:  []sliceCapture{"DEF", "IJK"},
+		Single:   &expectedSingle,
+		Slice:    []sliceCapture{"DEF", "IJK"},
+		SlicePtr: []*sliceCapture{&expectedSlicePtr1, &expectedSlicePtr2},
 	}
 
 	require.Equal(t, expected, captured)
