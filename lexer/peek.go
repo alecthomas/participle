@@ -103,3 +103,8 @@ func (p *PeekingLexer) Clone() *PeekingLexer {
 	clone := *p
 	return &clone
 }
+
+// Set replaces this lexer state with that of the given lexer.
+func (p *PeekingLexer) Set(lex *PeekingLexer) {
+	*p = *lex
+}

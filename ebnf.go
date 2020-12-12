@@ -92,14 +92,6 @@ func buildEBNF(root bool, n node, seen map[node]bool, p *ebnfp, outp *[]*ebnfp) 
 	case *reference:
 		p.out += "<" + strings.ToLower(n.identifier) + ">"
 
-	case *optional:
-		buildEBNF(false, n.node, seen, p, outp)
-		p.out += "?"
-
-	case *repetition:
-		buildEBNF(false, n.node, seen, p, outp)
-		p.out += "*"
-
 	case *negation:
 		p.out += "!"
 		buildEBNF(false, n.node, seen, p, outp)

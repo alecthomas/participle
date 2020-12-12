@@ -259,6 +259,8 @@ func (p *Parser) rootParseable(ctx *parseContext, parseable Parseable) error {
 	if err == NextMatch {
 		token, _ := ctx.Peek(0)
 		return ctx.DeepestError(UnexpectedTokenError{Unexpected: token})
+	} else if err != nil {
+		return err
 	}
 	peek, err = ctx.Peek(0)
 	if err != nil {

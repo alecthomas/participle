@@ -148,7 +148,7 @@ func TestAccumulateNested(t *testing.T) {
 	require.Equal(t, expected, actual)
 }
 
-func TestRepititionNoMatch(t *testing.T) {
+func TestRepetitionNoMatch(t *testing.T) {
 	type grammar struct {
 		A []string `@"."*`
 	}
@@ -161,7 +161,7 @@ func TestRepititionNoMatch(t *testing.T) {
 	require.Equal(t, expected, actual)
 }
 
-func TestRepitition(t *testing.T) {
+func TestRepetition(t *testing.T) {
 	type grammar struct {
 		A []string `@"."*`
 	}
@@ -174,20 +174,20 @@ func TestRepitition(t *testing.T) {
 	require.Equal(t, expected, actual)
 }
 
-func TestRepititionAcrossFields(t *testing.T) {
-	type testRepitition struct {
+func TestRepetitionAcrossFields(t *testing.T) {
+	type testRepetition struct {
 		A []string `@"."*`
 		B *string  `(@"b" |`
 		C *string  ` @"c")`
 	}
 
-	parser := mustTestParser(t, &testRepitition{})
+	parser := mustTestParser(t, &testRepetition{})
 
 	b := "b"
 	c := "c"
 
-	actual := &testRepitition{}
-	expected := &testRepitition{
+	actual := &testRepetition{}
+	expected := &testRepetition{
 		A: []string{".", ".", "."},
 		B: &b,
 	}
@@ -195,8 +195,8 @@ func TestRepititionAcrossFields(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, expected, actual)
 
-	actual = &testRepitition{}
-	expected = &testRepitition{
+	actual = &testRepetition{}
+	expected = &testRepetition{
 		A: []string{".", ".", "."},
 		C: &c,
 	}
@@ -204,8 +204,8 @@ func TestRepititionAcrossFields(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, expected, actual)
 
-	actual = &testRepitition{}
-	expected = &testRepitition{
+	actual = &testRepetition{}
+	expected = &testRepetition{
 		B: &b,
 	}
 	err = parser.ParseString("", "b", actual)

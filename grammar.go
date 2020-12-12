@@ -250,7 +250,7 @@ func (g *generatorContext) parseOptional(slexer *structLexer) (node, error) {
 	return n, nil
 }
 
-// { <expression> } matches 0 or more repititions of <expression>
+// { <expression> } matches 0 or more repetitions of <expression>
 func (g *generatorContext) parseRepetition(slexer *structLexer) (node, error) {
 	_, _ = slexer.Next() // {
 	disj, err := g.parseDisjunction(slexer)

@@ -164,7 +164,25 @@ type group struct {
 	mode groupMatchMode
 }
 
+func (g *group) minMax() (int, int) {
+	switch g.mode {
+	case groupMatchNonEmpty:
+		return 0, 1 // TODO: This is not correct.
+	case groupMatchOnce:
+		return 1, 1
+	case groupMatchZeroOrOne:
+		return 0, 1
+	case groupMatchZeroOrMore:
+		return 0, MaxIterations
+	case groupMatchOneOrMore:
+		return 1, MaxIterations
+	default:
+		panic("??")
+	}
+}
+
 func (g *group) String() string { return ebnf(g) }
+
 func (g *group) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	// Configure min/max matches.
 	min := 1
@@ -341,68 +359,6 @@ func (r *reference) Parse(ctx *parseContext, parent reflect.Value) (out []reflec
 	}
 	_, _ = ctx.Next()
 	return []reflect.Value{reflect.ValueOf(token.Value)}, nil
-}
-
-// [ <expr> ] <sequence>
-type optional struct {
-	node node
-}
-
-func (o *optional) String() string { return ebnf(o) }
-
-func (o *optional) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
-	branch := ctx.Branch()
-	out, err = o.node.Parse(branch, parent)
-	if err != nil {
-		// Optional part failed to match.
-		if ctx.Stop(err, branch) {
-			return out, err
-		}
-	} else {
-		ctx.Accept(branch)
-	}
-	if out == nil {
-		out = []reflect.Value{}
-	}
-	return out, nil
-}
-
-// { <expr> } <sequence>
-type repetition struct {
-	node node
-}
-
-func (r *repetition) String() string { return ebnf(r) }
-
-// Parse a repetition. Once a repetition is encountered it will always match, so grammars
-// should ensure that branches are differentiated prior to the repetition.
-func (r *repetition) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
-	i := 0
-	for ; i < MaxIterations; i++ {
-		branch := ctx.Branch()
-		v, err := r.node.Parse(branch, parent)
-		out = append(out, v...)
-		if err != nil {
-			// Optional part failed to match.
-			if ctx.Stop(err, branch) {
-				return out, err
-			}
-			break
-		} else {
-			ctx.Accept(branch)
-		}
-		if v == nil {
-			break
-		}
-	}
-	if i >= MaxIterations {
-		t, _ := ctx.Peek(0)
-		panic(Errorf(t.Pos, "too many iterations of %s (> %d)", r, MaxIterations))
-	}
-	if out == nil {
-		out = []reflect.Value{}
-	}
-	return out, nil
 }
 
 // Match a token literal exactly "..."[:<type>].
