@@ -375,7 +375,7 @@ Example | Description
 [SQL](https://github.com/alecthomas/participle/tree/master/_examples/sql) | A *very* rudimentary SQL SELECT parser.
 [Stateful](https://github.com/alecthomas/participle/tree/master/_examples/stateful) | A basic example of a stateful lexer and corresponding parser.
 [Thrift](https://github.com/alecthomas/participle/tree/master/_examples/thrift) | A full [Thrift](https://thrift.apache.org/docs/idl) parser.
-[TOML](https://github.com/alecthomas/participle/v2/blob/master/_examples/toml/main.go) | A [TOML](https://github.com/toml-lang/toml) parser.
+[TOML](https://github.com/alecthomas/participle/tree/master/_examples/toml) | A [TOML](https://github.com/toml-lang/toml) parser.
 
 Included below is a full GraphQL lexer and parser:
 
