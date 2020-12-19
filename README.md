@@ -1,16 +1,17 @@
 # A dead simple parser package for Go
+<a id="markdown-a-dead-simple-parser-package-for-go" name="a-dead-simple-parser-package-for-go"></a>
 
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/alecthomas/participle/v2)](https://pkg.go.dev/github.com/alecthomas/participle/v2) [![CircleCI](https://img.shields.io/circleci/project/github/alecthomas/participle.svg)](https://circleci.com/gh/alecthomas/participle)
  [![Go Report Card](https://goreportcard.com/badge/github.com/alecthomas/participle/v2)](https://goreportcard.com/report/github.com/alecthomas/participle/v2) [![Slack chat](https://img.shields.io/static/v1?logo=slack&style=flat&label=slack&color=green&message=gophers)](https://gophers.slack.com/messages/CN9DS8YF3)
 
-<!-- TOC depthFrom:2 insertAnchor:true updateOnSave:true -->
+<!-- TOC depthfrom:2 insertanchor:true updateonsave:true -->
 
 - [V2](#v2)
 - [Introduction](#introduction)
 - [Tutorial](#tutorial)
 - [Tag syntax](#tag-syntax)
 - [Overview](#overview)
-- [Annotation syntax](#annotation-syntax)
+- [Grammar syntax](#grammar-syntax)
 - [Capturing](#capturing)
 - [Streaming](#streaming)
 - [Lexing](#lexing)
@@ -29,8 +30,8 @@
 
 <!-- /TOC -->
 
-<a id="markdown-v2" name="v2"></a>
 ## V2
+<a id="markdown-v2" name="v2"></a>
 
 This is version 2 of Participle. See the [Change Log](CHANGES.md) for details.
 
@@ -48,8 +49,8 @@ The latest version from v0 can be installed via:
 $ go get github.com/alecthomas/participle@latest
 ```
 
-<a id="markdown-introduction" name="introduction"></a>
 ## Introduction
+<a id="markdown-introduction" name="introduction"></a>
 
 The goal of this package is to provide a simple, idiomatic and elegant way of
 defining parsers in Go.
@@ -59,13 +60,13 @@ programmer who has used the `encoding/json` package: struct field tags define
 what and how input is mapped to those same fields. This is not unusual for Go
 encoders, but is unusual for a parser.
 
-<a id="markdown-tutorial" name="tutorial"></a>
 ## Tutorial
+<a id="markdown-tutorial" name="tutorial"></a>
 
 A [tutorial](TUTORIAL.md) is available, walking through the creation of an .ini parser.
 
-<a id="markdown-tag-syntax" name="tag-syntax"></a>
 ## Tag syntax
+<a id="markdown-tag-syntax" name="tag-syntax"></a>
 
 Participle supports two forms of struct tag grammar syntax.
 
@@ -86,8 +87,8 @@ Field string `parser:"@ident (',' Ident)*" json:"field"`
 
 
 
-<a id="markdown-overview" name="overview"></a>
 ## Overview
+<a id="markdown-overview" name="overview"></a>
 
 A grammar is an annotated Go structure used to both define the parser grammar,
 and be the AST output by the parser. As an example, following is the final INI
@@ -135,18 +136,24 @@ err := parser.ParseString("", "size = 10", ast)
 // }
 ```
 
-<a id="markdown-annotation-syntax" name="annotation-syntax"></a>
-## Annotation syntax
+## Grammar syntax
+<a id="markdown-grammar-syntax" name="grammar-syntax"></a>
+
+Participle grammars are defined as tagged Go structures. Participle will
+first look for tags in the form `parser:"..."`. It will then fall back to
+using the entire tag body.
+
+The grammar format is:
 
 - `@<expr>` Capture expression into the field.
 - `@@` Recursively capture using the fields own type.
 - `<identifier>` Match named lexer token.
 - `( ... )` Group.
-- `"..."` Match the literal (note that the lexer must emit tokens matching this literal exactly).
+- `"..."` or `'...'` Match the literal (note that the lexer must emit tokens matching this literal exactly).
 - `"...":<identifier>` Match the literal, specifying the exact lexer token type to match.
 - `<expr> <expr> ...` Match expressions.
-- `<expr> | <expr>` Match one of the alternatives.
-- `!<expr>` Match any token that is not the start of the expression (eg: `@!";"` matches anything but the `;` character into the field).
+- `<expr> | <expr> | ...` Match one of the alternatives. Each alternative is tried in order, with backtracking.
+- `!<expr>` Match any token that is _not_ the start of the expression (eg: `@!";"` matches anything but the `;` character into the field).
 
 The following modifiers can be used after any expression:
 
@@ -163,8 +170,8 @@ Notes:
   will be used as the grammar fragment. This allows the grammar syntax to remain
   clear and simple to maintain.
 
-<a id="markdown-capturing" name="capturing"></a>
 ## Capturing
+<a id="markdown-capturing" name="capturing"></a>
 
 Prefixing any expression in the grammar with `@` will capture matching values
 for that expression into the corresponding field.
@@ -206,8 +213,8 @@ Additionally, any field implementing the `encoding.TextUnmarshaler` interface
 will be capturable too. One caveat is that `UnmarshalText()` will be called once
 for each captured token, so eg. `@(Ident Ident Ident)` will be called three times.
 
-<a id="markdown-streaming" name="streaming"></a>
 ## Streaming
+<a id="markdown-streaming" name="streaming"></a>
 
 Participle supports streaming parsing. Simply pass a channel of your grammar into
 `Parse*()`. The grammar will be repeatedly parsed and sent to the channel. Note that
@@ -229,8 +236,8 @@ for token := range tokens {
 }
 ```
 
-<a id="markdown-lexing" name="lexing"></a>
 ## Lexing
+<a id="markdown-lexing" name="lexing"></a>
 
 Participle relies on distinct lexing and parsing phases. The lexer takes raw
 bytes and produces tokens which the parser consumes. The parser transforms
@@ -249,8 +256,8 @@ To use your own Lexer you will need to implement two interfaces:
 [Definition](https://pkg.go.dev/github.com/alecthomas/participle/v2/lexer#Definition)
 (and optionally [StringsDefinition](https://pkg.go.dev/github.com/alecthomas/participle/v2/lexer#StringDefinition) and [BytesDefinition](https://pkg.go.dev/github.com/alecthomas/participle/v2/lexer#BytesDefinition)) and [Lexer](https://pkg.go.dev/github.com/alecthomas/participle/v2/lexer#Lexer).
 
-<a id="markdown-stateful-lexer" name="stateful-lexer"></a>
 ### Stateful lexer
+<a id="markdown-stateful-lexer" name="stateful-lexer"></a>
 
 Participle's included stateful/modal lexer provides powerful yet convenient
 construction of most lexers (notably, indentation based lexers cannot be
@@ -294,8 +301,8 @@ group. This can be used to parse, among other things, heredocs. See the
 [tests](https://github.com/alecthomas/participle/blob/master/lexer/stateful/stateful_test.go#L59)
 for an example of this, among others.
 
-<a id="markdown-example-stateful-lexer" name="example-stateful-lexer"></a>
 ### Example stateful lexer
+<a id="markdown-example-stateful-lexer" name="example-stateful-lexer"></a>
 
 Here's a cut down example of the string interpolation described above. Refer to
 the [stateful example](https://github.com/alecthomas/participle/tree/master/_examples/stateful)
@@ -322,8 +329,8 @@ var lexer = stateful.Must(Rules{
 })
 ```
 
-<a id="markdown-example-simplenon-stateful-lexer" name="example-simplenon-stateful-lexer"></a>
 ### Example simple/non-stateful lexer
+<a id="markdown-example-simple%2Fnon-stateful-lexer" name="example-simple%2Fnon-stateful-lexer"></a>
 
 The Stateful lexer is now the only custom lexer supported by Participle, but
 most parsers won't need this level of flexibility. To support this common
@@ -343,8 +350,8 @@ var basicLexer = stateful.MustSimple([]stateful.Rule{
     {"whitespace", `[ \t]+`, nil},
 })
 ```
-<a id="markdown-experimental---code-generation" name="experimental---code-generation"></a>
 ### Experimental - code generation
+<a id="markdown-experimental---code-generation" name="experimental---code-generation"></a>
 
 Participle v2 now has experimental support for generating code to perform
 lexing. Use `participle/experimental/codegen.GenerateLexer()` to compile a
@@ -353,13 +360,13 @@ lexing. Use `participle/experimental/codegen.GenerateLexer()` to compile a
 This will generally provide around a 10x improvement in lexing performance
 while producing O(1) garbage.
 
-<a id="markdown-options" name="options"></a>
 ## Options
+<a id="markdown-options" name="options"></a>
 
 The Parser's behaviour can be configured via [Options](https://pkg.go.dev/github.com/alecthomas/participle/v2#Option).
 
-<a id="markdown-examples" name="examples"></a>
 ## Examples
+<a id="markdown-examples" name="examples"></a>
 
 There are several [examples](https://github.com/alecthomas/participle/tree/master/_examples) included:
 
@@ -481,8 +488,8 @@ func main() {
 }
 ```
 
-<a id="markdown-performance" name="performance"></a>
 ## Performance
+<a id="markdown-performance" name="performance"></a>
 
 One of the included examples is a complete Thrift parser
 (shell-style comments are not supported). This gives
@@ -500,13 +507,13 @@ You can run the benchmarks yourself, but here's the output on my machine:
 On a real life codebase of 47K lines of Thrift, Participle takes 200ms and go-
 thrift takes 630ms, which aligns quite closely with the benchmarks.
 
-<a id="markdown-concurrency" name="concurrency"></a>
 ## Concurrency
+<a id="markdown-concurrency" name="concurrency"></a>
 
 A compiled `Parser` instance can be used concurrently. A `LexerDefinition` can be used concurrently. A `Lexer` instance cannot be used concurrently.
 
-<a id="markdown-error-reporting" name="error-reporting"></a>
 ## Error reporting
+<a id="markdown-error-reporting" name="error-reporting"></a>
 
 There are a few areas where Participle can provide useful feedback to users of your parser.
 
@@ -521,8 +528,8 @@ There are a few areas where Participle can provide useful feedback to users of y
 
 These related pieces of information can be combined to provide fairly comprehensive error reporting.
 
-<a id="markdown-limitations" name="limitations"></a>
 ## Limitations
+<a id="markdown-limitations" name="limitations"></a>
 
 Internally, Participle is a recursive descent parser with backtracking (see
 `UseLookahead(K)`).
@@ -530,8 +537,8 @@ Internally, Participle is a recursive descent parser with backtracking (see
 Among other things, this means that they do not support left recursion. Left
 recursion must be eliminated by restructuring your grammar.
 
-<a id="markdown-ebnf" name="ebnf"></a>
 ## EBNF
+<a id="markdown-ebnf" name="ebnf"></a>
 
 Participle supports outputting an EBNF grammar from a Participle parser. Once
 the parser is constructed simply call `String()`.
@@ -553,8 +560,8 @@ Schema = "schema" "{" Field* "}" .
 Enum = "enum" ident "{" ident* "}" .
 ```
 
-<a id="markdown-syntaxrailroad-diagrams" name="syntaxrailroad-diagrams"></a>
 ## Syntax/Railroad Diagrams
+<a id="markdown-syntax%2Frailroad-diagrams" name="syntax%2Frailroad-diagrams"></a>
 
 Participle includes a [command-line utility]() to take an EBNF representation of a Participle grammar
 (as returned by `Parser.String()`) and produce a Railroad Diagram using
