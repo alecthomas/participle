@@ -13,6 +13,7 @@
 - [Overview](#overview)
 - [Grammar syntax](#grammar-syntax)
 - [Capturing](#capturing)
+    - [Capturing boolean value](#capturing-boolean-value)
 - [Streaming](#streaming)
 - [Lexing](#lexing)
     - [Stateful lexer](#stateful-lexer)
@@ -197,10 +198,10 @@ For slice and string fields, each instance of `@` will accumulate into the
 field (including repeated patterns). Accumulation into other types is not
 supported.
 
-A successful capture match into a boolean field will set the field to true.
-
 For integer and floating point types, a successful capture will be parsed
-with `strconv.ParseInt()` and `strconv.ParseBool()` respectively.
+with `strconv.ParseInt()` and `strconv.ParseFloat()` respectively.
+
+A successful capture match into a `bool` field will set the field to true.
 
 Tokens can also be captured directly into fields of type `lexer.Token` and
 `[]lexer.Token`.
@@ -212,6 +213,45 @@ error`).
 Additionally, any field implementing the `encoding.TextUnmarshaler` interface
 will be capturable too. One caveat is that `UnmarshalText()` will be called once
 for each captured token, so eg. `@(Ident Ident Ident)` will be called three times.
+
+### Capturing boolean value
+<a id="markdown-capturing-boolean-value" name="capturing-boolean-value"></a>
+
+By default a boolean field is used to indicate that a match occurred, which
+turns out to be much more useful and common in Participle than parsing true
+or false literals. For example, parsing a variable declaration with a
+trailing optional syntax:
+
+```go
+type Var struct {
+  Name string `"var" @Ident`
+  Type string `":" @Ident`
+  Optional bool `@"?"?`
+}
+```
+
+In practice this gives more useful AST's. If bool were to be parsed literally
+then you'd need to have some alternate type for Optional such as string or a
+custom type.
+
+To capture literal boolean values such as `true` or `false`, implement the
+Capture interface like so:
+
+```go
+type Boolean bool
+
+func (b *Boolean) Capture(values []string) error {
+	*b = values[0] == "true"
+	return nil
+}
+
+type Value struct {
+	Float  *float64 `  @Float`
+	Int    *int     `| @Int`
+	String *string  `| @String`
+	Bool   *Boolean `| @("true" | "false")`
+}
+```
 
 ## Streaming
 <a id="markdown-streaming" name="streaming"></a>
