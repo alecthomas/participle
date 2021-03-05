@@ -575,6 +575,23 @@ func setField(tokens []lexer.Token, strct reflect.Value, field structLexerField,
 		return nil
 	}
 
+	if f.CanAddr() {
+		if d, ok := f.Addr().Interface().(Capture); ok {
+			ifv := make([]string, 0, len(fieldValue))
+			for _, v := range fieldValue {
+				ifv = append(ifv, v.Interface().(string))
+			}
+			return d.Capture(ifv)
+		} else if d, ok := f.Addr().Interface().(encoding.TextUnmarshaler); ok {
+			for _, v := range fieldValue {
+				if err := d.UnmarshalText([]byte(v.Interface().(string))); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}
+
 	if f.Kind() == reflect.Slice {
 		sliceElemType := f.Type().Elem()
 		if sliceElemType.Implements(captureType) || reflect.PtrTo(sliceElemType).Implements(captureType) {
@@ -600,23 +617,6 @@ func setField(tokens []lexer.Token, strct reflect.Value, field structLexerField,
 			f.Set(reflect.Append(f, fieldValue...))
 		}
 		return nil
-	}
-
-	if f.CanAddr() {
-		if d, ok := f.Addr().Interface().(Capture); ok {
-			ifv := []string{}
-			for _, v := range fieldValue {
-				ifv = append(ifv, v.Interface().(string))
-			}
-			return d.Capture(ifv)
-		} else if d, ok := f.Addr().Interface().(encoding.TextUnmarshaler); ok {
-			for _, v := range fieldValue {
-				if err := d.UnmarshalText([]byte(v.Interface().(string))); err != nil {
-					return err
-				}
-			}
-			return nil
-		}
 	}
 
 	// Strings concatenate all captured tokens.

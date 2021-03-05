@@ -3,6 +3,7 @@ package participle_test
 import (
 	"fmt"
 	"math"
+	"net"
 	"reflect"
 	"strconv"
 	"strings"
@@ -1471,4 +1472,40 @@ func TestParseOnSliceElements(t *testing.T) { // nolint:dupl
 	}
 
 	require.Equal(t, expected, parsed)
+}
+
+func TestUnmarshalNetIP(t *testing.T) {
+	type grammar struct {
+		IP net.IP `@IP`
+	}
+
+	parser := mustTestParser(t, &grammar{}, participle.Lexer(stateful.MustSimple([]stateful.Rule{
+		{"IP", `[\d.]+`, nil},
+	})))
+	ast := &grammar{}
+	err := parser.ParseString("", "10.2.3.4", ast)
+	require.NoError(t, err)
+	require.Equal(t, "10.2.3.4", ast.IP.String())
+}
+
+type Address net.IP
+
+func (a *Address) Capture(values []string) error {
+	fmt.Println("does not run at all")
+	*a = Address(net.ParseIP(values[0]))
+	return nil
+}
+
+func TestCaptureIP(t *testing.T) {
+	type grammar struct {
+		IP Address `@IP`
+	}
+
+	parser := mustTestParser(t, &grammar{}, participle.Lexer(stateful.MustSimple([]stateful.Rule{
+		{"IP", `[\d.]+`, nil},
+	})))
+	ast := &grammar{}
+	err := parser.ParseString("", "10.2.3.4", ast)
+	require.NoError(t, err)
+	require.Equal(t, "10.2.3.4", (net.IP)(ast.IP).String())
 }
