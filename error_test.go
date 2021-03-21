@@ -47,3 +47,9 @@ func TestErrorWrap(t *testing.T) {
 	require.Equal(t, expected, errors.Unwrap(err))
 	require.Equal(t, "1:1: bad: 10: badbad", err.Error())
 }
+
+func TestAnnotateError(t *testing.T) {
+	orig := errors.New("an error")
+	err := participle.AnnotateError(lexer.Position{Line: 1, Column: 1}, orig)
+	require.Equal(t, "1:1: an error", err.Error())
+}

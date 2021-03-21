@@ -92,3 +92,13 @@ func Wrapf(pos lexer.Position, err error, format string, args ...interface{}) Er
 	}
 	return &wrappingParseError{err: err, parseError: parseError{Msg: msg, Pos: pos}}
 }
+
+// AnnotateError wraps an existing error with a position.
+//
+// If the existing error is a lexer.Error or participle.Error it will be returned unmodified.
+func AnnotateError(pos lexer.Position, err error) error {
+	if perr, ok := err.(Error); ok {
+		return perr
+	}
+	return &wrappingParseError{err: err, parseError: parseError{Msg: err.Error(), Pos: pos}}
+}
