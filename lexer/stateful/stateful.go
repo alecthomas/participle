@@ -44,6 +44,16 @@ var (
 	backrefReplace = regexp.MustCompile(`(\\+)(\d)`)
 )
 
+// Option for modifying how the Lexer works.
+type Option func(d *Definition)
+
+// InitialState overrides the default initial state of "Root".
+func InitialState(state string) Option {
+	return func(d *Definition) {
+		d.initialState = state
+	}
+}
+
 // A Rule matching input and possibly changing state.
 type Rule struct {
 	Name    string
@@ -146,12 +156,13 @@ type Definition struct {
 	symbols map[string]rune
 	// Map of key->*regexp.Regexp
 	backrefCache sync.Map
+	initialState string
 }
 
 // MustSimple creates a new lexer definition based on a single state described by `rules`.
 // panics if the rules trigger an error
-func MustSimple(rules []Rule) *Definition {
-	def, err := NewSimple(rules)
+func MustSimple(rules []Rule, options ...Option) *Definition {
+	def, err := NewSimple(rules, options...)
 	if err != nil {
 		panic(err)
 	}
@@ -159,8 +170,8 @@ func MustSimple(rules []Rule) *Definition {
 }
 
 // Must creates a new stateful lexer and panics if it is incorrect.
-func Must(rules Rules) *Definition {
-	def, err := New(rules)
+func Must(rules Rules, options ...Option) *Definition {
+	def, err := New(rules, options...)
 	if err != nil {
 		panic(err)
 	}
@@ -168,12 +179,12 @@ func Must(rules Rules) *Definition {
 }
 
 // NewSimple creates a new stateful lexer with a single "Root" state.
-func NewSimple(rules []Rule) (*Definition, error) {
-	return New(Rules{"Root": rules})
+func NewSimple(rules []Rule, options ...Option) (*Definition, error) {
+	return New(Rules{"Root": rules}, options...)
 }
 
 // New constructs a new stateful lexer from rules.
-func New(rules Rules) (*Definition, error) {
+func New(rules Rules, options ...Option) (*Definition, error) {
 	compiled := compiledRules{}
 	for key, set := range rules {
 		for i, rule := range set {
@@ -228,10 +239,15 @@ restart:
 			rn--
 		}
 	}
-	return &Definition{
-		rules:   compiled,
-		symbols: symbols,
-	}, nil
+	d := &Definition{
+		initialState: "Root",
+		rules:        compiled,
+		symbols:      symbols,
+	}
+	for _, option := range options {
+		option(d)
+	}
+	return d, nil
 }
 
 // Rules returns the user-provided Rules used to construct the lexer.
@@ -249,7 +265,7 @@ func (d *Definition) LexString(filename string, s string) (lexer.Lexer, error) {
 	return &Lexer{
 		def:   d,
 		data:  s,
-		stack: []lexerState{{name: "Root"}},
+		stack: []lexerState{{name: d.initialState}},
 		pos: lexer.Position{
 			Filename: filename,
 			Line:     1,
