@@ -116,7 +116,7 @@ type Stmt struct {
 	WhileStmt  *WhileStmt  `| @@`
 	Block      *Stmts      `| "{" @@ "}"`
 	Expr       *Expr       `| @@`
-	Empty      bool        `| ";"`
+	Empty      bool        `| @";"`
 }
 
 type FunBody struct {
