@@ -52,7 +52,7 @@ func decorate(err *error, pos *lexer.Position, name func() string) {
 	}
 
 	if pos == nil {
-		*err = fmt.Errorf("%s: %w", name(), err)
+		*err = fmt.Errorf("%s: %w", name(), *err)
 		return
 	}
 
