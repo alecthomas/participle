@@ -13,6 +13,7 @@ import (
 // A Parser for a particular grammar and lexer.
 type Parser struct {
 	root            node
+	trace           io.Writer
 	lex             lexer.Definition
 	typ             reflect.Type
 	useLookahead    int
@@ -90,6 +91,9 @@ func Build(grammar interface{}, options ...Option) (parser *Parser, err error) {
 	p.root, err = context.parseType(p.typ)
 	if err != nil {
 		return nil, err
+	}
+	if p.trace != nil {
+		p.root = injectTrace(p.trace, 0, p.root)
 	}
 	return p, nil
 }

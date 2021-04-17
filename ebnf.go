@@ -133,6 +133,9 @@ func buildEBNF(root bool, n node, seen map[node]bool, p *ebnfp, outp *[]*ebnfp) 
 		}
 		return
 
+	case *trace:
+		buildEBNF(root, n.node, seen, p, outp)
+
 	default:
 		panic(fmt.Sprintf("unsupported node type %T", n))
 	}
