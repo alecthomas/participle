@@ -1509,3 +1509,28 @@ func TestCaptureIP(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "10.2.3.4", (net.IP)(ast.IP).String())
 }
+
+func BenchmarkIssue143(b *testing.B) {
+	type Disjunction struct {
+		Long1 bool `parser:"  '<' '1' ' ' 'l' 'o' 'n' 'g' ' ' 'r' 'u' 'l' 'e' ' ' 't' 'o' ' ' 'f' 'o' 'r' 'm' 'a' 't' '>'"`
+		Long2 bool `parser:"| '<' '2' ' ' 'l' 'o' 'n' 'g' ' ' 'r' 'u' 'l' 'e' ' ' 't' 'o' ' ' 'f' 'o' 'r' 'm' 'a' 't' '>'"`
+		Long3 bool `parser:"| '<' '3' ' ' 'l' 'o' 'n' 'g' ' ' 'r' 'u' 'l' 'e' ' ' 't' 'o' ' ' 'f' 'o' 'r' 'm' 'a' 't' '>'"`
+		Long4 bool `parser:"| '<' '4' ' ' 'l' 'o' 'n' 'g' ' ' 'r' 'u' 'l' 'e' ' ' 't' 'o' ' ' 'f' 'o' 'r' 'm' 'a' 't' '>'"`
+		Real  bool `parser:"| '<' 'x' '>'"`
+	}
+
+	type Disjunctions struct {
+		List []Disjunction `parser:"@@*"`
+	}
+
+	var disjunctionParser = participle.MustBuild(&Disjunctions{})
+	input := "<x> <x> <x> <x> <x> <x> <x> <x> <x> <x> <x> <x> <x> <x> <x> <x> <x> <x> <x> <x>"
+	ast := &Disjunctions{}
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		if err := disjunctionParser.ParseString("", input, ast); err != nil {
+			panic(err)
+		}
+	}
+}

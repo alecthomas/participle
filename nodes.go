@@ -317,7 +317,7 @@ func (s *sequence) Parse(ctx *parseContext, parent reflect.Value) (out []reflect
 			if err != nil {
 				return nil, err
 			}
-			return out, UnexpectedTokenError{Unexpected: token, Expected: n.String()}
+			return out, UnexpectedTokenError{Unexpected: token, at: n}
 		}
 	}
 	return out, nil
