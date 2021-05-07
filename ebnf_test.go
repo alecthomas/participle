@@ -14,12 +14,13 @@ EBNF = Production* .
 Production = <ident> "=" Expression+ "." .
 Expression = Sequence ("|" Sequence)* .
 Sequence = Term+ .
-Term = <ident> | Literal | Range | Group | EBNFOption | Repetition .
+Term = <ident> | Literal | Range | Group | EBNFOption | Repetition | Negation .
 Literal = <string> .
 Range = <string> "…" <string> .
 Group = "(" Expression ")" .
 EBNFOption = "[" Expression "]" .
 Repetition = "{" Expression "}" .
+Negation = "!" "?"? Expression .
 `
 	require.Equal(t, strings.TrimSpace(expected), parser.String())
 }
