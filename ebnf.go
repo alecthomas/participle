@@ -102,6 +102,9 @@ func buildEBNF(root bool, n node, seen map[node]bool, p *ebnfp, outp *[]*ebnfp) 
 
 	case *negation:
 		p.out += "!"
+		if !n.consume {
+			p.out += "?"
+		}
 		buildEBNF(false, n.node, seen, p, outp)
 		return
 

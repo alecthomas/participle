@@ -242,6 +242,11 @@ type Repetition struct {
 	Expression *Expression `"{" @@ "}"`
 }
 
+type Negation struct {
+	NoConsume  bool        `"!" "?"?`
+	Expression *Expression `@@`
+}
+
 type Literal struct {
 	Start string `@String`
 }
@@ -257,7 +262,8 @@ type Term struct {
 	Range      *Range      `@@ |`
 	Group      *Group      `@@ |`
 	Option     *EBNFOption `@@ |`
-	Repetition *Repetition `@@`
+	Repetition *Repetition `@@ |`
+	Negation   *Negation   `@@`
 }
 
 type Sequence struct {
@@ -1258,6 +1264,56 @@ func TestNegationWithDisjunction(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, &[]string{"hello", "world", ","}, ast.EverythingMoreComplex)
 
+}
+
+func TestNegation_NegativeLookahead_SingleToken(t *testing.T) {
+	type variable struct {
+		Name string `@Ident`
+	}
+	type grammar struct {
+		Identifiers []variable `(!?('except'|'end') @@)*`
+		Except      *variable  `('except' @@)? 'end'`
+	}
+	p := mustTestParser(t, &grammar{})
+	ast := &grammar{}
+
+	require.NoError(t, p.ParseString("", `one two three exception end`, ast))
+	require.Equal(t, []variable{{"one"}, {"two"}, {"three"}, {"exception"}}, ast.Identifiers)
+	require.Nil(t, ast.Except)
+
+	require.NoError(t, p.ParseString("", `anything except this end`, ast))
+	require.Equal(t, []variable{{"anything"}}, ast.Identifiers)
+	require.Equal(t, &variable{"this"}, ast.Except)
+
+	require.NoError(t, p.ParseString("", `except the end`, ast))
+	require.Nil(t, ast.Identifiers)
+	require.Equal(t, &variable{"the"}, ast.Except)
+
+	err := p.ParseString("", `no ending`, ast)
+	require.EqualError(t, err, `1:10: unexpected token "<EOF>" (expected "end")`)
+
+	err = p.ParseString("", `no end in sight`, ast)
+	require.EqualError(t, err, `1:8: unexpected token "in"`)
+}
+
+func TestNegation_NegativeLookahead_MultipleTokens(t *testing.T) {
+	type grammar struct {
+		Parts []string `(!?('.' '.' '.') @(Ident | '.'))*`
+	}
+	p := mustTestParser(t, &grammar{})
+	ast := &grammar{}
+
+	require.NoError(t, p.ParseString("", `x.y.z.`, ast))
+	require.Equal(t, []string{"x", ".", "y", ".", "z", "."}, ast.Parts)
+
+	require.NoError(t, p.ParseString("", `..x..`, ast))
+	require.Equal(t, []string{".", ".", "x", ".", "."}, ast.Parts)
+
+	require.NoError(t, p.ParseString("", `two.. are fine`, ast))
+	require.Equal(t, []string{"two", ".", ".", "are", "fine"}, ast.Parts)
+
+	err := p.ParseString("", `but this... is just wrong`, ast)
+	require.EqualError(t, err, `1:9: unexpected token "."`)
 }
 
 func TestASTTokens(t *testing.T) {

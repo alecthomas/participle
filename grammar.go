@@ -288,13 +288,21 @@ func (g *generatorContext) parseGroup(slexer *structLexer) (node, error) {
 // A token negation
 //
 // Accepts both the form !"some-literal" and !SomeNamedToken
+// If used as !?<term>, it functions as negative lookahead, not consuming any token
 func (g *generatorContext) parseNegation(slexer *structLexer) (node, error) {
 	_, _ = slexer.Next() // advance the parser since we have '!' right now.
-	next, err := g.parseTermNoModifiers(slexer)
+	neg := &negation{}
+	modifier, err := slexer.Peek()
 	if err != nil {
 		return nil, err
 	}
-	return &negation{next}, nil
+	if neg.consume = modifier.Type != '?'; !neg.consume {
+		_, _ = slexer.Next()
+	}
+	if neg.node, err = g.parseTermNoModifiers(slexer); err != nil {
+		return nil, err
+	}
+	return neg, nil
 }
 
 // A literal string.
