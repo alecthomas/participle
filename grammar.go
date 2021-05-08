@@ -104,7 +104,7 @@ loop:
 		} else if token.Type == lexer.EOF {
 			break loop
 		}
-		term, err := g.parseTerm(slexer)
+		term, err := g.parseTerm(slexer, true)
 		if err != nil {
 			return nil, err
 		}
@@ -128,7 +128,7 @@ loop:
 	return head, nil
 }
 
-func (g *generatorContext) parseTermNoModifiers(slexer *structLexer) (node, error) {
+func (g *generatorContext) parseTermNoModifiers(slexer *structLexer, allowUnknown bool) (node, error) {
 	t, err := slexer.Peek()
 	if err != nil {
 		return nil, err
@@ -153,12 +153,15 @@ func (g *generatorContext) parseTermNoModifiers(slexer *structLexer) (node, erro
 		_, _ = slexer.Next()
 		return nil, nil
 	default:
-		return nil, nil
+		if allowUnknown {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("unexpected token %v", t)
 	}
 }
 
-func (g *generatorContext) parseTerm(slexer *structLexer) (node, error) {
-	out, err := g.parseTermNoModifiers(slexer)
+func (g *generatorContext) parseTerm(slexer *structLexer, allowUnknown bool) (node, error) {
+	out, err := g.parseTermNoModifiers(slexer, allowUnknown)
 	if err != nil {
 		return nil, err
 	}
@@ -208,7 +211,7 @@ func (g *generatorContext) parseCapture(slexer *structLexer) (node, error) {
 	if ft.Kind() == reflect.Struct && ft != tokenType && ft != tokensType && !field.Type.Implements(captureType) && !field.Type.Implements(textUnmarshalerType) {
 		return nil, fmt.Errorf("structs can only be parsed with @@ or by implementing the Capture or encoding.TextUnmarshaler interfaces")
 	}
-	n, err := g.parseTermNoModifiers(slexer)
+	n, err := g.parseTermNoModifiers(slexer, false)
 	if err != nil {
 		return nil, err
 	}
@@ -328,7 +331,7 @@ func (g *generatorContext) subparseGroup(slexer *structLexer) (node, error) {
 // Accepts both the form !"some-literal" and !SomeNamedToken
 func (g *generatorContext) parseNegation(slexer *structLexer) (node, error) {
 	_, _ = slexer.Next() // advance the parser since we have '!' right now.
-	next, err := g.parseTermNoModifiers(slexer)
+	next, err := g.parseTermNoModifiers(slexer, false)
 	if err != nil {
 		return nil, err
 	}
