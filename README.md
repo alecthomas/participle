@@ -155,6 +155,8 @@ The grammar format is:
 - `<expr> <expr> ...` Match expressions.
 - `<expr> | <expr> | ...` Match one of the alternatives. Each alternative is tried in order, with backtracking.
 - `!<expr>` Match any token that is _not_ the start of the expression (eg: `@!";"` matches anything but the `;` character into the field).
+- `(?= ... )` Positive lookahead group - requires the contents to match further input, without consuming it
+- `(?! ... )` Negative lookahead group - requires the contents not to match further input, without consuming it
 
 The following modifiers can be used after any expression:
 

@@ -146,7 +146,8 @@ func (g *generatorContext) parseTermNoModifiers(slexer *structLexer) (node, erro
 	case '{':
 		return g.parseRepetition(slexer)
 	case '(':
-		out, err = g.parseGroup(slexer)
+		// Also handles (? used for lookahead groups
+		return g.parseGroup(slexer)
 	case scanner.Ident:
 		out, err = g.parseReference(slexer)
 	case lexer.EOF:
@@ -271,6 +272,45 @@ func (g *generatorContext) parseRepetition(slexer *structLexer) (node, error) {
 // ( <expression> ) groups a sub-expression
 func (g *generatorContext) parseGroup(slexer *structLexer) (node, error) {
 	_, _ = slexer.Next() // (
+	peek, err := slexer.Peek()
+	if err != nil {
+		return nil, err
+	}
+	if peek.Type == '?' {
+		return g.subparseLookaheadGroup(slexer) // If there was an error peeking, code below will handle it
+	}
+	expr, err := g.subparseGroup(slexer)
+	if err != nil {
+		return nil, err
+	}
+	return &group{expr: expr}, nil
+}
+
+// (?[!=] <expression> ) requires a grouped sub-expression either matches or doesn't match, without consuming it
+func (g *generatorContext) subparseLookaheadGroup(slexer *structLexer) (node, error) {
+	_, _ = slexer.Next() // ? - the opening ( was already consumed in parseGroup
+	var negative bool
+	next, err := slexer.Next()
+	if err != nil {
+		return nil, err
+	}
+	switch next.Type {
+	case '=':
+		negative = false
+	case '!':
+		negative = true
+	default:
+		return nil, fmt.Errorf("expected = or ! but got %q", next)
+	}
+	expr, err := g.subparseGroup(slexer)
+	if err != nil {
+		return nil, err
+	}
+	return &lookaheadGroup{expr: expr, negative: negative}, nil
+}
+
+// helper parsing <expression> ) to finish parsing groups or lookahead groups
+func (g *generatorContext) subparseGroup(slexer *structLexer) (node, error) {
 	disj, err := g.parseDisjunction(slexer)
 	if err != nil {
 		return nil, err
@@ -282,7 +322,7 @@ func (g *generatorContext) parseGroup(slexer *structLexer) (node, error) {
 	if next.Type != ')' {
 		return nil, fmt.Errorf("expected ) but got %q", next)
 	}
-	return &group{expr: disj}, nil
+	return disj, nil
 }
 
 // A token negation

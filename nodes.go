@@ -246,6 +246,31 @@ func (g *group) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Va
 	return out, nil
 }
 
+// (?= <expr> ) for positive lookahead, (?! <expr> ) for negative lookahead; neither consumes input
+type lookaheadGroup struct {
+	expr     node
+	negative bool
+}
+
+func (n *lookaheadGroup) String() string   { return ebnf(n) }
+func (n *lookaheadGroup) GoString() string { return "lookaheadGroup{}" }
+
+func (n *lookaheadGroup) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
+	// Create a branch to avoid advancing the parser as any match will be discarded
+	branch := ctx.Branch()
+	out, err = n.expr.Parse(branch, parent)
+	matchedLookahead := err == nil && out != nil
+	expectingMatch := !n.negative
+	if matchedLookahead != expectingMatch {
+		peek, err := ctx.Peek(0)
+		if err != nil {
+			return nil, err
+		}
+		return nil, Errorf(peek.Pos, "unexpected '%s'", peek.Value)
+	}
+	return []reflect.Value{}, nil // Empty match slice means a match, unlike nil
+}
+
 // <expr> {"|" <expr>}
 type disjunction struct {
 	nodes []node
