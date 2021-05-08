@@ -464,8 +464,7 @@ func (l *literal) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.
 }
 
 type negation struct {
-	node    node
-	consume bool
+	node node
 }
 
 func (n *negation) String() string   { return ebnf(n) }
@@ -491,11 +490,7 @@ func (n *negation) Parse(ctx *parseContext, parent reflect.Value) (out []reflect
 		return nil, Errorf(notEOF.Pos, "unexpected '%s'", notEOF.Value)
 	}
 
-	if !n.consume {
-		// Non-consuming mode - nil means no match, empty slice means successful but empty match
-		return []reflect.Value{}, nil
-	}
-	// Consuming mode - just give the next token
+	// Just give the next token
 	next, err := ctx.Next()
 	if err != nil {
 		return nil, err

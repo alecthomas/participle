@@ -243,8 +243,7 @@ type Repetition struct {
 }
 
 type Negation struct {
-	NoConsume  bool        `"!" "?"?`
-	Expression *Expression `@@`
+	Expression *Expression `"!" @@`
 }
 
 type Literal struct {

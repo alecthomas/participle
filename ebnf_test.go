@@ -20,7 +20,7 @@ Range = <string> "…" <string> .
 Group = "(" Expression ")" .
 EBNFOption = "[" Expression "]" .
 Repetition = "{" Expression "}" .
-Negation = "!" "?"? Expression .
+Negation = "!" Expression .
 `
 	require.Equal(t, strings.TrimSpace(expected), parser.String())
 }
