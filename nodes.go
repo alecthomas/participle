@@ -424,7 +424,7 @@ type repetition struct {
 }
 
 func (r *repetition) String() string   { return ebnf(r) }
-func (r *repetition) GoString() string { return "repitition{}" }
+func (r *repetition) GoString() string { return "repetition{}" }
 
 // Parse a repetition. Once a repetition is encountered it will always match, so grammars
 // should ensure that branches are differentiated prior to the repetition.

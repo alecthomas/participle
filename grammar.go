@@ -133,12 +133,11 @@ func (g *generatorContext) parseTermNoModifiers(slexer *structLexer) (node, erro
 	if err != nil {
 		return nil, err
 	}
-	var out node
 	switch t.Type {
 	case '@':
-		out, err = g.parseCapture(slexer)
+		return g.parseCapture(slexer)
 	case scanner.String, scanner.RawString, scanner.Char:
-		out, err = g.parseLiteral(slexer)
+		return g.parseLiteral(slexer)
 	case '!':
 		return g.parseNegation(slexer)
 	case '[':
@@ -149,14 +148,13 @@ func (g *generatorContext) parseTermNoModifiers(slexer *structLexer) (node, erro
 		// Also handles (? used for lookahead groups
 		return g.parseGroup(slexer)
 	case scanner.Ident:
-		out, err = g.parseReference(slexer)
+		return g.parseReference(slexer)
 	case lexer.EOF:
 		_, _ = slexer.Next()
 		return nil, nil
 	default:
 		return nil, nil
 	}
-	return out, err
 }
 
 func (g *generatorContext) parseTerm(slexer *structLexer) (node, error) {

@@ -1267,7 +1267,6 @@ func TestNegationWithDisjunction(t *testing.T) {
 	err = p.ParseString("", `hello world , `, ast)
 	require.NoError(t, err)
 	require.Equal(t, &[]string{"hello", "world", ","}, ast.EverythingMoreComplex)
-
 }
 
 func TestLookaheadGroup_Positive_SingleToken(t *testing.T) {
