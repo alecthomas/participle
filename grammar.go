@@ -104,7 +104,7 @@ loop:
 		} else if token.Type == lexer.EOF {
 			break loop
 		}
-		term, err := g.parseTerm(slexer)
+		term, err := g.parseTerm(slexer, true)
 		if err != nil {
 			return nil, err
 		}
@@ -128,17 +128,16 @@ loop:
 	return head, nil
 }
 
-func (g *generatorContext) parseTermNoModifiers(slexer *structLexer) (node, error) {
+func (g *generatorContext) parseTermNoModifiers(slexer *structLexer, allowUnknown bool) (node, error) {
 	t, err := slexer.Peek()
 	if err != nil {
 		return nil, err
 	}
-	var out node
 	switch t.Type {
 	case '@':
-		out, err = g.parseCapture(slexer)
+		return g.parseCapture(slexer)
 	case scanner.String, scanner.RawString, scanner.Char:
-		out, err = g.parseLiteral(slexer)
+		return g.parseLiteral(slexer)
 	case '!':
 		return g.parseNegation(slexer)
 	case '[':
@@ -146,20 +145,23 @@ func (g *generatorContext) parseTermNoModifiers(slexer *structLexer) (node, erro
 	case '{':
 		return g.parseRepetition(slexer)
 	case '(':
-		out, err = g.parseGroup(slexer)
+		// Also handles (? used for lookahead groups
+		return g.parseGroup(slexer)
 	case scanner.Ident:
-		out, err = g.parseReference(slexer)
+		return g.parseReference(slexer)
 	case lexer.EOF:
 		_, _ = slexer.Next()
 		return nil, nil
 	default:
-		return nil, nil
+		if allowUnknown {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("unexpected token %v", t)
 	}
-	return out, err
 }
 
-func (g *generatorContext) parseTerm(slexer *structLexer) (node, error) {
-	out, err := g.parseTermNoModifiers(slexer)
+func (g *generatorContext) parseTerm(slexer *structLexer, allowUnknown bool) (node, error) {
+	out, err := g.parseTermNoModifiers(slexer, allowUnknown)
 	if err != nil {
 		return nil, err
 	}
@@ -209,7 +211,7 @@ func (g *generatorContext) parseCapture(slexer *structLexer) (node, error) {
 	if ft.Kind() == reflect.Struct && ft != tokenType && ft != tokensType && !field.Type.Implements(captureType) && !field.Type.Implements(textUnmarshalerType) {
 		return nil, fmt.Errorf("structs can only be parsed with @@ or by implementing the Capture or encoding.TextUnmarshaler interfaces")
 	}
-	n, err := g.parseTermNoModifiers(slexer)
+	n, err := g.parseTermNoModifiers(slexer, false)
 	if err != nil {
 		return nil, err
 	}
@@ -271,6 +273,45 @@ func (g *generatorContext) parseRepetition(slexer *structLexer) (node, error) {
 // ( <expression> ) groups a sub-expression
 func (g *generatorContext) parseGroup(slexer *structLexer) (node, error) {
 	_, _ = slexer.Next() // (
+	peek, err := slexer.Peek()
+	if err != nil {
+		return nil, err
+	}
+	if peek.Type == '?' {
+		return g.subparseLookaheadGroup(slexer) // If there was an error peeking, code below will handle it
+	}
+	expr, err := g.subparseGroup(slexer)
+	if err != nil {
+		return nil, err
+	}
+	return &group{expr: expr}, nil
+}
+
+// (?[!=] <expression> ) requires a grouped sub-expression either matches or doesn't match, without consuming it
+func (g *generatorContext) subparseLookaheadGroup(slexer *structLexer) (node, error) {
+	_, _ = slexer.Next() // ? - the opening ( was already consumed in parseGroup
+	var negative bool
+	next, err := slexer.Next()
+	if err != nil {
+		return nil, err
+	}
+	switch next.Type {
+	case '=':
+		negative = false
+	case '!':
+		negative = true
+	default:
+		return nil, fmt.Errorf("expected = or ! but got %q", next)
+	}
+	expr, err := g.subparseGroup(slexer)
+	if err != nil {
+		return nil, err
+	}
+	return &lookaheadGroup{expr: expr, negative: negative}, nil
+}
+
+// helper parsing <expression> ) to finish parsing groups or lookahead groups
+func (g *generatorContext) subparseGroup(slexer *structLexer) (node, error) {
 	disj, err := g.parseDisjunction(slexer)
 	if err != nil {
 		return nil, err
@@ -282,27 +323,19 @@ func (g *generatorContext) parseGroup(slexer *structLexer) (node, error) {
 	if next.Type != ')' {
 		return nil, fmt.Errorf("expected ) but got %q", next)
 	}
-	return &group{expr: disj}, nil
+	return disj, nil
 }
 
 // A token negation
 //
 // Accepts both the form !"some-literal" and !SomeNamedToken
-// If used as !?<term>, it functions as negative lookahead, not consuming any token
 func (g *generatorContext) parseNegation(slexer *structLexer) (node, error) {
 	_, _ = slexer.Next() // advance the parser since we have '!' right now.
-	neg := &negation{}
-	modifier, err := slexer.Peek()
+	next, err := g.parseTermNoModifiers(slexer, false)
 	if err != nil {
 		return nil, err
 	}
-	if neg.consume = modifier.Type != '?'; !neg.consume {
-		_, _ = slexer.Next()
-	}
-	if neg.node, err = g.parseTermNoModifiers(slexer); err != nil {
-		return nil, err
-	}
-	return neg, nil
+	return &negation{next}, nil
 }
 
 // A literal string.

@@ -50,7 +50,6 @@ func buildEBNF(root bool, n node, seen map[node]bool, p *ebnfp, outp *[]*ebnfp) 
 		if !root {
 			p.out += ")"
 		}
-		return
 
 	case *strct:
 		name := strings.ToUpper(n.typ.Name()[:1]) + n.typ.Name()[1:]
@@ -64,7 +63,6 @@ func buildEBNF(root bool, n node, seen map[node]bool, p *ebnfp, outp *[]*ebnfp) 
 		p = &ebnfp{name: name}
 		*outp = append(*outp, p)
 		buildEBNF(true, n.expr, seen, p, outp)
-		return
 
 	case *sequence:
 		group := n.next != nil && !root
@@ -81,7 +79,6 @@ func buildEBNF(root bool, n node, seen map[node]bool, p *ebnfp, outp *[]*ebnfp) 
 		if group {
 			p.out += ")"
 		}
-		return
 
 	case *parseable:
 		p.out += n.t.Name()
@@ -102,11 +99,7 @@ func buildEBNF(root bool, n node, seen map[node]bool, p *ebnfp, outp *[]*ebnfp) 
 
 	case *negation:
 		p.out += "!"
-		if !n.consume {
-			p.out += "?"
-		}
 		buildEBNF(false, n.node, seen, p, outp)
-		return
 
 	case *literal:
 		p.out += fmt.Sprintf("%q", n.s)
@@ -134,7 +127,15 @@ func buildEBNF(root bool, n node, seen map[node]bool, p *ebnfp, outp *[]*ebnfp) 
 			p.out += "+"
 		case groupMatchOnce:
 		}
-		return
+
+	case *lookaheadGroup:
+		if !n.negative {
+			p.out += "(?= "
+		} else {
+			p.out += "(?! "
+		}
+		buildEBNF(true, n.expr, seen, p, outp)
+		p.out += ")"
 
 	case *trace:
 		buildEBNF(root, n.node, seen, p, outp)

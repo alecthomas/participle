@@ -234,6 +234,10 @@ type Group struct {
 	Expression *Expression `"(" @@ ")"`
 }
 
+type LookaheadGroup struct {
+	Expression *Expression `"(" "?" ("=" | "!") @@ ")"`
+}
+
 type EBNFOption struct {
 	Expression *Expression `"[" @@ "]"`
 }
@@ -243,8 +247,7 @@ type Repetition struct {
 }
 
 type Negation struct {
-	NoConsume  bool        `"!" "?"?`
-	Expression *Expression `@@`
+	Expression *Expression `"!" @@`
 }
 
 type Literal struct {
@@ -257,13 +260,14 @@ type Range struct {
 }
 
 type Term struct {
-	Name       string      `@Ident |`
-	Literal    *Literal    `@@ |`
-	Range      *Range      `@@ |`
-	Group      *Group      `@@ |`
-	Option     *EBNFOption `@@ |`
-	Repetition *Repetition `@@ |`
-	Negation   *Negation   `@@`
+	Name           string          `@Ident |`
+	Literal        *Literal        `@@ |`
+	Range          *Range          `@@ |`
+	Group          *Group          `@@ |`
+	LookaheadGroup *LookaheadGroup `@@ |`
+	Option         *EBNFOption     `@@ |`
+	Repetition     *Repetition     `@@ |`
+	Negation       *Negation       `@@`
 }
 
 type Sequence struct {
@@ -1263,15 +1267,43 @@ func TestNegationWithDisjunction(t *testing.T) {
 	err = p.ParseString("", `hello world , `, ast)
 	require.NoError(t, err)
 	require.Equal(t, &[]string{"hello", "world", ","}, ast.EverythingMoreComplex)
-
 }
 
-func TestNegation_NegativeLookahead_SingleToken(t *testing.T) {
+func TestLookaheadGroup_Positive_SingleToken(t *testing.T) {
+	type val struct {
+		Str string `  @String`
+		Int int    `| @Int`
+	}
+	type op struct {
+		Op      string `@('+' | '*' (?= @Int))`
+		Operand val    `@@`
+	}
+	type sum struct {
+		Left val  `@@`
+		Ops  []op `@@*`
+	}
+	p := mustTestParser(t, &sum{})
+	ast := &sum{}
+
+	require.NoError(t, p.ParseString("", `"x" + "y" + 4`, ast))
+	require.Equal(t, &sum{Left: val{Str: `"x"`}, Ops: []op{{"+", val{Str: `"y"`}}, {"+", val{Int: 4}}}}, ast)
+
+	require.NoError(t, p.ParseString("", `"a" * 4 + "b"`, ast))
+	require.Equal(t, &sum{Left: val{Str: `"a"`}, Ops: []op{{"*", val{Int: 4}}, {"+", val{Str: `"b"`}}}}, ast)
+
+	require.NoError(t, p.ParseString("", `1 * 2 * 3`, ast))
+	require.Equal(t, &sum{Left: val{Int: 1}, Ops: []op{{"*", val{Int: 2}}, {"*", val{Int: 3}}}}, ast)
+
+	require.EqualError(t, p.ParseString("", `"a" * "x" + "b"`, ast), `1:7: unexpected '"x"'`)
+	require.EqualError(t, p.ParseString("", `4 * 2 + 0 * "b"`, ast), `1:13: unexpected '"b"'`)
+}
+
+func TestLookaheadGroup_Negative_SingleToken(t *testing.T) {
 	type variable struct {
 		Name string `@Ident`
 	}
 	type grammar struct {
-		Identifiers []variable `(!?('except'|'end') @@)*`
+		Identifiers []variable `((?! 'except'|'end') @@)*`
 		Except      *variable  `('except' @@)? 'end'`
 	}
 	p := mustTestParser(t, &grammar{})
@@ -1296,9 +1328,9 @@ func TestNegation_NegativeLookahead_SingleToken(t *testing.T) {
 	require.EqualError(t, err, `1:8: unexpected token "in"`)
 }
 
-func TestNegation_NegativeLookahead_MultipleTokens(t *testing.T) {
+func TestLookaheadGroup_Negative_MultipleTokens(t *testing.T) {
 	type grammar struct {
-		Parts []string `(!?('.' '.' '.') @(Ident | '.'))*`
+		Parts []string `((?! '.' '.' '.') @(Ident | '.'))*`
 	}
 	p := mustTestParser(t, &grammar{})
 	ast := &grammar{}

@@ -246,6 +246,31 @@ func (g *group) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Va
 	return out, nil
 }
 
+// (?= <expr> ) for positive lookahead, (?! <expr> ) for negative lookahead; neither consumes input
+type lookaheadGroup struct {
+	expr     node
+	negative bool
+}
+
+func (n *lookaheadGroup) String() string   { return ebnf(n) }
+func (n *lookaheadGroup) GoString() string { return "lookaheadGroup{}" }
+
+func (n *lookaheadGroup) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
+	// Create a branch to avoid advancing the parser as any match will be discarded
+	branch := ctx.Branch()
+	out, err = n.expr.Parse(branch, parent)
+	matchedLookahead := err == nil && out != nil
+	expectingMatch := !n.negative
+	if matchedLookahead != expectingMatch {
+		peek, err := ctx.Peek(0)
+		if err != nil {
+			return nil, err
+		}
+		return nil, Errorf(peek.Pos, "unexpected '%s'", peek.Value)
+	}
+	return []reflect.Value{}, nil // Empty match slice means a match, unlike nil
+}
+
 // <expr> {"|" <expr>}
 type disjunction struct {
 	nodes []node
@@ -399,7 +424,7 @@ type repetition struct {
 }
 
 func (r *repetition) String() string   { return ebnf(r) }
-func (r *repetition) GoString() string { return "repitition{}" }
+func (r *repetition) GoString() string { return "repetition{}" }
 
 // Parse a repetition. Once a repetition is encountered it will always match, so grammars
 // should ensure that branches are differentiated prior to the repetition.
@@ -464,8 +489,7 @@ func (l *literal) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.
 }
 
 type negation struct {
-	node    node
-	consume bool
+	node node
 }
 
 func (n *negation) String() string   { return ebnf(n) }
@@ -491,11 +515,7 @@ func (n *negation) Parse(ctx *parseContext, parent reflect.Value) (out []reflect
 		return nil, Errorf(notEOF.Pos, "unexpected '%s'", notEOF.Value)
 	}
 
-	if !n.consume {
-		// Non-consuming mode - nil means no match, empty slice means successful but empty match
-		return []reflect.Value{}, nil
-	}
-	// Consuming mode - just give the next token
+	// Just give the next token
 	next, err := ctx.Next()
 	if err != nil {
 		return nil, err
