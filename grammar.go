@@ -353,7 +353,7 @@ func (g *generatorContext) parseLiteral(lex *structLexer) (node, error) { // nol
 	if err != nil {
 		return nil, err
 	}
-	if token.Value == ":" && (token.Type == scanner.Char || token.Type == ':') {
+	if token.Type == ':' {
 		_, _ = lex.Next()
 		token, err = lex.Next()
 		if err != nil {
