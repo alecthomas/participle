@@ -1049,8 +1049,8 @@ func TestNonEmptyMatchWithOptionalGroup(t *testing.T) {
 		Name  string `@Ident`
 	}
 	type grammar struct {
-		Start term `'[' (@@? `
-		End   term `     (':' @@)?)! ']'`
+		Start term `parser:"'[' (@@?"`
+		End   term `parser:"     (':' @@)?)! ']'"`
 	}
 
 	result := grammar{}
