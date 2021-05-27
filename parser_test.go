@@ -1043,6 +1043,32 @@ func TestModifiers(t *testing.T) {
 	}
 }
 
+func TestNonEmptyMatchWithOptionalGroup(t *testing.T) {
+	type term struct {
+		Minus bool   `@'-'?`
+		Name  string `@Ident`
+	}
+	type grammar struct {
+		Start term `'[' (@@? `
+		End   term `     (':' @@)?)! ']'`
+	}
+
+	result := grammar{}
+	p := mustTestParser(t, &result)
+
+	require.NoError(t, p.ParseString("", "[-x]", &result))
+	require.Equal(t, grammar{Start: term{Minus: true, Name: "x"}}, result)
+
+	require.NoError(t, p.ParseString("", "[a:-b]", &result))
+	require.Equal(t, grammar{Start: term{Name: "a"}, End: term{Minus: true, Name: "b"}}, result)
+
+	require.NoError(t, p.ParseString("", "[:end]", &result))
+	require.Equal(t, grammar{End: term{Name: "end"}}, result)
+
+	err := p.ParseString("", "[]", &result)
+	require.EqualError(t, err, `1:2: sub-expression (Term? (":" Term)?)! cannot be empty`)
+}
+
 func TestStreamingParser(t *testing.T) {
 	type token struct {
 		Str string `  @Ident`

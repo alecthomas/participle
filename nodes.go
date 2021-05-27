@@ -216,17 +216,17 @@ func (g *group) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Va
 	for ; matches < max; matches++ {
 		branch := ctx.Branch()
 		v, err := g.expr.Parse(branch, parent)
-		out = append(out, v...)
 		if err != nil {
 			ctx.MaybeUpdateError(err)
 			// Optional part failed to match.
 			if ctx.Stop(err, branch) {
+				out = append(out, v...) // Try to return as much of the parse tree as possible
 				return out, err
 			}
 			break
-		} else {
-			ctx.Accept(branch)
 		}
+		out = append(out, v...)
+		ctx.Accept(branch)
 		if v == nil {
 			break
 		}
