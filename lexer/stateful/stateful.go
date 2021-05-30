@@ -141,7 +141,7 @@ func (i include) applyRules(state string, rule int, rules compiledRules) error {
 	}
 	clone := make([]compiledRule, len(includedRules))
 	copy(clone, includedRules)
-	rules[state] = append(rules[state][:rule], append(clone, rules[state][rule+1:]...)...)
+	rules[state] = append(rules[state][:rule], append(clone, rules[state][rule+1:]...)...) // nolint: makezero
 	return nil
 }
 

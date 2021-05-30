@@ -33,6 +33,11 @@ linters:
     - nlreturn
     - errorlint
     - nakedret
+    - forbidigo
+    - revive
+    - cyclop
+    - ifshort
+    - paralleltest
 
 linters-settings:
   govet:

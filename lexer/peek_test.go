@@ -36,12 +36,14 @@ func TestUpgrade(t *testing.T) {
 }
 
 func mustPeek(t *testing.T, lexer *PeekingLexer, n int) Token {
+	t.Helper()
 	token, err := lexer.Peek(n)
 	require.NoError(t, err)
 	return token
 }
 
 func mustNext(t *testing.T, lexer Lexer) Token {
+	t.Helper()
 	token, err := lexer.Next()
 	require.NoError(t, err)
 	return token
