@@ -1,28 +1,28 @@
 version: 2
 jobs:
   build:
-    environment:
-      GO111MODULE: "on"
     docker:
-      - image: circleci/golang:1.14
-    working_directory: /go/src/github.com/alecthomas/participle
+      - image: cimg/base:2021.04
     steps:
       - checkout
       - run:
           name: Prepare
           command: |
-            go get -v github.com/jstemmer/go-junit-report
-            curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | bash -s v1.32.2
+            . ./bin/activate-hermit
+            hermit install
+            go install github.com/jstemmer/go-junit-report@latest
             mkdir ~/report
           when: always
       - run:
           name: Test
           command: |
+            . ./bin/activate-hermit
             (go test -v ./... && (cd ./_examples && go test ./...)) 2>&1 | tee report.txt && go-junit-report < report.txt > ~/report/junit.xml
       - run:
           name: Lint
           command: |
+            . ./bin/activate-hermit
             go build ./...
-            ./bin/golangci-lint run
+            golangci-lint run
       - store_test_results:
           path: ~/report
