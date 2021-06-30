@@ -1648,3 +1648,35 @@ func BenchmarkIssue143(b *testing.B) {
 		}
 	}
 }
+
+type Boxes struct {
+	Pos   lexer.Position
+	Boxes Box `@Ident`
+}
+
+type Box struct {
+	Pos lexer.Position
+	Val string `@Ident`
+}
+
+func (b *Box) Capture(values []string) error {
+	b.Val = values[0]
+	return nil
+}
+
+func TestBoxedCapture(t *testing.T) {
+	lex := stateful.MustSimple([]stateful.Rule{
+		{"Ident", `[a-zA-Z](\w|\.|/|:|-)*`, nil},
+		{"whitespace", `\s+`, nil},
+	})
+
+	parser := participle.MustBuild(&Boxes{},
+		participle.Lexer(lex),
+		participle.UseLookahead(2),
+	)
+
+	boxed := &Boxes{}
+	if err := parser.ParseString("test", "abc::cdef.abc", boxed); err != nil {
+		t.Fatal(err)
+	}
+}
