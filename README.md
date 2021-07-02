@@ -587,7 +587,7 @@ the parser is constructed simply call `String()`.
 
 Participle also [includes a parser](https://pkg.go.dev/github.com/alecthomas/participle/v2/ebnf) for this form of EBNF (naturally).
 
-eg. The [GraphQL example](https://github.com/alecthomas/participle/v2/blob/cbe0cc62a3ad95955311002abd642f11543cb8ed/_examples/graphql/main.go#L14-L61)
+eg. The [GraphQL example](https://github.com/alecthomas/participle/blob/master/_examples/graphql/main.go#L15-L62)
 gives in the following EBNF:
 
 ```ebnf
