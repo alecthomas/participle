@@ -160,7 +160,7 @@ var (
 	}
 
 	sqlLexer = lexer.Must(stateful.NewSimple([]stateful.Rule{
-		{`Keyword`, `(?i)SELECT|FROM|TOP|DISTINCT|ALL|WHERE|GROUP|BY|HAVING|UNION|MINUS|EXCEPT|INTERSECT|ORDER|LIMIT|OFFSET|TRUE|FALSE|NULL|IS|NOT|ANY|SOME|BETWEEN|AND|OR|LIKE|AS|IN`, nil},
+		{`Keyword`, `(?i)\b(SELECT|FROM|TOP|DISTINCT|ALL|WHERE|GROUP|BY|HAVING|UNION|MINUS|EXCEPT|INTERSECT|ORDER|LIMIT|OFFSET|TRUE|FALSE|NULL|IS|NOT|ANY|SOME|BETWEEN|AND|OR|LIKE|AS|IN)\b`, nil},
 		{`Ident`, `[a-zA-Z_][a-zA-Z0-9_]*`, nil},
 		{`Number`, `[-+]?\d*\.?\d+([eE][-+]?\d+)?`, nil},
 		{`String`, `'[^']*'|"[^"]*"`, nil},
