@@ -34,6 +34,6 @@ func TestEBNF_Other(t *testing.T) {
 	}
 
 	parser := mustTestParser(t, &Grammar{})
-	expected := `Grammar = ((?= "good") <ident>) | ((?! "bad" | "worse") <ident>) | !("anything" | "but") .`
+	expected := `Grammar = ((?= "good") <ident>) | ((?! "bad" | "worse") <ident>) | ~("anything" | "but") .`
 	require.Equal(t, expected, parser.String())
 }

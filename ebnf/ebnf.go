@@ -5,8 +5,9 @@
 //      EBNF = Production* .
 //      Production = <ident> "=" Expression "." .
 //      Expression = Sequence ("|" Sequence)* .
+//      SubExpression = "(" ("?!" | "?=")? Expression ")" .
 //      Sequence = Term+ .
-//      Term = (<ident> | <string> | ("<" <ident> ">") | ("(" Expression ")")) ("*" | "+" | "?" | "!")? .
+//      Term = "!"? (<ident> | <string> | ("<" <ident> ">") | SubExpression) ("*" | "+" | "?" | "!")? .
 package ebnf
 
 import (
@@ -20,10 +21,12 @@ var parser = participle.MustBuild(&EBNF{})
 
 // Term in the EBNF grammar.
 type Term struct {
-	Name    string      `(   @Ident`
-	Literal string      `  | @String`
-	Token   string      `  | "<" @Ident ">"`
-	Group   *Expression `  | "(" @@ ")" )`
+	Negation bool `@("~")?`
+
+	Name    string         `(   @Ident`
+	Literal string         `  | @String`
+	Token   string         `  | "<" @Ident ">"`
+	Group   *SubExpression `  | @@ )`
 
 	Repetition string `@("*" | "+" | "?" | "!")?`
 }
@@ -37,10 +40,47 @@ func (t *Term) String() string {
 	case t.Token != "":
 		return "<" + t.Token + ">" + t.Repetition
 	case t.Group != nil:
-		return "(" + t.Group.String() + ")" + t.Repetition
+		return t.Group.String() + t.Repetition
 	default:
 		panic("??")
 	}
+}
+
+// LookaheadAssertion enum.
+type LookaheadAssertion rune
+
+func (l *LookaheadAssertion) Capture(tokens []string) error { // nolint
+	rn := tokens[0][0]
+	switch rn {
+	case '!', '=':
+		*l = LookaheadAssertion(rn)
+
+	default:
+		panic(rn)
+	}
+	return nil
+}
+
+// Lookahead assertion enums.
+const (
+	LookaheadAssertionNone     LookaheadAssertion = 0
+	LookaheadAssertionNegative LookaheadAssertion = '!'
+	LookaheadAssertionPositive LookaheadAssertion = '='
+)
+
+// SubExpression is an expression inside parentheses ( ... )
+type SubExpression struct {
+	Lookahead LookaheadAssertion `"(" ("?" @("!" | "="))?`
+	Expr      *Expression        `@@ ")"`
+}
+
+func (s *SubExpression) String() string {
+	out := "("
+	if s.Lookahead != LookaheadAssertionNone {
+		out += "?" + string(s.Lookahead)
+	}
+	out += s.Expr.String() + ")"
+	return out
 }
 
 // A Sequence of terms.

@@ -98,7 +98,7 @@ func buildEBNF(root bool, n node, seen map[node]bool, p *ebnfp, outp *[]*ebnfp) 
 		p.out += "*"
 
 	case *negation:
-		p.out += "!"
+		p.out += "~"
 		buildEBNF(false, n.node, seen, p, outp)
 
 	case *literal:

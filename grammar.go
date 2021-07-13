@@ -138,7 +138,7 @@ func (g *generatorContext) parseTermNoModifiers(slexer *structLexer, allowUnknow
 		return g.parseCapture(slexer)
 	case scanner.String, scanner.RawString, scanner.Char:
 		return g.parseLiteral(slexer)
-	case '!':
+	case '!', '~':
 		return g.parseNegation(slexer)
 	case '[':
 		return g.parseOptional(slexer)
