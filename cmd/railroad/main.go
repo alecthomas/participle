@@ -106,7 +106,7 @@ h1 {
 			s += ")"
 		}
 	default:
-		panic("??")
+		panic(fmt.Sprintf("unhandled type in `generate` switch: %T", n))
 	}
 	return
 }
@@ -145,7 +145,7 @@ func countProductions(productions map[string]*production, n interface{}) (size i
 			size++
 		}
 	default:
-		panic("??")
+		panic(fmt.Sprintf("unhandled type in `countProductions` switch: %T", n))
 	}
 	return
 }
