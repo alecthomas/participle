@@ -7,7 +7,7 @@
 //      Expression = Sequence ("|" Sequence)* .
 //      SubExpression = "(" ("?!" | "?=")? Expression ")" .
 //      Sequence = Term+ .
-//      Term = "!"? (<ident> | <string> | ("<" <ident> ">") | SubExpression) ("*" | "+" | "?" | "!")? .
+//      Term = "~"? (<ident> | <string> | ("<" <ident> ">") | SubExpression) ("*" | "+" | "?" | "!")? .
 package ebnf
 
 import (
