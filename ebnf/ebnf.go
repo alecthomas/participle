@@ -19,6 +19,13 @@ import (
 
 var parser = participle.MustBuild(&EBNF{})
 
+// A Node in the EBNF grammar.
+type Node interface {
+	sealed()
+}
+
+var _ Node = &Term{}
+
 // Term in the EBNF grammar.
 type Term struct {
 	Negation bool `@("~")?`
@@ -30,6 +37,8 @@ type Term struct {
 
 	Repetition string `@("*" | "+" | "?" | "!")?`
 }
+
+func (t *Term) sealed() {}
 
 func (t *Term) String() string {
 	switch {
@@ -48,6 +57,8 @@ func (t *Term) String() string {
 
 // LookaheadAssertion enum.
 type LookaheadAssertion rune
+
+func (l *LookaheadAssertion) sealed() {}
 
 func (l *LookaheadAssertion) Capture(tokens []string) error { // nolint
 	rn := tokens[0][0]
@@ -68,11 +79,15 @@ const (
 	LookaheadAssertionPositive LookaheadAssertion = '='
 )
 
+var _ Node = &SubExpression{}
+
 // SubExpression is an expression inside parentheses ( ... )
 type SubExpression struct {
 	Lookahead LookaheadAssertion `"(" ("?" @("!" | "="))?`
 	Expr      *Expression        `@@ ")"`
 }
+
+func (s *SubExpression) sealed() {}
 
 func (s *SubExpression) String() string {
 	out := "("
@@ -83,10 +98,14 @@ func (s *SubExpression) String() string {
 	return out
 }
 
+var _ Node = &Sequence{}
+
 // A Sequence of terms.
 type Sequence struct {
 	Terms []*Term `@@+`
 }
+
+func (s *Sequence) sealed() {}
 
 func (s *Sequence) String() (out string) {
 	for i, term := range s.Terms {
@@ -98,10 +117,14 @@ func (s *Sequence) String() (out string) {
 	return
 }
 
+var _ Node = &Expression{}
+
 // Expression is a set of alternatives separated by "|" in the EBNF.
 type Expression struct {
 	Alternatives []*Sequence `@@ ( "|" @@ )*`
 }
+
+func (e *Expression) sealed() {}
 
 func (e *Expression) String() (out string) {
 	for i, seq := range e.Alternatives {
@@ -113,16 +136,24 @@ func (e *Expression) String() (out string) {
 	return
 }
 
+var _ Node = &Production{}
+
 // Production of the grammar.
 type Production struct {
 	Production string      `@Ident "="`
 	Expression *Expression `@@ "."`
 }
 
+func (p *Production) sealed() {}
+
+var _ Node = &EBNF{}
+
 // EBNF itself.
 type EBNF struct {
 	Productions []*Production `@@*`
 }
+
+func (e *EBNF) sealed() {}
 
 func (e *EBNF) String() (out string) {
 	for i, production := range e.Productions {

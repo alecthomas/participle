@@ -3,6 +3,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/alecthomas/repr"
@@ -21,7 +22,7 @@ type production struct {
 	size int
 }
 
-func generate(productions map[string]*production, n interface{}) (s string) {
+func generate(productions map[string]*production, n ebnf.Node) (s string) {
 	switch n := n.(type) {
 	case *ebnf.EBNF:
 		s += `<!DOCTYPE html>
@@ -43,6 +44,7 @@ h1 {
 			s += generate(productions, p) + "\n"
 		}
 		s += "</body>\n"
+
 	case *ebnf.Production:
 		if productions[n.Production].refs <= mergeRefThreshold {
 			break
@@ -53,6 +55,7 @@ h1 {
 		s += generate(productions, n.Expression)
 		s += ").addTo();\n"
 		s += "</script>\n"
+
 	case *ebnf.Expression:
 		s += "Choice(0, "
 		for i, a := range n.Alternatives {
@@ -62,6 +65,13 @@ h1 {
 			s += generate(productions, a)
 		}
 		s += ")"
+
+	case *ebnf.SubExpression:
+		if n.Lookahead != ebnf.LookaheadAssertionNone {
+			log.Printf("lookahead assertions are not supported")
+		}
+		s += generate(productions, n.Expr)
+
 	case *ebnf.Sequence:
 		s += "Sequence("
 		for i, t := range n.Terms {
@@ -71,7 +81,11 @@ h1 {
 			s += generate(productions, t)
 		}
 		s += ")"
+
 	case *ebnf.Term:
+		if n.Negation {
+			log.Printf("negation (~) is not supported")
+		}
 		switch n.Repetition {
 		case "*":
 			s += "ZeroOrMore("
@@ -105,13 +119,14 @@ h1 {
 		if n.Repetition != "" {
 			s += ")"
 		}
+
 	default:
-		panic("??")
+		panic(repr.String(n))
 	}
 	return
 }
 
-func countProductions(productions map[string]*production, n interface{}) (size int) {
+func countProductions(productions map[string]*production, n ebnf.Node) (size int) {
 	switch n := n.(type) {
 	case *ebnf.EBNF:
 		for _, p := range n.Productions {
@@ -145,7 +160,7 @@ func countProductions(productions map[string]*production, n interface{}) (size i
 			size++
 		}
 	default:
-		panic("??")
+		panic(repr.String(n))
 	}
 	return
 }

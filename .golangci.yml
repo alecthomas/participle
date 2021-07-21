@@ -38,6 +38,11 @@ linters:
     - cyclop
     - ifshort
     - paralleltest
+    - interfacer
+    - scopelint
+    - golint
+    - wastedassign
+    - forcetypeassert
 
 linters-settings:
   govet:
