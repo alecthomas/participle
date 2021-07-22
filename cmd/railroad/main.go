@@ -3,7 +3,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/alecthomas/repr"
@@ -67,10 +66,10 @@ h1 {
 		s += ")"
 
 	case *ebnf.SubExpression:
-		if n.Lookahead != ebnf.LookaheadAssertionNone {
-			log.Printf("lookahead assertions are not supported")
-		}
 		s += generate(productions, n.Expr)
+		if n.Lookahead != ebnf.LookaheadAssertionNone {
+			s = fmt.Sprintf(`Group(%s, "?%c")`, s, n.Lookahead)
+		}
 
 	case *ebnf.Sequence:
 		s += "Sequence("
@@ -83,9 +82,6 @@ h1 {
 		s += ")"
 
 	case *ebnf.Term:
-		if n.Negation {
-			log.Printf("negation (~) is not supported")
-		}
 		switch n.Repetition {
 		case "*":
 			s += "ZeroOrMore("
@@ -118,6 +114,9 @@ h1 {
 		}
 		if n.Repetition != "" {
 			s += ")"
+		}
+		if n.Negation {
+			s = fmt.Sprintf(`Group(%s, "~")`, s)
 		}
 
 	default:
