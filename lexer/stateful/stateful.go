@@ -54,6 +54,12 @@ func InitialState(state string) Option {
 	}
 }
 
+func MatchLongest() Option {
+	return func(d *Definition) {
+		d.matchLongest = true
+	}
+}
+
 // A Rule matching input and possibly changing state.
 type Rule struct {
 	Name    string
@@ -157,6 +163,7 @@ type Definition struct {
 	// Map of key->*regexp.Regexp
 	backrefCache sync.Map
 	initialState string
+	matchLongest bool
 }
 
 // MustSimple creates a new lexer definition based on a single state described by `rules`.
@@ -307,9 +314,10 @@ next:
 	for len(l.data) > 0 {
 		var (
 			rule  *compiledRule
+			m     []int
 			match []int
 		)
-		for _, candidate := range rules {
+		for i, candidate := range rules {
 			// Special case "Return()".
 			if candidate.Rule == ReturnRule {
 				l.stack = l.stack[:len(l.stack)-1]
@@ -321,10 +329,13 @@ next:
 			if err != nil {
 				return lexer.Token{}, participle.Wrapf(l.pos, err, "rule %q", candidate.Name)
 			}
-			match = re.FindStringSubmatchIndex(l.data)
-			if match != nil {
-				rule = &candidate // nolint
-				break
+			m = re.FindStringSubmatchIndex(l.data)
+			if m != nil && (match == nil || m[1] > match[1]) {
+				match = m
+				rule = &rules[i]
+				if !l.def.matchLongest {
+					break
+				}
 			}
 		}
 		if match == nil || rule == nil {
