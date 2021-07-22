@@ -54,6 +54,8 @@ func InitialState(state string) Option {
 	}
 }
 
+// MatchLongest causes the Lexer to continue checking rules past the first match.
+// If any subsequent rule has a longer match, it will be used instead.
 func MatchLongest() Option {
 	return func(d *Definition) {
 		d.matchLongest = true
