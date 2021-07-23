@@ -8,19 +8,19 @@ import (
 )
 
 type Expr struct {
-	Lhs   *Value  `@@`
-	Opers []*Oper `@@*`
+	Lhs  *Value  `@@`
+	Tail []*Oper `@@*`
 }
 
 type Oper struct {
-	Op  string `@( "!" "=" | ("!"|"="|"<"|">") "="? | "+" | "-" | "/" | "*" )`
+	Op  string `@( "|" "|" | "&" "&" | "!" "=" | ("!"|"="|"<"|">") "="? | "+" | "-" | "/" | "*" )`
 	Rhs *Value `@@`
 }
 
 type Value struct {
 	Number        *float64 `  @Float | @Int`
 	String        *string  `| @String`
-	Bool          *bool    `| ( @"true" | "false" )`
+	Bool          *string  `| ( @"true" | "false" )`
 	Nil           bool     `| @"nil"`
 	SubExpression *Expr    `| "(" @@ ")" `
 }

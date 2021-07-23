@@ -7,11 +7,11 @@ import (
 	"github.com/alecthomas/kong"
 
 	"github.com/alecthomas/participle/v2"
-	"github.com/alecthomas/participle/v2/lexer/stateful"
+	"github.com/alecthomas/participle/v2/lexer"
 )
 
 var (
-	basicLexer = stateful.MustSimple([]stateful.Rule{
+	basicLexer = lexer.MustSimple([]lexer.Rule{
 		{"Comment", `(?i)rem[^\n]*`, nil},
 		{"String", `"(\\"|[^"])*"`, nil},
 		{"Number", `[-+]?(\d*\.)?\d+`, nil},

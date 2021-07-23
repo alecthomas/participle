@@ -17,9 +17,7 @@ import (
 	"github.com/alecthomas/repr"
 
 	"github.com/alecthomas/participle/v2"
-	"github.com/alecthomas/participle/v2/experimental/codegen"
 	"github.com/alecthomas/participle/v2/lexer"
-	"github.com/alecthomas/participle/v2/lexer/stateful"
 )
 
 var (
@@ -202,7 +200,7 @@ type Thrift struct {
 }
 
 var (
-	def = stateful.MustSimple([]stateful.Rule{
+	def = lexer.MustSimple([]lexer.Rule{
 		{"Number", `\d+`, nil},
 		{"Ident", `\w+`, nil},
 		{"String", `"[^"]*"`, nil},
@@ -224,7 +222,7 @@ func main() {
 		w, err := os.Create("lexer_gen.go")
 		ctx.FatalIfErrorf(err)
 		defer w.Close()
-		err = codegen.GenerateLexer(w, "main", def)
+		err = lexer.ExperimentalGenerateLexer(w, "main", def)
 		ctx.FatalIfErrorf(err)
 		return
 	}

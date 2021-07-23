@@ -1,5 +1,4 @@
-// Package codegen generates Go code for stateful lexers.
-package codegen
+package lexer
 
 import (
 	"fmt"
@@ -9,30 +8,28 @@ import (
 	"sort"
 	"text/template"
 	"unicode/utf8"
-
-	"github.com/alecthomas/participle/v2/lexer/stateful"
 )
 
-var backrefRe = regexp.MustCompile(`(\\+)(\d)`)
+var codegenBackrefRe = regexp.MustCompile(`(\\+)(\d)`)
 
-var tmpl *template.Template = template.Must(template.New("lexgen").Funcs(template.FuncMap{
-	"IsPush": func(r stateful.Rule) string {
-		if p, ok := r.Action.(stateful.ActionPush); ok {
+var codegenTemplate *template.Template = template.Must(template.New("lexgen").Funcs(template.FuncMap{
+	"IsPush": func(r Rule) string {
+		if p, ok := r.Action.(ActionPush); ok {
 			return p.State
 		}
 		return ""
 	},
-	"IsPop": func(r stateful.Rule) bool {
-		_, ok := r.Action.(stateful.ActionPop)
+	"IsPop": func(r Rule) bool {
+		_, ok := r.Action.(ActionPop)
 		return ok
 	},
-	"IsReturn": func(r stateful.Rule) bool {
-		return r == stateful.ReturnRule
+	"IsReturn": func(r Rule) bool {
+		return r == ReturnRule
 	},
 	"OrderRules": orderRules,
-	"HaveBackrefs": func(def *stateful.Definition, state string) bool {
+	"HaveBackrefs": func(def *StatefulDefinition, state string) bool {
 		for _, rule := range def.Rules()[state] {
-			if backrefRe.MatchString(rule.Pattern) {
+			if codegenBackrefRe.MatchString(rule.Pattern) {
 				return true
 			}
 		}
@@ -172,16 +169,18 @@ func (l *lexerImpl) sgroups(match []int) []string {
 
 `))
 
-// GenerateLexer generates Go code implementing the given stateful lexer.
+// ExperimentalGenerateLexer generates Go code implementing the given stateful lexer.
 //
 // The generated code should in general by around 10x faster and produce zero garbage per token.
-func GenerateLexer(w io.Writer, pkg string, def *stateful.Definition) error {
+//
+// NOTE: This is an experimental interface and subject to change.
+func ExperimentalGenerateLexer(w io.Writer, pkg string, def *StatefulDefinition) error {
 	type ctx struct {
 		Package string
-		Def     *stateful.Definition
+		Def     *StatefulDefinition
 	}
 	rules := def.Rules()
-	err := tmpl.Execute(w, ctx{pkg, def})
+	err := codegenTemplate.Execute(w, ctx{pkg, def})
 	if err != nil {
 		return err
 	}
@@ -207,10 +206,10 @@ func GenerateLexer(w io.Writer, pkg string, def *stateful.Definition) error {
 
 type orderedRule struct {
 	Name  string
-	Rules []stateful.Rule
+	Rules []Rule
 }
 
-func orderRules(rules stateful.Rules) []orderedRule {
+func orderRules(rules Rules) []orderedRule {
 	orderedRules := []orderedRule{}
 	for name, rules := range rules {
 		orderedRules = append(orderedRules, orderedRule{

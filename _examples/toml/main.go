@@ -5,11 +5,10 @@ import (
 
 	"github.com/alecthomas/kong"
 
+	"github.com/alecthomas/repr"
+
 	"github.com/alecthomas/participle/v2"
 	"github.com/alecthomas/participle/v2/lexer"
-	"github.com/alecthomas/participle/v2/lexer/stateful"
-
-	"github.com/alecthomas/repr"
 )
 
 type TOML struct {
@@ -44,7 +43,7 @@ type Section struct {
 }
 
 var (
-	tomlLexer = lexer.Must(stateful.NewSimple([]stateful.Rule{
+	tomlLexer = lexer.Must(lexer.NewSimple([]lexer.Rule{
 		{"DateTime", `\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?(-\d\d:\d\d)?`, nil},
 		{"Date", `\d\d\d\d-\d\d-\d\d`, nil},
 		{"Time", `\d\d:\d\d:\d\d(\.\d+)?`, nil},

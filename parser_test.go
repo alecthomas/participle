@@ -13,7 +13,6 @@ import (
 
 	"github.com/alecthomas/participle/v2"
 	"github.com/alecthomas/participle/v2/lexer"
-	"github.com/alecthomas/participle/v2/lexer/stateful"
 )
 
 func TestProductionCapture(t *testing.T) {
@@ -911,12 +910,12 @@ func TestCaseInsensitive(t *testing.T) {
 		Select string `"select":Keyword @Ident`
 	}
 
-	// lex := lexer.Must(lexer.Regexp(
+	// lex := lexer.MustStateful(lexer.Regexp(
 	// 	`(?i)(?P<Keyword>SELECT)` +
 	// 		`|(?P<Ident>\w+)` +
 	// 		`|(\s+)`,
 	// ))
-	lex := lexer.Must(stateful.NewSimple([]stateful.Rule{
+	lex := lexer.Must(lexer.NewSimple([]lexer.Rule{
 		{"Keyword", `(?i)SELECT`, nil},
 		{"Ident", `\w+`, nil},
 		{"whitespace", `\s+`, nil},
@@ -1389,7 +1388,7 @@ func TestASTTokens(t *testing.T) {
 
 	p := mustTestParser(t, &hello{},
 		participle.Elide("Whitespace"),
-		participle.Lexer(lexer.Must(stateful.NewSimple([]stateful.Rule{
+		participle.Lexer(lexer.Must(lexer.NewSimple([]lexer.Rule{
 			{"Ident", `\w+`, nil},
 			{"Whitespace", `\s+`, nil},
 		}))))
@@ -1444,7 +1443,7 @@ func TestEndPos(t *testing.T) {
 	}
 
 	var (
-		Lexer = lexer.Must(stateful.New(stateful.Rules{
+		Lexer = lexer.Must(lexer.New(lexer.Rules{
 			"Root": {
 				{"Ident", `[\w:]+`, nil},
 				{"Whitespace", `[\r\t ]+`, nil},
@@ -1480,7 +1479,7 @@ func TestBug(t *testing.T) {
 		B      *B     `parser:"| @@ )"`
 	}
 	var (
-		lexer = lexer.Must(stateful.New(stateful.Rules{
+		lexer = lexer.Must(lexer.New(lexer.Rules{
 			"Root": {
 				{"A", `@`, nil},
 				{"B", `!`, nil},
@@ -1522,7 +1521,7 @@ func TestCaptureOnSliceElements(t *testing.T) { // nolint:dupl
 	}
 
 	parser := participle.MustBuild(&capture{}, []participle.Option{
-		participle.Lexer(stateful.MustSimple([]stateful.Rule{
+		participle.Lexer(lexer.MustSimple([]lexer.Rule{
 			{Name: "Capture", Pattern: `[a-z]{3}`},
 			{Name: "Whitespace", Pattern: `[\s|\n]+`},
 		})),
@@ -1569,7 +1568,7 @@ func TestParseOnSliceElements(t *testing.T) { // nolint:dupl
 	}
 
 	parser := participle.MustBuild(&parse{}, []participle.Option{
-		participle.Lexer(stateful.MustSimple([]stateful.Rule{
+		participle.Lexer(lexer.MustSimple([]lexer.Rule{
 			{Name: "Element", Pattern: `[a-z]{3}`},
 			{Name: "Whitespace", Pattern: `[\s|\n]+`},
 		})),
@@ -1593,7 +1592,7 @@ func TestUnmarshalNetIP(t *testing.T) {
 		IP net.IP `@IP`
 	}
 
-	parser := mustTestParser(t, &grammar{}, participle.Lexer(stateful.MustSimple([]stateful.Rule{
+	parser := mustTestParser(t, &grammar{}, participle.Lexer(lexer.MustSimple([]lexer.Rule{
 		{"IP", `[\d.]+`, nil},
 	})))
 	ast := &grammar{}
@@ -1615,7 +1614,7 @@ func TestCaptureIP(t *testing.T) {
 		IP Address `@IP`
 	}
 
-	parser := mustTestParser(t, &grammar{}, participle.Lexer(stateful.MustSimple([]stateful.Rule{
+	parser := mustTestParser(t, &grammar{}, participle.Lexer(lexer.MustSimple([]lexer.Rule{
 		{"IP", `[\d.]+`, nil},
 	})))
 	ast := &grammar{}
@@ -1665,7 +1664,7 @@ func (b *Box) Capture(values []string) error {
 }
 
 func TestBoxedCapture(t *testing.T) {
-	lex := stateful.MustSimple([]stateful.Rule{
+	lex := lexer.MustSimple([]lexer.Rule{
 		{"Ident", `[a-zA-Z](\w|\.|/|:|-)*`, nil},
 		{"whitespace", `\s+`, nil},
 	})

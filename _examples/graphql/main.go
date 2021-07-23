@@ -9,7 +9,6 @@ import (
 
 	"github.com/alecthomas/participle/v2"
 	"github.com/alecthomas/participle/v2/lexer"
-	"github.com/alecthomas/participle/v2/lexer/stateful"
 )
 
 type File struct {
@@ -62,7 +61,7 @@ type Value struct {
 }
 
 var (
-	graphQLLexer = lexer.Must(stateful.NewSimple([]stateful.Rule{
+	graphQLLexer = lexer.Must(lexer.NewSimple([]lexer.Rule{
 		{"Comment", `(?:#|//)[^\n]*\n?`, nil},
 		{"Ident", `[a-zA-Z]\w*`, nil},
 		{"Number", `(?:\d*\.)?\d+`, nil},
