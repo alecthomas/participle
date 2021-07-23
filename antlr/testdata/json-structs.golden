@@ -1,0 +1,22 @@
+type Json struct {
+Value *Value `@@`
+}
+type Obj struct {
+Pair []*Pair `'{' @@ ( ',' @@ )* '}' | '{' '}'`
+}
+type Pair struct {
+String *string `@STRING`
+Value *Value `':' @@`
+}
+type Arr struct {
+Value []*Value `'[' @@ ( ',' @@ )* ']' | '[' ']'`
+}
+type Value struct {
+String *string `@STRING`
+Number *string `| @NUMBER`
+Obj *Obj `| @@`
+Arr *Arr `| @@`
+True bool `| @'true'`
+False bool `| @'false'`
+Null bool `| @'null'`
+}
