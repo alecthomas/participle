@@ -374,7 +374,7 @@ func (c *capture) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.
 
 // <identifier> - named lexer token reference
 type reference struct {
-	typ        rune
+	typ        lexer.TokenType
 	identifier string // Used for informational purposes.
 }
 
@@ -460,7 +460,7 @@ func (r *repetition) Parse(ctx *parseContext, parent reflect.Value) (out []refle
 // Match a token literal exactly "..."[:<type>].
 type literal struct {
 	s  string
-	t  rune
+	t  lexer.TokenType
 	tt string // Used for display purposes - symbolic name of t.
 }
 

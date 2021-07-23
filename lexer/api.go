@@ -5,9 +5,11 @@ import (
 	"io"
 )
 
+type TokenType int
+
 const (
 	// EOF represents an end of file.
-	EOF rune = -(iota + 1)
+	EOF TokenType = -(iota + 1)
 )
 
 // EOFToken creates a new EOF token at the given position.
@@ -20,7 +22,7 @@ type Definition interface {
 	// Symbols returns a map of symbolic names to the corresponding pseudo-runes for those symbols.
 	// This is the same approach as used by text/scanner. For example, "EOF" might have the rune
 	// value of -1, "Ident" might be -2, and so on.
-	Symbols() map[string]rune
+	Symbols() map[string]TokenType
 	// Lex an io.Reader.
 	Lex(filename string, r io.Reader) (Lexer, error)
 }
@@ -44,9 +46,10 @@ type Lexer interface {
 }
 
 // SymbolsByRune returns a map of lexer symbol names keyed by rune.
-func SymbolsByRune(def Definition) map[rune]string {
-	out := map[rune]string{}
-	for s, r := range def.Symbols() {
+func SymbolsByRune(def Definition) map[TokenType]string {
+	symbols := def.Symbols()
+	out := make(map[TokenType]string, len(symbols))
+	for s, r := range symbols {
 		out[r] = s
 	}
 	return out
@@ -112,14 +115,9 @@ func (p Position) String() string {
 // A Token returned by a Lexer.
 type Token struct {
 	// Type of token. This is the value keyed by symbol as returned by Definition.Symbols().
-	Type  rune
+	Type  TokenType
 	Value string
 	Pos   Position
-}
-
-// RuneToken represents a rune as a Token.
-func RuneToken(r rune) Token {
-	return Token{Type: r, Value: string(r)}
 }
 
 // EOF returns true if this Token is an EOF token.
@@ -144,9 +142,9 @@ func (t Token) GoString() string {
 // MakeSymbolTable builds a lookup table for checking token ID existence.
 //
 // For each symbolic name in "types", the returned map will contain the corresponding token ID as a key.
-func MakeSymbolTable(def Definition, types ...string) (map[rune]bool, error) {
+func MakeSymbolTable(def Definition, types ...string) (map[TokenType]bool, error) {
 	symbols := def.Symbols()
-	table := map[rune]bool{}
+	table := make(map[TokenType]bool, len(types))
 	for _, symbol := range types {
 		rn, ok := symbols[symbol]
 		if !ok {

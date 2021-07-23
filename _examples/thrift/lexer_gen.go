@@ -15,15 +15,15 @@ var Lexer lexer.Definition = definitionImpl{}
 
 type definitionImpl struct {}
 
-func (definitionImpl) Symbols() map[string]rune {
-	return map[string]rune{
-      "Comment": -7,
-      "EOF": -1,
-      "Ident": -3,
-      "Number": -2,
-      "Punct": -6,
-      "String": -4,
-      "Whitespace": -5,
+func (definitionImpl) Symbols() map[string]lexer.TokenType {
+	return map[string]lexer.TokenType{
+		"Comment":    -7,
+		"EOF":        -1,
+		"Ident":      -3,
+		"Number":     -2,
+		"Punct":      -6,
+		"String":     -4,
+		"Whitespace": -5,
 	}
 }
 
@@ -71,7 +71,7 @@ func (l *lexerImpl) Next() (lexer.Token, error) {
 	var (
 		state = l.states[len(l.states)-1]
 		groups []int
-		sym rune
+		sym lexer.TokenType
 	)
 	switch state.name {
 	case "Root":if match := matchNumber(l.s, l.p); match[1] != 0 {

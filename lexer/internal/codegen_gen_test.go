@@ -14,8 +14,8 @@ var Lexer lexer.Definition = definitionImpl{}
 
 type definitionImpl struct{}
 
-func (definitionImpl) Symbols() map[string]rune {
-	return map[string]rune{
+func (definitionImpl) Symbols() map[string]lexer.TokenType {
+	return map[string]lexer.TokenType{
 		"Char":       -11,
 		"EOF":        -1,
 		"Escaped":    -8,
@@ -73,7 +73,7 @@ func (l *lexerImpl) Next() (lexer.Token, error) {
 	var (
 		state  = l.states[len(l.states)-1]
 		groups []int
-		sym    rune
+		sym    lexer.TokenType
 	)
 	switch state.name {
 	case "Expr":

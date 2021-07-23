@@ -136,7 +136,7 @@ func Include(state string) Rule {
 // StatefulDefinition is the lexer.Definition.
 type StatefulDefinition struct {
 	rules   compiledRules
-	symbols map[string]rune
+	symbols map[string]TokenType
 	// Map of key->*regexp.Regexp
 	backrefCache sync.Map
 	initialState string
@@ -206,7 +206,7 @@ restart:
 	for key := range compiled {
 		keys = append(keys, key)
 	}
-	symbols := map[string]rune{
+	symbols := map[string]TokenType{
 		"EOF": EOF,
 	}
 	sort.Strings(keys)
@@ -267,7 +267,7 @@ func (d *StatefulDefinition) Lex(filename string, r io.Reader) (Lexer, error) { 
 	return d.LexString(filename, w.String())
 }
 
-func (d *StatefulDefinition) Symbols() map[string]rune { // nolint: golint
+func (d *StatefulDefinition) Symbols() map[string]TokenType { // nolint: golint
 	return d.symbols
 }
 

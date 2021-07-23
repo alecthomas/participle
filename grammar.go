@@ -11,7 +11,7 @@ import (
 type generatorContext struct {
 	lexer.Definition
 	typeNodes    map[reflect.Type]node
-	symbolsToIDs map[rune]string
+	symbolsToIDs map[lexer.TokenType]string
 }
 
 func newGeneratorContext(lex lexer.Definition) *generatorContext {
@@ -348,7 +348,7 @@ func (g *generatorContext) parseLiteral(lex *structLexer) (node, error) { // nol
 		return nil, err
 	}
 	s := token.Value
-	t := rune(-1)
+	t := lexer.TokenType(-1)
 	token, err = lex.Peek()
 	if err != nil {
 		return nil, err

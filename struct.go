@@ -177,7 +177,7 @@ func (t *tagLexer) Next() (lexer.Token, error) {
 		return lexer.Token{}, t.err
 	}
 	return textScannerTransform(lexer.Token{
-		Type:  typ,
+		Type:  lexer.TokenType(typ),
 		Value: text,
 		Pos:   pos,
 	})
@@ -202,6 +202,8 @@ func textScannerTransform(token lexer.Token) (lexer.Token, error) {
 		}
 	case scanner.RawString:
 		token.Value = token.Value[1 : len(token.Value)-1]
+
+	default:
 	}
 	return token, nil
 }
