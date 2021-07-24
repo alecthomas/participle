@@ -28,6 +28,7 @@
 - [Limitations](#limitations)
 - [EBNF](#ebnf)
 - [Syntax/Railroad Diagrams](#syntaxrailroad-diagrams)
+- [ANTLR Grammar Converter](#antlr-grammar-converter)
 
 <!-- /TOC -->
 
@@ -415,11 +416,15 @@ There are several [examples](https://github.com/alecthomas/participle/tree/maste
 Example | Description
 --------|---------------
 [BASIC](https://github.com/alecthomas/participle/tree/master/_examples/basic) | A lexer, parser and interpreter for a [rudimentary dialect](https://caml.inria.fr/pub/docs/oreilly-book/html/book-ora058.html) of BASIC.
+[Cap'n'Proto](https://github.com/alecthomas/participle/tree/master/_examples/capnproto) | A parser for [Cap'n'Proto files](https://capnproto.org/).
+[CSV](https://github.com/alecthomas/participle/tree/master/_examples/basic) | Parser for CSV files.
 [EBNF](https://github.com/alecthomas/participle/tree/master/_examples/ebnf) | Parser for the form of EBNF used by Go.
 [Expr](https://github.com/alecthomas/participle/tree/master/_examples/expr) | A basic mathematical expression parser and evaluator.
+[Flatbuffers](https://github.com/alecthomas/participle/tree/master/_examples/flatbuffers) | A parser for [Flatbuffer files](https://google.github.io/flatbuffers/).
 [GraphQL](https://github.com/alecthomas/participle/tree/master/_examples/graphql) | Lexer+parser for GraphQL schemas
 [HCL](https://github.com/alecthomas/participle/tree/master/_examples/hcl) | A parser for the [HashiCorp Configuration Language](https://github.com/hashicorp/hcl).
 [INI](https://github.com/alecthomas/participle/tree/master/_examples/ini) | An INI file parser.
+[JSON](https://github.com/alecthomas/participle/tree/master/_examples/json) | A JSON file parser.
 [Protobuf](https://github.com/alecthomas/participle/tree/master/_examples/protobuf) | A full [Protobuf](https://developers.google.com/protocol-buffers/) version 2 and 3 parser.
 [SQL](https://github.com/alecthomas/participle/tree/master/_examples/sql) | A *very* rudimentary SQL SELECT parser.
 [Stateful](https://github.com/alecthomas/participle/tree/master/_examples/stateful) | A basic example of a stateful lexer and corresponding parser.
@@ -612,3 +617,8 @@ Participle includes a [command-line utility]() to take an EBNF representation of
 Here's what the GraphQL grammar looks like:
 
 ![EBNF Railroad Diagram](railroad.png)
+
+## ANTLR Grammar Converter
+<a id="markdown-antlr-grammar-converter" name="antlr-grammar-converter"></a>
+
+Participle includes an experimental [command-line utility](https://github.com/alecthomas/participle/blob/master/cmd/antlr2participle) to produce a Participle parser from an ANTLR grammar.  Not all ANTLR features are supported.  The following example parsers were produced via this tool: Cap'n'Proto, CSV, Flatbuffers, JSON.

@@ -6,16 +6,16 @@ package {{ .Grammar }}
 
 import (
 	"github.com/alecthomas/participle/v2"
-	"github.com/alecthomas/participle/v2/lexer/stateful"
+	"github.com/alecthomas/participle/v2/lexer"
 )
 
 var (
-	Rules = stateful.Rules{
+	Rules = lexer.Rules{
 		"Root": {
 			{{ .Rules }}
 		},
 	}
-    Lexer = stateful.Must(Rules, stateful.MatchLongest())
+    Lexer = lexer.MustStateful(Rules, lexer.MatchLongest())
 	Parser = participle.MustBuild(
 		{{ .RootParseObj }}
 		participle.Lexer(Lexer),

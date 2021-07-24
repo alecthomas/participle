@@ -4,14 +4,14 @@ import (
 	"fmt"
 
 	"github.com/alecthomas/participle/v2"
-	"github.com/alecthomas/participle/v2/lexer/stateful"
+	"github.com/alecthomas/participle/v2/lexer"
 )
 
 var (
-	Lexer = stateful.Must(stateful.Rules{
+	Lexer = lexer.MustStateful(lexer.Rules{
 		"Root": {
 			{"comment", `//[^\n]*`, nil},
-			{"comment2", `/\\*`, stateful.Push("BlockComment")},
+			{"comment2", `/\\*`, lexer.Push("BlockComment")},
 			{"String", `'(\\\\|\\'|[^'])*'`, nil},
 			{"Group", `\[(\\]|[^\]])*\]`, nil},
 			{"UpperIdent", `[A-Z][a-zA-Z_]*\w*`, nil},
@@ -20,7 +20,7 @@ var (
 			{"whitespace", `[ \t\r\n]+`, nil},
 		},
 		"BlockComment": {
-			{"end", "\\*/", stateful.Pop()},
+			{"end", "\\*/", lexer.Pop()},
 			{"any", "([^*]|\\*[^/])+", nil},
 		},
 	})
