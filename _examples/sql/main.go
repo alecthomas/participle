@@ -4,11 +4,10 @@ package main
 import (
 	"github.com/alecthomas/kong"
 
+	"github.com/alecthomas/repr"
+
 	"github.com/alecthomas/participle/v2"
 	"github.com/alecthomas/participle/v2/lexer"
-	"github.com/alecthomas/participle/v2/lexer/stateful"
-
-	"github.com/alecthomas/repr"
 )
 
 type Boolean bool
@@ -159,7 +158,7 @@ var (
 		SQL string `arg:"" required:"" help:"SQL to parse."`
 	}
 
-	sqlLexer = lexer.Must(stateful.NewSimple([]stateful.Rule{
+	sqlLexer = lexer.Must(lexer.NewSimple([]lexer.Rule{
 		{`Keyword`, `(?i)\b(SELECT|FROM|TOP|DISTINCT|ALL|WHERE|GROUP|BY|HAVING|UNION|MINUS|EXCEPT|INTERSECT|ORDER|LIMIT|OFFSET|TRUE|FALSE|NULL|IS|NOT|ANY|SOME|BETWEEN|AND|OR|LIKE|AS|IN)\b`, nil},
 		{`Ident`, `[a-zA-Z_][a-zA-Z0-9_]*`, nil},
 		{`Number`, `[-+]?\d*\.?\d+([eE][-+]?\d+)?`, nil},

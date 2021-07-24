@@ -21,9 +21,9 @@ func (d *defaultDefinition) Lex(filename string, r io.Reader) (Lexer, error) {
 	return Lex(filename, r), nil
 }
 
-func (d *defaultDefinition) Symbols() map[string]rune {
-	return map[string]rune{
-		"EOF":       scanner.EOF,
+func (d *defaultDefinition) Symbols() map[string]TokenType {
+	return map[string]TokenType{
+		"EOF":       EOF,
 		"Char":      scanner.Char,
 		"Ident":     scanner.Ident,
 		"Int":       scanner.Int,
@@ -93,7 +93,7 @@ func (t *textScannerLexer) Next() (Token, error) {
 		return Token{}, t.err
 	}
 	return Token{
-		Type:  typ,
+		Type:  TokenType(typ),
 		Value: text,
 		Pos:   pos,
 	}, nil

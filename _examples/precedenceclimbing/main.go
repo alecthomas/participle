@@ -60,7 +60,7 @@ func parseExpr(lex *lexer.PeekingLexer, minPrec int) *Expr {
 	lhs := parseAtom(lex)
 	for {
 		tok := peek(lex)
-		if tok.EOF() || !isOp(tok.Type) || info[tok.Value].Priority < minPrec {
+		if tok.EOF() || !isOp(rune(tok.Type)) || info[tok.Value].Priority < minPrec {
 			break
 		}
 		op := tok.Value
@@ -86,7 +86,7 @@ func parseAtom(lex *lexer.PeekingLexer) *Expr {
 		return val
 	} else if tok.EOF() {
 		panic("unexpected EOF")
-	} else if isOp(tok.Type) {
+	} else if isOp(rune(tok.Type)) {
 		panic("expected a terminal not " + tok.String())
 	} else {
 		lex.Next()

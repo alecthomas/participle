@@ -87,7 +87,7 @@ type mappingLexerDef struct {
 
 var _ lexer.Definition = &mappingLexerDef{}
 
-func (m *mappingLexerDef) Symbols() map[string]rune { return m.l.Symbols() }
+func (m *mappingLexerDef) Symbols() map[string]lexer.TokenType { return m.l.Symbols() }
 
 func (m *mappingLexerDef) Lex(filename string, r io.Reader) (lexer.Lexer, error) {
 	l, err := m.l.Lex(filename, r)

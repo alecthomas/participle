@@ -1,4 +1,4 @@
-package codegen_test
+package internal_test
 
 import (
 	"os"
@@ -9,41 +9,39 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/alecthomas/participle/v2/experimental/codegen"
 	"github.com/alecthomas/participle/v2/lexer"
-	"github.com/alecthomas/participle/v2/lexer/stateful"
 )
 
 var (
 	testInput      = `hello ${name} world what's the song that you're singing, come on get ${emotion}`
 	benchmarkInput = `"` + strings.Repeat(testInput, 1000) + `"`
-	exprLexer      = stateful.Must(stateful.Rules{
+	exprLexer      = lexer.MustStateful(lexer.Rules{
 		"Root": {
-			{`String`, `"`, stateful.Push("String")},
+			{`String`, `"`, lexer.Push("String")},
 		},
 		"String": {
 			{"Escaped", `\\.`, nil},
-			{"StringEnd", `"`, stateful.Pop()},
-			{"Expr", `\${`, stateful.Push("Expr")},
+			{"StringEnd", `"`, lexer.Pop()},
+			{"Expr", `\${`, lexer.Push("Expr")},
 			{"Char", `[^$"\\]+`, nil},
 		},
 		"Expr": {
-			stateful.Include("Root"),
+			lexer.Include("Root"),
 			{`Whitespace`, `\s+`, nil},
 			{`Oper`, `[-+/*%]`, nil},
 			{"Ident", `\w+`, nil},
-			{"ExprEnd", `}`, stateful.Pop()},
+			{"ExprEnd", `}`, lexer.Pop()},
 		},
 	})
 )
 
 func TestGenerate(t *testing.T) {
-	w, err := os.Create("lexer_gen_test.go")
+	w, err := os.Create("codegen_gen_test.go")
 	require.NoError(t, err)
 	defer w.Close()
-	err = codegen.GenerateLexer(w, "codegen_test", exprLexer)
+	err = lexer.ExperimentalGenerateLexer(w, "internal_test", exprLexer)
 	require.NoError(t, err)
-	err = exec.Command("gofmt", "-w", "lexer_gen_test.go").Run()
+	err = exec.Command("gofmt", "-w", "codegen_gen_test.go").Run()
 	require.NoError(t, err)
 	// cmd.Stdin = strings.NewReader(source)
 	// err = cmd.Run()

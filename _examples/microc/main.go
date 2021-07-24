@@ -5,7 +5,6 @@ import (
 
 	"github.com/alecthomas/participle/v2"
 	"github.com/alecthomas/participle/v2/lexer"
-	"github.com/alecthomas/participle/v2/lexer/stateful"
 )
 
 // https://www.it.uu.se/katalog/aleji304/CompilersProject/uc.html
@@ -228,7 +227,7 @@ type CallFunc struct {
 }
 
 var (
-	lex = stateful.MustSimple([]stateful.Rule{
+	lex = lexer.MustSimple([]lexer.Rule{
 		{"comment", `//.*|/\*.*?\*/`, nil},
 		{"whitespace", `\s+`, nil},
 

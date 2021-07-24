@@ -1,4 +1,4 @@
-package stateful
+package lexer_test
 
 import (
 	"log"
@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/alecthomas/participle/v2"
-	"github.com/alecthomas/participle/v2/lexer"
+	. "github.com/alecthomas/participle/v2/lexer"
 )
 
 var interpolatedRules = Rules{
@@ -35,6 +35,7 @@ func TestStatefulLexer(t *testing.T) {
 	tests := []struct {
 		name   string
 		rules  Rules
+		lngst  bool
 		input  string
 		tokens []string
 		err    string
@@ -127,6 +128,29 @@ func TestStatefulLexer(t *testing.T) {
 			input:  `hello.world `,
 			tokens: []string{"hello", ".", "world"},
 		},
+		{name: "NoMatchLongest",
+			rules: Rules{
+				"Root": {
+					{"A", `a`, nil},
+					{"Ident", `\w+`, nil},
+					{"whitespace", `\s+`, nil},
+				},
+			},
+			input:  `a apple`,
+			tokens: []string{"a", "a", "pple"},
+		},
+		{name: "MatchLongest",
+			rules: Rules{
+				"Root": {
+					{"A", `a`, nil},
+					{"Ident", `\w+`, nil},
+					{"whitespace", `\s+`, nil},
+				},
+			},
+			lngst:  true,
+			input:  `a apple`,
+			tokens: []string{"a", "apple"},
+		},
 		{name: "NoMatchNoMutatorError",
 			rules: Rules{
 				"Root": {
@@ -152,11 +176,15 @@ func TestStatefulLexer(t *testing.T) {
 	// nolint: scopelint
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			def, err := New(test.rules)
+			var opts []Option
+			if test.lngst {
+				opts = append(opts, MatchLongest())
+			}
+			def, err := New(test.rules, opts...)
 			require.NoError(t, err)
 			lex, err := def.Lex("", strings.NewReader(test.input))
 			require.NoError(t, err)
-			tokens, err := lexer.ConsumeAll(lex)
+			tokens, err := ConsumeAll(lex)
 			if test.err != "" {
 				require.EqualError(t, err, test.err)
 			} else {
@@ -328,7 +356,7 @@ func TestHereDoc(t *testing.T) {
 
 func BenchmarkStateful(b *testing.B) {
 	source := strings.Repeat(`"hello ${user + "${last}"}"`, 100)
-	def := lexer.Must(New(interpolatedRules))
+	def := Must(New(interpolatedRules))
 	b.ReportMetric(float64(len(source)), "B")
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
@@ -336,7 +364,7 @@ func BenchmarkStateful(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		tokens, err := lexer.ConsumeAll(lex)
+		tokens, err := ConsumeAll(lex)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -374,7 +402,7 @@ func BenchmarkStatefulBackrefs(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		tokens, err := lexer.ConsumeAll(lex)
+		tokens, err := ConsumeAll(lex)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -415,7 +443,7 @@ func BenchmarkStatefulBasic(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		tokens, err := lexer.ConsumeAll(lex)
+		tokens, err := ConsumeAll(lex)
 		if err != nil {
 			b.Fatal(err)
 		}

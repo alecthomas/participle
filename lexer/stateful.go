@@ -1,28 +1,4 @@
-// Package stateful defines a nested stateful lexer.
-//
-// This lexer is based heavily on the approach used by Chroma (and Pygments).
-//
-// The lexer is a state machine defined by a map of rules keyed by state. Each rule
-// is a named regex and optional operation to apply when the rule matches.
-//
-// As a convenience, any Rule starting with a lowercase letter will be elided from output.
-//
-// Lexing starts in the "Root" group. Each rule is matched in order, with the first
-// successful match producing a lexeme. If the matching rule has an associated Action
-// it will be executed. The name of each non-root rule is prefixed with the name
-// of its group to yield the token identifier used during matching.
-//
-// A state change can be introduced with the Action `Push(state)`. `Pop()` will
-// return to the previous state.
-//
-// To reuse rules from another state, use `Include(state)`.
-//
-// As a special case, regexes containing backrefs in the form \N (where N is a digit)
-// will match the corresponding capture group from the immediate parent group. This
-// can be used to parse, among other things, heredocs.
-//
-// See the README, example and tests in this package for details.
-package stateful
+package lexer
 
 import (
 	"errors"
@@ -35,9 +11,6 @@ import (
 	"sync"
 	"unicode"
 	"unicode/utf8"
-
-	"github.com/alecthomas/participle/v2"
-	"github.com/alecthomas/participle/v2/lexer"
 )
 
 var (
@@ -45,14 +18,7 @@ var (
 )
 
 // Option for modifying how the Lexer works.
-type Option func(d *Definition)
-
-// InitialState overrides the default initial state of "Root".
-func InitialState(state string) Option {
-	return func(d *Definition) {
-		d.initialState = state
-	}
-}
+type Option func(d *StatefulDefinition)
 
 // A Rule matching input and possibly changing state.
 type Rule struct {
@@ -77,7 +43,7 @@ type compiledRules map[string][]compiledRule
 // A Action is applied when a rule matches.
 type Action interface {
 	// Actions are responsible for validating the match. ie. if they consumed any input.
-	applyAction(lexer *Lexer, groups []string) error
+	applyAction(lexer *StatefulLexer, groups []string) error
 }
 
 // RulesAction is an optional interface that Actions can implement.
@@ -87,10 +53,25 @@ type RulesAction interface {
 	applyRules(state string, rule int, rules compiledRules) error
 }
 
+// InitialState overrides the default initial state of "Root".
+func InitialState(state string) Option {
+	return func(d *StatefulDefinition) {
+		d.initialState = state
+	}
+}
+
+// MatchLongest causes the Lexer to continue checking rules past the first match.
+// If any subsequent rule has a longer match, it will be used instead.
+func MatchLongest() Option {
+	return func(d *StatefulDefinition) {
+		d.matchLongest = true
+	}
+}
+
 // ActionPop pops to the previous state when the Rule matches.
 type ActionPop struct{}
 
-func (p ActionPop) applyAction(lexer *Lexer, groups []string) error {
+func (p ActionPop) applyAction(lexer *StatefulLexer, groups []string) error {
 	if groups[0] == "" {
 		return errors.New("did not consume any input")
 	}
@@ -114,7 +95,7 @@ func Return() Rule { return ReturnRule }
 // ActionPush pushes the current state and switches to "State" when the Rule matches.
 type ActionPush struct{ State string }
 
-func (p ActionPush) applyAction(lexer *Lexer, groups []string) error {
+func (p ActionPush) applyAction(lexer *StatefulLexer, groups []string) error {
 	if groups[0] == "" {
 		return errors.New("did not consume any input")
 	}
@@ -132,7 +113,9 @@ func Push(state string) Action {
 
 type include struct{ state string }
 
-func (i include) applyAction(lexer *Lexer, groups []string) error { panic("should not be called") }
+func (i include) applyAction(lexer *StatefulLexer, groups []string) error {
+	panic("should not be called")
+}
 
 func (i include) applyRules(state string, rule int, rules compiledRules) error {
 	includedRules, ok := rules[i.state]
@@ -150,18 +133,19 @@ func Include(state string) Rule {
 	return Rule{Action: include{state}}
 }
 
-// Definition is the lexer.Definition.
-type Definition struct {
+// StatefulDefinition is the lexer.Definition.
+type StatefulDefinition struct {
 	rules   compiledRules
-	symbols map[string]rune
+	symbols map[string]TokenType
 	// Map of key->*regexp.Regexp
 	backrefCache sync.Map
 	initialState string
+	matchLongest bool
 }
 
 // MustSimple creates a new lexer definition based on a single state described by `rules`.
 // panics if the rules trigger an error
-func MustSimple(rules []Rule, options ...Option) *Definition {
+func MustSimple(rules []Rule, options ...Option) *StatefulDefinition {
 	def, err := NewSimple(rules, options...)
 	if err != nil {
 		panic(err)
@@ -169,8 +153,8 @@ func MustSimple(rules []Rule, options ...Option) *Definition {
 	return def
 }
 
-// Must creates a new stateful lexer and panics if it is incorrect.
-func Must(rules Rules, options ...Option) *Definition {
+// MustStateful creates a new stateful lexer and panics if it is incorrect.
+func MustStateful(rules Rules, options ...Option) *StatefulDefinition {
 	def, err := New(rules, options...)
 	if err != nil {
 		panic(err)
@@ -179,12 +163,12 @@ func Must(rules Rules, options ...Option) *Definition {
 }
 
 // NewSimple creates a new stateful lexer with a single "Root" state.
-func NewSimple(rules []Rule, options ...Option) (*Definition, error) {
+func NewSimple(rules []Rule, options ...Option) (*StatefulDefinition, error) {
 	return New(Rules{"Root": rules}, options...)
 }
 
 // New constructs a new stateful lexer from rules.
-func New(rules Rules, options ...Option) (*Definition, error) {
+func New(rules Rules, options ...Option) (*StatefulDefinition, error) {
 	compiled := compiledRules{}
 	for key, set := range rules {
 		for i, rule := range set {
@@ -222,12 +206,12 @@ restart:
 	for key := range compiled {
 		keys = append(keys, key)
 	}
-	symbols := map[string]rune{
-		"EOF": lexer.EOF,
+	symbols := map[string]TokenType{
+		"EOF": EOF,
 	}
 	sort.Strings(keys)
 	duplicates := map[string]compiledRule{}
-	rn := lexer.EOF - 1
+	rn := EOF - 1
 	for _, key := range keys {
 		for i, rule := range compiled[key] {
 			if dup, ok := duplicates[rule.Name]; ok && rule.Pattern != dup.Pattern {
@@ -239,7 +223,7 @@ restart:
 			rn--
 		}
 	}
-	d := &Definition{
+	d := &StatefulDefinition{
 		initialState: "Root",
 		rules:        compiled,
 		symbols:      symbols,
@@ -251,7 +235,7 @@ restart:
 }
 
 // Rules returns the user-provided Rules used to construct the lexer.
-func (d *Definition) Rules() Rules {
+func (d *StatefulDefinition) Rules() Rules {
 	out := Rules{}
 	for state, rules := range d.rules {
 		for _, rule := range rules {
@@ -261,12 +245,12 @@ func (d *Definition) Rules() Rules {
 	return out
 }
 
-func (d *Definition) LexString(filename string, s string) (lexer.Lexer, error) { // nolint: golint
-	return &Lexer{
+func (d *StatefulDefinition) LexString(filename string, s string) (Lexer, error) { // nolint: golint
+	return &StatefulLexer{
 		def:   d,
 		data:  s,
 		stack: []lexerState{{name: d.initialState}},
-		pos: lexer.Position{
+		pos: Position{
 			Filename: filename,
 			Line:     1,
 			Column:   1,
@@ -274,7 +258,7 @@ func (d *Definition) LexString(filename string, s string) (lexer.Lexer, error) {
 	}, nil
 }
 
-func (d *Definition) Lex(filename string, r io.Reader) (lexer.Lexer, error) { // nolint: golint
+func (d *StatefulDefinition) Lex(filename string, r io.Reader) (Lexer, error) { // nolint: golint
 	w := &strings.Builder{}
 	_, err := io.Copy(w, r)
 	if err != nil {
@@ -283,7 +267,7 @@ func (d *Definition) Lex(filename string, r io.Reader) (lexer.Lexer, error) { //
 	return d.LexString(filename, w.String())
 }
 
-func (d *Definition) Symbols() map[string]rune { // nolint: golint
+func (d *StatefulDefinition) Symbols() map[string]TokenType { // nolint: golint
 	return d.symbols
 }
 
@@ -292,24 +276,25 @@ type lexerState struct {
 	groups []string
 }
 
-// Lexer implementation.
-type Lexer struct {
+// StatefulLexer implementation.
+type StatefulLexer struct {
 	stack []lexerState
-	def   *Definition
+	def   *StatefulDefinition
 	data  string
-	pos   lexer.Position
+	pos   Position
 }
 
-func (l *Lexer) Next() (lexer.Token, error) { // nolint: golint
+func (l *StatefulLexer) Next() (Token, error) { // nolint: golint
 	parent := l.stack[len(l.stack)-1]
 	rules := l.def.rules[parent.name]
 next:
 	for len(l.data) > 0 {
 		var (
 			rule  *compiledRule
+			m     []int
 			match []int
 		)
-		for _, candidate := range rules {
+		for i, candidate := range rules {
 			// Special case "Return()".
 			if candidate.Rule == ReturnRule {
 				l.stack = l.stack[:len(l.stack)-1]
@@ -319,12 +304,15 @@ next:
 			}
 			re, err := l.getPattern(candidate)
 			if err != nil {
-				return lexer.Token{}, participle.Wrapf(l.pos, err, "rule %q", candidate.Name)
+				return Token{}, wrapf(l.pos, err, "rule %q", candidate.Name)
 			}
-			match = re.FindStringSubmatchIndex(l.data)
-			if match != nil {
-				rule = &candidate // nolint
-				break
+			m = re.FindStringSubmatchIndex(l.data)
+			if m != nil && (match == nil || m[1] > match[1]) {
+				match = m
+				rule = &rules[i]
+				if !l.def.matchLongest {
+					break
+				}
 			}
 		}
 		if match == nil || rule == nil {
@@ -332,7 +320,7 @@ next:
 			if len(sample) > 16 {
 				sample = append(sample[:16], []rune("...")...)
 			}
-			return lexer.Token{}, participle.Errorf(l.pos, "invalid input text %q", string(sample))
+			return Token{}, errorf(l.pos, "invalid input text %q", string(sample))
 		}
 
 		if rule.Action != nil {
@@ -341,10 +329,10 @@ next:
 				groups = append(groups, l.data[match[i]:match[i+1]])
 			}
 			if err := rule.Action.applyAction(l, groups); err != nil {
-				return lexer.Token{}, participle.Errorf(l.pos, "rule %q: %s", rule.Name, err)
+				return Token{}, errorf(l.pos, "rule %q: %s", rule.Name, err)
 			}
 		} else if match[0] == match[1] {
-			return lexer.Token{}, participle.Errorf(l.pos, "rule %q did not match any input", rule.Name)
+			return Token{}, errorf(l.pos, "rule %q did not match any input", rule.Name)
 		}
 
 		span := l.data[match[0]:match[1]]
@@ -367,16 +355,16 @@ next:
 			rules = l.def.rules[parent.name]
 			continue
 		}
-		return lexer.Token{
+		return Token{
 			Type:  l.def.symbols[rule.Name],
 			Value: span,
 			Pos:   pos,
 		}, nil
 	}
-	return lexer.EOFToken(l.pos), nil
+	return EOFToken(l.pos), nil
 }
 
-func (l *Lexer) getPattern(candidate compiledRule) (*regexp.Regexp, error) {
+func (l *StatefulLexer) getPattern(candidate compiledRule) (*regexp.Regexp, error) {
 	if candidate.RE != nil {
 		return candidate.RE, nil
 	}

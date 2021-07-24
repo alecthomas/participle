@@ -38,6 +38,11 @@ linters:
     - cyclop
     - ifshort
     - paralleltest
+    - interfacer
+    - scopelint
+    - golint
+    - wastedassign
+    - forcetypeassert
 
 linters-settings:
   govet:
@@ -49,6 +54,8 @@ linters-settings:
   goconst:
     min-len: 8
     min-occurrences: 3
+  exhaustive:
+    default-signifies-exhaustive: true
 
 issues:
   max-per-linter: 0

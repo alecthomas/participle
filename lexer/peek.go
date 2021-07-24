@@ -6,7 +6,7 @@ type PeekingLexer struct {
 	cursor    int
 	eof       Token
 	tokens    []Token
-	elide     map[rune]bool
+	elide     map[TokenType]bool
 }
 
 // RawCursor index in the token stream.
@@ -17,9 +17,9 @@ var _ Lexer = &PeekingLexer{}
 // Upgrade a Lexer to a PeekingLexer with arbitrary lookahead.
 //
 // "elide" is a slice of token types to elide from processing.
-func Upgrade(lex Lexer, elide ...rune) (*PeekingLexer, error) {
+func Upgrade(lex Lexer, elide ...TokenType) (*PeekingLexer, error) {
 	r := &PeekingLexer{
-		elide: make(map[rune]bool, len(elide)),
+		elide: make(map[TokenType]bool, len(elide)),
 	}
 	for _, rn := range elide {
 		r.elide[rn] = true

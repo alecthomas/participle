@@ -52,7 +52,7 @@ func Build(grammar interface{}, options ...Option) (parser *Parser, err error) {
 
 	symbols := p.lex.Symbols()
 	if len(p.mappers) > 0 {
-		mappers := map[rune][]Mapper{}
+		mappers := map[lexer.TokenType][]Mapper{}
 		for _, mapper := range p.mappers {
 			if len(mapper.symbols) == 0 {
 				mappers[lexer.EOF] = append(mappers[lexer.EOF], mapper.mapper)
@@ -135,10 +135,10 @@ func (p *Parser) ParseFromLexer(lex *lexer.PeekingLexer, v interface{}, options 
 	if rt.Kind() != reflect.Ptr || rt.Elem().Kind() != reflect.Struct {
 		return fmt.Errorf("target must be a pointer to a struct, not %s", rt)
 	}
-	caseInsensitive := map[rune]bool{}
-	for sym, rn := range p.lex.Symbols() {
+	caseInsensitive := map[lexer.TokenType]bool{}
+	for sym, tt := range p.lex.Symbols() {
 		if p.caseInsensitive[sym] {
-			caseInsensitive[rn] = true
+			caseInsensitive[tt] = true
 		}
 	}
 	ctx := newParseContext(lex, p.useLookahead, caseInsensitive)
@@ -274,9 +274,9 @@ func (p *Parser) rootParseable(ctx *parseContext, parseable Parseable) error {
 	return nil
 }
 
-func (p *Parser) getElidedTypes() []rune {
+func (p *Parser) getElidedTypes() []lexer.TokenType {
 	symbols := p.lex.Symbols()
-	elideTypes := make([]rune, 0, len(p.elide))
+	elideTypes := make([]lexer.TokenType, 0, len(p.elide))
 	for _, elide := range p.elide {
 		rn, ok := symbols[elide]
 		if !ok {

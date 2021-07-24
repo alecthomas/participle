@@ -8,14 +8,13 @@ import (
 
 	"github.com/alecthomas/participle/v2"
 	"github.com/alecthomas/participle/v2/lexer"
-	"github.com/alecthomas/participle/v2/lexer/stateful"
 )
 
 func TestUpper(t *testing.T) {
 	var grammar struct {
 		Text string `@Ident`
 	}
-	def := lexer.Must(stateful.NewSimple([]stateful.Rule{
+	def := lexer.Must(lexer.NewSimple([]lexer.Rule{
 		{"Whitespace", `\s+`, nil},
 		{"Ident", `\w+`, nil},
 	}))
@@ -37,7 +36,7 @@ func TestUnquote(t *testing.T) {
 	var grammar struct {
 		Text string `@Ident`
 	}
-	lex := lexer.Must(stateful.NewSimple([]stateful.Rule{
+	lex := lexer.Must(lexer.NewSimple([]lexer.Rule{
 		{"whitespace", `\s+`, nil},
 		{"Ident", `\w+`, nil},
 		{"String", `\"(?:[^\"]|\\.)*\"`, nil},

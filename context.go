@@ -19,12 +19,12 @@ type parseContext struct {
 	deepestError      error
 	deepestErrorDepth int
 	lookahead         int
-	caseInsensitive   map[rune]bool
+	caseInsensitive   map[lexer.TokenType]bool
 	apply             []*contextFieldSet
 	allowTrailing     bool
 }
 
-func newParseContext(lex *lexer.PeekingLexer, lookahead int, caseInsensitive map[rune]bool) *parseContext {
+func newParseContext(lex *lexer.PeekingLexer, lookahead int, caseInsensitive map[lexer.TokenType]bool) *parseContext {
 	return &parseContext{
 		PeekingLexer:    lex,
 		caseInsensitive: caseInsensitive,

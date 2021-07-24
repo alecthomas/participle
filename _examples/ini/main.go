@@ -3,15 +3,15 @@ package main
 import (
 	"os"
 
-	"github.com/alecthomas/participle/v2"
-	"github.com/alecthomas/participle/v2/lexer/stateful"
-
 	"github.com/alecthomas/repr"
+
+	"github.com/alecthomas/participle/v2"
+	"github.com/alecthomas/participle/v2/lexer"
 )
 
 // A custom lexer for INI files. This illustrates a relatively complex Regexp lexer, as well
 // as use of the Unquote filter, which unquotes string tokens.
-var iniLexer = stateful.MustSimple([]stateful.Rule{
+var iniLexer = lexer.MustSimple([]lexer.Rule{
 	{`Ident`, `[a-zA-Z][a-zA-Z_\d]*`, nil},
 	{`String`, `"(?:\\.|[^"])*"`, nil},
 	{`Float`, `\d+(?:\.\d+)?`, nil},
