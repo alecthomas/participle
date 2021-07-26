@@ -318,7 +318,7 @@ func (d *disjunction) Parse(ctx *parseContext, parent reflect.Value) (out []refl
 
 // <node> ...
 type sequence struct {
-	head bool
+	head bool // True if this is the head node.
 	node node
 	next *sequence
 }
