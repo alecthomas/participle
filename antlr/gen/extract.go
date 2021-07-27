@@ -1,6 +1,8 @@
 package gen
 
-import "sort"
+import (
+	"sort"
+)
 
 type structAndIndex struct {
 	s       *Struct
@@ -28,7 +30,9 @@ func NewTypeExtractor(ss []*Struct) *TypeExtractor {
 // Extract visits a tree of Participle proto-structs, extracts the sub-types
 // to the top level, and sorts the results appropriately.
 func (v *TypeExtractor) Extract() []*Struct {
-	for _, s := range v.structs {
+	loopCopy := v.structs
+	v.structs = make(map[string]structAndIndex, len(v.structs))
+	for _, s := range loopCopy {
 		v.pos.push(s.indexes[0])
 		s.s.Accept(v)
 		v.pos.pop()
@@ -39,17 +43,13 @@ func (v *TypeExtractor) Extract() []*Struct {
 	}
 	sort.SliceStable(toSort, func(i, j int) bool {
 		l1, l2 := len(toSort[i].indexes), len(toSort[j].indexes)
-		if l1 != l2 {
-			return l1 < l2
-		}
-		var idx1, idx2 int
-		for depth := 0; depth < l1; depth++ {
-			idx1, idx2 = toSort[i].indexes[depth], toSort[j].indexes[depth]
+		for depth := 0; depth < l1 && depth < l2; depth++ {
+			idx1, idx2 := toSort[i].indexes[depth], toSort[j].indexes[depth]
 			if idx1 != idx2 {
-				break
+				return idx1 < idx2
 			}
 		}
-		return idx1 < idx2
+		return l1 < l2
 	})
 	ret := make([]*Struct, len(toSort))
 	for i, v := range toSort {
@@ -61,8 +61,7 @@ func (v *TypeExtractor) Extract() []*Struct {
 // VisitStruct implements the Visitor interface.
 func (v *TypeExtractor) VisitStruct(s *Struct) {
 	s.Fields.Accept(v)
-	sai := structAndIndex{s: s, indexes: make([]int, len(v.pos.stack))}
-	copy(sai.indexes, v.pos.stack)
+	sai := structAndIndex{s: s, indexes: append([]int{}, v.pos.stack...)}
 	v.structs[s.Name] = sai
 }
 
