@@ -1679,3 +1679,15 @@ func TestBoxedCapture(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestMatchEOF(t *testing.T) {
+	type testMatchNewlineOrEOF struct {
+		Text []string `@Ident+ ("\n" | EOF)`
+	}
+	p := mustTestParser(t, &testMatchNewlineOrEOF{})
+	ast := &testMatchNewlineOrEOF{}
+	err := p.ParseString("", "hell world", ast)
+	require.NoError(t, err)
+	err = p.ParseString("", "hell world\n", ast)
+	require.NoError(t, err)
+}

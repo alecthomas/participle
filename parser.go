@@ -92,6 +92,9 @@ func Build(grammar interface{}, options ...Option) (parser *Parser, err error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := validate(p.root); err != nil {
+		return nil, err
+	}
 	if p.trace != nil {
 		p.root = injectTrace(p.trace, 0, p.root)
 	}
