@@ -1,7 +1,7 @@
 // Package main implements a parser for CapnProto files.
 package main
 
-//go:generate antlr2participle CapnProto.g4 --name=capnproto
+//go:generate antlr2participle CapnProto.g4 --name=capnproto --explode-literals
 
 import (
 	"os"

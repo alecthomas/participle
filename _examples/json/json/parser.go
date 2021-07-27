@@ -12,15 +12,7 @@ var (
 			{"STRING", `"(\\(["\\/bfnrt]|u[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F])|[^"\\\x{0000}-\x{001F}])*"`, nil},
 			{"NUMBER", `-?(0|[1-9][0-9]*)(\.[0-9]+)?([Ee][+\-]?(0|[1-9][0-9]*))?`, nil},
 			{"ws", `[ \t\n\r]+`, nil},
-			{"XXX__LITERAL_Comma", `,`, nil},
-			{"XXX__LITERAL_Colon", `:`, nil},
-			{"XXX__LITERAL_Lbkt", `\[`, nil},
-			{"XXX__LITERAL_Rbkt", `\]`, nil},
-			{"XXX__LITERAL_False", `false`, nil},
-			{"XXX__LITERAL_Null", `null`, nil},
-			{"XXX__LITERAL_True", `true`, nil},
-			{"XXX__LITERAL_Lbrc", `\{`, nil},
-			{"XXX__LITERAL_Rbrc", `\}`, nil},
+			{"XXX__LITERALS", `,|:|\[|\]|false|null|true|\{|\}`, nil},
 		},
 	}
 	Lexer  = lexer.MustStateful(Rules, lexer.MatchLongest())

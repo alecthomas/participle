@@ -131,6 +131,10 @@ type InnerType struct {
 	InnerType     *InnerType       `@@?`
 	TypeInnerType []*TypeInnerType `@@* ')'`
 }
+type TypeInnerType struct {
+	Type      *Type      `',' @@`
+	InnerType *InnerType `@@?`
+}
 type EnumDef struct {
 	Name                *string              `'enum' @NAME`
 	AnnotationReference *AnnotationReference `@@?`
@@ -187,6 +191,11 @@ type FunctionParameters struct {
 	ConstValue         *ConstValue           `( '=' @@ )?`
 	NameTypeConstValue []*NameTypeConstValue `@@* )? ')'`
 }
+type NameTypeConstValue struct {
+	Name       *string     `',' @NAME`
+	Type       *Type       `':' @@`
+	ConstValue *ConstValue `( '=' @@ )?`
+}
 type AnnotationDef struct {
 	Type                 *Type                 `'annotation' @@`
 	AnnotationParameters *AnnotationParameters `@@?`
@@ -213,14 +222,14 @@ type ConstValue struct {
 	LiteralUnion *LiteralUnion `| @@`
 	LiteralBytes *LiteralBytes `| @@`
 }
-type NameUnionMapping struct {
-	Name         *string       `',' @NAME`
-	UnionMapping *UnionMapping `'=' @@`
-}
 type LiteralUnion struct {
 	Name             *string             `'(' @NAME`
 	UnionMapping     *UnionMapping       `'=' @@`
 	NameUnionMapping []*NameUnionMapping `@@* ')'`
+}
+type NameUnionMapping struct {
+	Name         *string       `',' @NAME`
+	UnionMapping *UnionMapping `'=' @@`
 }
 type LiteralList struct {
 	ConstValue []*ConstValue `'[' @@ ( ',' @@ )* ']'`
@@ -237,13 +246,4 @@ type InnerUsing struct {
 	Name  *string   `'using' @NAME`
 	Name2 []*string `( '.' @NAME )*`
 	Type  *Type     `( '=' @@ )? ';'`
-}
-type TypeInnerType struct {
-	Type      *Type      `',' @@`
-	InnerType *InnerType `@@?`
-}
-type NameTypeConstValue struct {
-	Name       *string     `',' @NAME`
-	Type       *Type       `':' @@`
-	ConstValue *ConstValue `( '=' @@ )?`
 }

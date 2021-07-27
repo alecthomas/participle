@@ -11,9 +11,7 @@ var (
 		"Root": {
 			{"TEXT", `[^,\n\r"]+`, nil},
 			{"STRING", `"(""|[^"])*"`, nil},
-			{"XXX__LITERAL_Comma", `,`, nil},
-			{"XXX__LITERAL_Nl", `\n`, nil},
-			{"XXX__LITERAL_Cr", `\r`, nil},
+			{"XXX__LITERALS", `,|\n|\r`, nil},
 		},
 	}
 	Lexer  = lexer.MustStateful(Rules, lexer.MatchLongest())

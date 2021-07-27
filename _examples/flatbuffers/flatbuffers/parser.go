@@ -183,6 +183,10 @@ type CommasepUnionvalWithOptAlias struct {
 	CommaUnionvalWithOptAlias []*CommaUnionvalWithOptAlias `@@*`
 	Comma                     *string                      `@COMMA?`
 }
+type CommaUnionvalWithOptAlias struct {
+	Comma                *string               `@COMMA`
+	UnionvalWithOptAlias *UnionvalWithOptAlias `@@`
+}
 type IdentWithOptSingleValue struct {
 	Identifier  *Identifier  `@@`
 	Colon       *string      `( @COLON`
@@ -191,6 +195,10 @@ type IdentWithOptSingleValue struct {
 type CommasepIdentWithOptSingleValue struct {
 	IdentWithOptSingleValue      *IdentWithOptSingleValue        `@@`
 	CommaIdentWithOptSingleValue []*CommaIdentWithOptSingleValue `@@*`
+}
+type CommaIdentWithOptSingleValue struct {
+	Comma                   *string                  `@COMMA`
+	IdentWithOptSingleValue *IdentWithOptSingleValue `@@`
 }
 type Metadata struct {
 	Lp                              *string                          `( @LP`
@@ -277,12 +285,4 @@ type Keywords struct {
 	Struct         *string `| @STRUCT`
 	Table          *string `| @TABLE`
 	Union          *string `| @UNION`
-}
-type CommaUnionvalWithOptAlias struct {
-	Comma                *string               `@COMMA`
-	UnionvalWithOptAlias *UnionvalWithOptAlias `@@`
-}
-type CommaIdentWithOptSingleValue struct {
-	Comma                   *string                  `@COMMA`
-	IdentWithOptSingleValue *IdentWithOptSingleValue `@@`
 }
