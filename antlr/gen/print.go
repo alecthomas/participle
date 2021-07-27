@@ -3,13 +3,23 @@ package gen
 import (
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 )
 
+var dquoEscaper = regexp.MustCompile(`\\([\s\S])|(")`)
+
 // Printer builds a string representation of a tree of Participle proto-structs.
 type Printer struct {
-	depth  int
-	result string
+	altTagFormat bool
+	depth        int
+	result       string
+}
+
+// NewPrinter returns a ready Printer.
+// If altTagFormat is true, struct tags will use the parser:"xxx" format.
+func NewPrinter(altTagFormat bool) *Printer {
+	return &Printer{altTagFormat: altTagFormat}
 }
 
 // Visit builds a string representation of a tree of proto-structs.
@@ -48,5 +58,9 @@ func (v *Printer) VisitStructField(sf *StructField) {
 	v.depth++
 	sub := v.Visit(sf.SubType)
 	v.depth--
-	v.result = fmt.Sprintf("%s%s %s%s `%s`", strings.Repeat("\t", v.depth), sf.Name, sf.RawType, sub, sf.Tag)
+	tag := sf.Tag
+	if v.altTagFormat {
+		tag = `parser:"` + dquoEscaper.ReplaceAllString(tag, "\\$1$2") + `"`
+	}
+	v.result = fmt.Sprintf("%s%s %s%s `%s`", strings.Repeat("\t", v.depth), sf.Name, sf.RawType, sub, tag)
 }

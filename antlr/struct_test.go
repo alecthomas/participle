@@ -303,7 +303,7 @@ func TestStructGenFromParserRule(t *testing.T) {
 
 		new(gen.FieldRenamer).VisitStruct(v.Result)
 
-		assert.Equal(t, test.result, new(gen.Printer).Visit(v.Result), test.name)
+		assert.Equal(t, test.result, gen.NewPrinter(false).Visit(v.Result), test.name)
 		// })
 	}
 }

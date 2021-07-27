@@ -16,9 +16,9 @@ import (
 
 // ParticipleFromAntlr produces Go source code from an Antlr grammar AST.
 // The code includes a Participle lexer and parse objects.
-func ParticipleFromAntlr(antlr *ast.AntlrFile, w io.Writer) error {
+func ParticipleFromAntlr(antlr *ast.AntlrFile, w io.Writer, altTagFormat bool) error {
 
-	rulebody, parseObjs, root, err := compute(antlr)
+	rulebody, parseObjs, root, err := compute(antlr, altTagFormat)
 	if err != nil {
 		return err
 	}
@@ -52,7 +52,7 @@ func ParticipleFromAntlr(antlr *ast.AntlrFile, w io.Writer) error {
 	return err
 }
 
-func compute(antlr *ast.AntlrFile) (lexRulesStr, parseObjs string, root *ast.ParserRule, err error) {
+func compute(antlr *ast.AntlrFile, altTagFormat bool) (lexRulesStr, parseObjs string, root *ast.ParserRule, err error) {
 	// Compute each lexer rule
 	lexRules := antlr.LexRules()
 	rm := map[string]*ast.LexerRule{}
@@ -83,7 +83,7 @@ func compute(antlr *ast.AntlrFile) (lexRulesStr, parseObjs string, root *ast.Par
 	objs := make([]string, len(structs))
 	for i, v := range structs {
 		new(gen.FieldRenamer).VisitStruct(v)
-		objs[i] = new(gen.Printer).Visit(v)
+		objs[i] = gen.NewPrinter(altTagFormat).Visit(v)
 	}
 	parseObjs = strings.Join(objs, "\n")
 

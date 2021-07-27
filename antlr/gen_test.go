@@ -52,7 +52,7 @@ func TestComputedLexerBody(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		lexRules, _, _, err := compute(dst)
+		lexRules, _, _, err := compute(dst, false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -63,12 +63,13 @@ func TestComputedLexerBody(t *testing.T) {
 
 func TestComputedParseObjects(t *testing.T) {
 	tt := []struct {
-		name   string
-		code   string
-		result string
+		name         string
+		code         string
+		altTagFormat bool
+		result       string
 	}{
 		{
-			name: "shortest literals should sort to the top",
+			name: "multiple structs",
 			code: `grammar foo;
 
 				bar : baz (',' baz)* '\r'? '\n' ;
@@ -80,6 +81,17 @@ func TestComputedParseObjects(t *testing.T) {
 					;`,
 			result: "type Bar struct {\nBaz []*Baz `@@? ( ',' @@? )* '\\r'? '\\n'`\n}\ntype Baz struct {\nAB *string `@( 'a' | 'b' )`\n}",
 		},
+		{
+			name: "alternative struct tag format",
+			code: `grammar foo;
+			baz
+				: 'a'
+				| '"b"'
+				|
+				;`,
+			altTagFormat: true,
+			result:       "type Baz struct {\nADquoBDquo *string `parser:\"@( 'a' | '\\\"b\\\"' )\"`\n}",
+		},
 	}
 
 	p := ast.MustBuildParser(&ast.AntlrFile{})
@@ -89,7 +101,7 @@ func TestComputedParseObjects(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		_, parseObjs, _, err := compute(dst)
+		_, parseObjs, _, err := compute(dst, test.altTagFormat)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -124,7 +136,7 @@ func TestConvertWholeGrammar(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		lexRules, parseObjs, root, err := compute(dst)
+		lexRules, parseObjs, root, err := compute(dst, false)
 		if err != nil {
 			t.Fatal(err)
 		}
