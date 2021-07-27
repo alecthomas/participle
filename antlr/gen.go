@@ -14,6 +14,8 @@ import (
 	"github.com/alecthomas/participle/v2/antlr/gen"
 )
 
+// ParticipleFromAntlr produces Go source code from an Antlr grammar AST.
+// The code includes a Participle lexer and parse objects.
 func ParticipleFromAntlr(antlr *ast.AntlrFile, w io.Writer) error {
 
 	rulebody, parseObjs, root, err := compute(antlr)
@@ -50,15 +52,16 @@ func ParticipleFromAntlr(antlr *ast.AntlrFile, w io.Writer) error {
 	return err
 }
 
-func compute(antlr *ast.AntlrFile) (lexRules, parseObjs string, root *ast.ParserRule, err error) {
+func compute(antlr *ast.AntlrFile) (lexRulesStr, parseObjs string, root *ast.ParserRule, err error) {
 	// Compute each lexer rule
+	lexRules := antlr.LexRules()
 	rm := map[string]*ast.LexerRule{}
-	for _, lr := range antlr.LexRules {
+	for _, lr := range lexRules {
 		rm[lr.Name] = lr
 	}
 	lv := NewLexerVisitor(rm)
 	var lexResults []gen.LexerRule
-	for _, r := range antlr.LexRules {
+	for _, r := range lexRules {
 		if r.Fragment {
 			continue
 		}
@@ -79,8 +82,8 @@ func compute(antlr *ast.AntlrFile) (lexRules, parseObjs string, root *ast.Parser
 	structs := gen.NewTypeExtractor(sv.Structs).Extract()
 	objs := make([]string, len(structs))
 	for i, v := range structs {
-		gen.NewFieldRenamer().VisitStruct(v)
-		objs[i] = gen.NewPrinter().Visit(v)
+		new(gen.FieldRenamer).VisitStruct(v)
+		objs[i] = new(gen.Printer).Visit(v)
 	}
 	parseObjs = strings.Join(objs, "\n")
 
@@ -135,11 +138,11 @@ func compute(antlr *ast.AntlrFile) (lexRules, parseObjs string, root *ast.Parser
 
 	for _, lr := range lexResults {
 		// lexRules += fmt.Sprintf(`{"%s", %s, nil}, // Length: %d`, lr.Name, "`"+lr.Content+"`", lr.Length) + "\n"
-		lexRules += fmt.Sprintf(`{"%s", %s, nil},`, lr.Name, "`"+lr.Content+"`") + "\n"
+		lexRulesStr += fmt.Sprintf(`{"%s", %s, nil},`, lr.Name, "`"+lr.Content+"`") + "\n"
 	}
 
 	// Determine the root parser struct
-	for _, v := range antlr.PrsRules {
+	for _, v := range antlr.PrsRules() {
 		if sv.ChildRuleCounters[v.Name] == 0 {
 			root = v
 			break

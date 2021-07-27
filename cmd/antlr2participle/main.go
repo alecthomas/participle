@@ -36,7 +36,6 @@ func main() {
 
 			a, err := antlr.Parse(m, fd)
 			ctx.FatalIfErrorf(err)
-			a.SplitRules()
 
 			err = fd.Close()
 			ctx.FatalIfErrorf(err)

@@ -6,26 +6,23 @@ import (
 	"strings"
 )
 
+// Printer builds a string representation of a tree of Participle proto-structs.
 type Printer struct {
 	depth  int
 	result string
 }
 
-func NewPrinter() *Printer {
-	return &Printer{}
-}
-
-func (v *Printer) Visit(a interface {
-	Accept(Visitor)
-}) string {
-	if a == nil || reflect.ValueOf(a) == reflect.Zero(reflect.TypeOf(a)) {
+// Visit builds a string representation of a tree of proto-structs.
+func (v *Printer) Visit(n Node) string {
+	if n == nil || reflect.ValueOf(n) == reflect.Zero(reflect.TypeOf(n)) {
 		return ""
 	}
 	v.result = ""
-	a.Accept(v)
+	n.Accept(v)
 	return v.result
 }
 
+// VisitStruct implements the Visitor interface.
 func (v *Printer) VisitStruct(s *Struct) {
 	if s == nil {
 		return
@@ -37,6 +34,7 @@ func (v *Printer) VisitStruct(s *Struct) {
 	}
 }
 
+// VisitStructFields implements the Visitor interface.
 func (v *Printer) VisitStructFields(sf StructFields) {
 	ret := make([]string, len(sf))
 	for i, f := range sf {
@@ -45,6 +43,7 @@ func (v *Printer) VisitStructFields(sf StructFields) {
 	v.result = strings.Join(ret, "\n")
 }
 
+// VisitStructField implements the Visitor interface.
 func (v *Printer) VisitStructField(sf *StructField) {
 	v.depth++
 	sub := v.Visit(sf.SubType)

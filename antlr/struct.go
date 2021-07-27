@@ -10,6 +10,12 @@ import (
 	"github.com/alecthomas/repr"
 )
 
+// StructVisitor visits an Antlr grammar AST to build Participle
+// parse objects, or more accurately, proto-structs.
+//
+// It works by repeatedly accumulating information and then
+// coalescing it into a struct field.  It attempts to create
+// proto-structs that emulate hand-rolled Participle grammars.
 type StructVisitor struct {
 	ast.BaseVisitor
 
@@ -38,6 +44,7 @@ type StructVisitor struct {
 	debug           bool
 }
 
+// NewStructVisitor returns a ready StructVisitor.
 func NewStructVisitor(optRls map[string]bool, lexToks map[string]struct{}) *StructVisitor {
 	return &StructVisitor{
 		Result:            &gen.Struct{},
@@ -51,14 +58,17 @@ func NewStructVisitor(optRls map[string]bool, lexToks map[string]struct{}) *Stru
 	}
 }
 
+// ComputeStruct returns a Participle proto-struct made by processing one Antlr parser rule.
 func (sv *StructVisitor) ComputeStruct(pr *ast.ParserRule) *gen.Struct {
 	sv.Visit(pr)
 	return sv.Result
 }
 
-func (sv *StructVisitor) Visit(a interface {
-	Accept(ast.Visitor)
-}) {
+// Visit walks Antlr AST and builds a proto-struct.
+// It is suitable for use at any point of the AST.
+// When it finishes walking, any trailing information in the accumulator
+// is appropriately merged into an existing or new struct field.
+func (sv *StructVisitor) Visit(a ast.Node) {
 	sv.visit(a)
 	if sv.lastCapture > -1 {
 		sv.printf("Completed a VISIT, squashing remaining to index %d: %s", sv.lastCapture, repr.String(sv.accum))
@@ -85,6 +95,7 @@ func (sv *StructVisitor) visit(a interface {
 	a.Accept(sv)
 }
 
+// VisitParserRule builds a proto-struct from a parser rule.
 func (sv *StructVisitor) VisitParserRule(pr *ast.ParserRule) {
 	// If the rule is just multiple literals, rewrite the AST to group them and thereby match them all in one field.
 	v := sv.doSubVisit(pr.Alt)
@@ -105,6 +116,7 @@ func (sv *StructVisitor) VisitParserRule(pr *ast.ParserRule) {
 	sv.visit(pr.Alt)
 }
 
+// VisitParserRule builds field information from an Antlr rule alternative.
 func (sv *StructVisitor) VisitAlternative(a *ast.Alternative) {
 	// A parser rule alternate can be empty, which marks the entire rule as optional.
 	// Such an alternate doesn't impact the internals of this rule, so ignore the node and/or rewrite the tree to remove it.
@@ -153,6 +165,7 @@ func (sv *StructVisitor) VisitAlternative(a *ast.Alternative) {
 	}
 }
 
+// VisitParserRule builds field information from an Antlr rule expression.
 func (sv *StructVisitor) VisitExpression(exp *ast.Expression) {
 	sv.lbls.push(ifStrPtr(exp.Label))
 	sv.visit(exp.Unary)
@@ -164,6 +177,7 @@ func (sv *StructVisitor) VisitExpression(exp *ast.Expression) {
 	}
 }
 
+// VisitParserRule builds field information from an Antlr rule unary operator.
 func (sv *StructVisitor) VisitUnary(u *ast.Unary) {
 	if u.Unary != nil {
 		sv.nots.push(u.Op == "~")
@@ -176,6 +190,7 @@ func (sv *StructVisitor) VisitUnary(u *ast.Unary) {
 	}
 }
 
+// VisitParserRule builds field information from an Antlr rule terminal or sub-rule.
 func (sv *StructVisitor) VisitPrimary(pr *ast.Primary) {
 	if pr == nil {
 		return
@@ -285,7 +300,7 @@ func (sv *StructVisitor) VisitPrimary(pr *ast.Primary) {
 			}
 			sv.accum = append(sv.accum, &gen.StructField{
 				Name:    toCamel(lbl),
-				RawType: ifStr(lbl != "", strTern(countCap > 1 || NewAltCounter().CountAlts(pr.Sub) > 1, "*string", "bool")),
+				RawType: ifStr(lbl != "", strTern(countCap > 1 || new(AltCounter).CountAlts(pr.Sub) > 1, "*string", "bool")),
 				Tag:     ifStr(lbl != "", "@") + ifStr(not, "!") + "(",
 			})
 

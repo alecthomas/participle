@@ -203,15 +203,16 @@ func TestLexableToRegex(t *testing.T) {
 		if err := p.ParseString("", test.code, dst); err != nil {
 			t.Fatal(err)
 		}
-		dst.SplitRules()
+
+		lrs := dst.LexRules()
 		rm := map[string]*ast.LexerRule{}
-		for _, lr := range dst.LexRules {
+		for _, lr := range lrs {
 			rm[lr.Name] = lr
 		}
 		lv := NewLexerVisitor(rm)
 		lv.debug = test.debug
 		lexables := map[string]gen.LexerRule{}
-		for _, v := range dst.LexRules {
+		for _, v := range lrs {
 			lexables[v.Name] = lv.Visit(v)
 		}
 		assert.Equal(t, test.result, lexables[test.rule].Content, "%s", test.rule)

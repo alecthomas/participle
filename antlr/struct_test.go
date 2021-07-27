@@ -301,9 +301,9 @@ func TestStructGenFromParserRule(t *testing.T) {
 		v.debug = test.debug
 		v.Visit(dst)
 
-		gen.NewFieldRenamer().VisitStruct(v.Result)
+		new(gen.FieldRenamer).VisitStruct(v.Result)
 
-		assert.Equal(t, test.result, gen.NewPrinter().Visit(v.Result), test.name)
+		assert.Equal(t, test.result, new(gen.Printer).Visit(v.Result), test.name)
 		// })
 	}
 }

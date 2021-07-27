@@ -80,7 +80,6 @@ BACKUP: 'BACKUP';
 		if err := Parser.ParseString("", test.code, ast); err != nil {
 			t.Fatal(err)
 		}
-		ast.SplitRules()
 		assert.Equal(t, orStr(test.sr, test.code), NewPrinter().Visit(ast))
 	}
 }

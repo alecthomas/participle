@@ -15,19 +15,17 @@ func NewPrinter() *Printer {
 	return &Printer{}
 }
 
-func (prn *Printer) Visit(a interface {
-	Accept(Visitor)
-}) string {
+func (prn *Printer) Visit(n Node) string {
 	prn.result = ""
-	a.Accept(prn)
+	n.Accept(prn)
 	return prn.result
 }
 
 func (prn *Printer) VisitAntlrFile(af *AntlrFile) {
 	prn.result = prn.Visit(af.Grammar) + "\n\n" +
 		ifStr(af.Options != nil, prn.Visit(af.Options)+"\n\n") +
-		prn.Visit(af.LexRules) +
-		prn.Visit(af.PrsRules)
+		prn.Visit(af.LexRules()) +
+		prn.Visit(af.PrsRules())
 }
 
 func (prn *Printer) VisitGrammarStmt(gs *GrammarStmt) {
@@ -151,9 +149,7 @@ func ifStr(b bool, s string) string {
 
 func ifStrPtr(sp *string, quotes ...string) string {
 	if sp != nil {
-		// esc := QuoteToASCIIWith(*sp, '\'')
 		esc := *sp
-		// esc = esc[1 : len(esc)-1]
 		if len(quotes) > 1 {
 			return quotes[0] + esc + quotes[1]
 		}

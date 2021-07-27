@@ -50,7 +50,7 @@ func TestCheckOptional(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			v := NewOptionalChecker()
+			v := new(OptionalChecker)
 			assert.True(t, v.RuleIsOptional(dst))
 		})
 	}

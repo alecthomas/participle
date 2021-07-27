@@ -2,14 +2,13 @@ package gen
 
 import "strconv"
 
+// FieldRenamer walks a tree of Participle proto-structs and renames
+// any fields with conflicting names.
 type FieldRenamer struct {
 	nameCounter []map[string]int
 }
 
-func NewFieldRenamer() *FieldRenamer {
-	return &FieldRenamer{}
-}
-
+// VisitStruct implements the Visitor interface.
 func (v *FieldRenamer) VisitStruct(s *Struct) {
 	if s == nil {
 		return
@@ -19,12 +18,14 @@ func (v *FieldRenamer) VisitStruct(s *Struct) {
 	v.nameCounter = v.nameCounter[:len(v.nameCounter)-1]
 }
 
+// VisitStructFields implements the Visitor interface.
 func (v *FieldRenamer) VisitStructFields(sf StructFields) {
 	for _, f := range sf {
 		f.Accept(v)
 	}
 }
 
+// VisitStructField implements the Visitor interface.
 func (v *FieldRenamer) VisitStructField(sf *StructField) {
 	nc := v.nameCounter[len(v.nameCounter)-1]
 	nc[sf.Name]++

@@ -51,7 +51,6 @@ func TestComputedLexerBody(t *testing.T) {
 		if err := p.ParseString("", test.code, dst); err != nil {
 			t.Fatal(err)
 		}
-		dst.SplitRules()
 
 		lexRules, _, _, err := compute(dst)
 		if err != nil {
@@ -89,7 +88,6 @@ func TestComputedParseObjects(t *testing.T) {
 		if err := p.ParseString("", test.code, dst); err != nil {
 			t.Fatal(err)
 		}
-		dst.SplitRules()
 
 		_, parseObjs, _, err := compute(dst)
 		if err != nil {
@@ -125,7 +123,6 @@ func TestConvertWholeGrammar(t *testing.T) {
 		if err := p.ParseBytes(test.grammar, b, dst); err != nil {
 			t.Fatal(err)
 		}
-		dst.SplitRules()
 
 		lexRules, parseObjs, root, err := compute(dst)
 		if err != nil {

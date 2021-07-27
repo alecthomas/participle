@@ -5,6 +5,8 @@ import (
 	"github.com/alecthomas/participle/v2/antlr/gen"
 )
 
+// AntlrVisitor recursively builds Participle proto-structs
+// out of an Antlr grammar AST.
 type AntlrVisitor struct {
 	ast.BaseVisitor
 
@@ -15,6 +17,7 @@ type AntlrVisitor struct {
 	LexerTokens       map[string]struct{}
 }
 
+// NewAntlrVisitor returns a prepared AntlrVisitor.
 func NewAntlrVisitor() *AntlrVisitor {
 	return &AntlrVisitor{
 		ChildRuleCounters: map[string]int{},
@@ -23,15 +26,20 @@ func NewAntlrVisitor() *AntlrVisitor {
 	}
 }
 
+// VisitAntlrFile implements the ast.Visitor interface.
 func (sv *AntlrVisitor) VisitAntlrFile(af *ast.AntlrFile) {
-	for _, pr := range af.PrsRules {
-		sv.OptionalRules[pr.Name] = NewOptionalChecker().RuleIsOptional(pr)
+	rules := af.PrsRules()
+	for _, pr := range rules {
+		sv.OptionalRules[pr.Name] = new(OptionalChecker).RuleIsOptional(pr)
 	}
-	for _, pr := range af.PrsRules {
+	for _, pr := range rules {
 		pr.Accept(sv)
 	}
 }
 
+// VisitParserRule implements the ast.Visitor interface.
+// It uses a StructVisitor to generate a Participle proto-struct
+// corresponding to an Antlr parser rule.
 func (sv *AntlrVisitor) VisitParserRule(pr *ast.ParserRule) {
 	v := NewStructVisitor(sv.OptionalRules, sv.LexerTokens)
 	v.ComputeStruct(pr)

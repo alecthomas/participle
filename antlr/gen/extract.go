@@ -7,12 +7,14 @@ type structAndIndex struct {
 	indexes []int
 }
 
-// TypeExtractor finds nested type definitions and pulls them out into the top layer.
+// TypeExtractor finds nested type definitions in a slice of Participle
+// proto-structs and pulls them out into the top layer.
 type TypeExtractor struct {
 	structs map[string]structAndIndex
 	pos     intStack
 }
 
+// NewTypeExtractor returns a TypeExtractor.
 func NewTypeExtractor(ss []*Struct) *TypeExtractor {
 	ret := &TypeExtractor{
 		structs: make(map[string]structAndIndex, len(ss)),
@@ -23,6 +25,8 @@ func NewTypeExtractor(ss []*Struct) *TypeExtractor {
 	return ret
 }
 
+// Extract visits a tree of Participle proto-structs, extracts the sub-types
+// to the top level, and sorts the results appropriately.
 func (v *TypeExtractor) Extract() []*Struct {
 	for _, s := range v.structs {
 		v.pos.push(s.indexes[0])
@@ -54,6 +58,7 @@ func (v *TypeExtractor) Extract() []*Struct {
 	return ret
 }
 
+// VisitStruct implements the Visitor interface.
 func (v *TypeExtractor) VisitStruct(s *Struct) {
 	s.Fields.Accept(v)
 	sai := structAndIndex{s: s, indexes: make([]int, len(v.pos.stack))}
@@ -61,6 +66,7 @@ func (v *TypeExtractor) VisitStruct(s *Struct) {
 	v.structs[s.Name] = sai
 }
 
+// VisitStructFields implements the Visitor interface.
 func (v *TypeExtractor) VisitStructFields(sf StructFields) {
 	for i, f := range sf {
 		v.pos.push(i)
@@ -69,6 +75,7 @@ func (v *TypeExtractor) VisitStructFields(sf StructFields) {
 	}
 }
 
+// VisitStructField implements the Visitor interface.
 func (v *TypeExtractor) VisitStructField(sf *StructField) {
 	if sf.SubType == nil {
 		return

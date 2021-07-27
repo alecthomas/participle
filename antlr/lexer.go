@@ -13,6 +13,7 @@ import (
 
 var reUnicodeEscape = regexp.MustCompile(`\\u([0-9a-fA-F]{4})`)
 
+// LexerVisitor visits an Antlr grammar AST to build Participle lexer rules.
 type LexerVisitor struct {
 	ast.BaseVisitor
 
@@ -29,6 +30,7 @@ type LexerVisitor struct {
 	result gen.LexerRule
 }
 
+// NewLexerVisitor returns a ready LexerVisitor.
 func NewLexerVisitor(rm map[string]*ast.LexerRule) *LexerVisitor {
 	return &LexerVisitor{
 		RuleMap:       rm,
@@ -36,9 +38,8 @@ func NewLexerVisitor(rm map[string]*ast.LexerRule) *LexerVisitor {
 	}
 }
 
-func (lv *LexerVisitor) Visit(a interface {
-	Accept(ast.Visitor)
-}) gen.LexerRule {
+// Visit builds information a Participle lexer rule.
+func (lv *LexerVisitor) Visit(a ast.Node) gen.LexerRule {
 	lv.printf("LexerVisitor Start: %T", a)
 	lv.result = gen.LexerRule{}
 	a.Accept(lv)
@@ -46,6 +47,8 @@ func (lv *LexerVisitor) Visit(a interface {
 	return lv.result
 }
 
+// VisitLexerRule computes a full Participle lexer rule from an Antlr lexer rule.
+// Note that recursive Antlr lexer rules are not supported and will cause a panic.
 func (lv *LexerVisitor) VisitLexerRule(lr *ast.LexerRule) {
 	if comp, exist := lv.computedRules[lr]; exist {
 		lv.result = comp
@@ -64,6 +67,7 @@ func (lv *LexerVisitor) VisitLexerRule(lr *ast.LexerRule) {
 	lv.result = ret
 }
 
+// VisitAlternative generates lexing information from one Antlr rule alternate.
 func (lv *LexerVisitor) VisitAlternative(a *ast.Alternative) {
 	// TODO: Handle the label
 	exp := lv.Visit(a.Exp)
@@ -90,6 +94,7 @@ func (lv *LexerVisitor) VisitAlternative(a *ast.Alternative) {
 	}
 }
 
+// VisitExpression generates lexing information from one Antlr rule expression.
 func (lv *LexerVisitor) VisitExpression(exp *ast.Expression) {
 	// TODO: Handle the label & op
 	ret := lv.Visit(exp.Unary)
@@ -99,6 +104,7 @@ func (lv *LexerVisitor) VisitExpression(exp *ast.Expression) {
 	lv.result = ret
 }
 
+// VisitUnary generates lexing information from one Antlr unary operator.
 func (lv *LexerVisitor) VisitUnary(u *ast.Unary) {
 	if u.Unary != nil {
 		lv.negated.push(u.Op == "~")
@@ -111,6 +117,7 @@ func (lv *LexerVisitor) VisitUnary(u *ast.Unary) {
 	}
 }
 
+// VisitPrimary generates lexing information from one Antlr rule terminal or sub-rule.
 func (lv *LexerVisitor) VisitPrimary(pr *ast.Primary) {
 	sf := pr.Arity + ifStr(pr.NonGreedy, "?")
 	suffix := gen.LexerRule{
@@ -189,6 +196,7 @@ func (lv *LexerVisitor) VisitPrimary(pr *ast.Primary) {
 	lv.result = ret.Plus(suffix)
 }
 
+// VisitCharRange generates lexing information from an Antlr character range.
 func (lv *LexerVisitor) VisitCharRange(cr *ast.CharRange) {
 	start, end := stripQuotes(fixUnicodeEscapes(cr.Start)), stripQuotes(fixUnicodeEscapes(cr.End))
 	lv.result = gen.LexerRule{
