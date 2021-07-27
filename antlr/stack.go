@@ -8,7 +8,7 @@ func (ss *strStack) push(s string) {
 	ss.stack = append(ss.stack, s)
 }
 
-func (ss *strStack) pop() string {
+func (ss *strStack) pop() string { //nolint:unparam
 	s := ss.peek()
 	ss.stack = ss.stack[:len(ss.stack)-1]
 	return s
@@ -42,7 +42,7 @@ func (bs *boolStack) push(b bool) {
 	bs.stack = append(bs.stack, b)
 }
 
-func (bs *boolStack) pop() bool {
+func (bs *boolStack) pop() bool { //nolint:unparam
 	b := bs.peek()
 	bs.stack = bs.stack[:len(bs.stack)-1]
 	return b

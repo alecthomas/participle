@@ -31,7 +31,7 @@ func main() {
 
 		for _, m := range matches {
 			ctx.Printf("Reading: %s", m)
-			fd, err := os.Open(m)
+			fd, err := os.Open(m) //nolint:gosec
 			ctx.FatalIfErrorf(err)
 
 			a, err := antlr.Parse(m, fd)
@@ -54,7 +54,7 @@ func main() {
 		name = cli.Name
 	}
 
-	err = os.MkdirAll(name, 0777)
+	err = os.MkdirAll(name, 0750)
 	ctx.FatalIfErrorf(err)
 
 	fd, err := os.Create(filepath.Join(name, "parser.go"))

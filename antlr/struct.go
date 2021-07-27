@@ -116,7 +116,7 @@ func (sv *StructVisitor) VisitParserRule(pr *ast.ParserRule) {
 	sv.visit(pr.Alt)
 }
 
-// VisitParserRule builds field information from an Antlr rule alternative.
+// VisitAlternative builds field information from an Antlr rule alternative.
 func (sv *StructVisitor) VisitAlternative(a *ast.Alternative) {
 	// A parser rule alternate can be empty, which marks the entire rule as optional.
 	// Such an alternate doesn't impact the internals of this rule, so ignore the node and/or rewrite the tree to remove it.
@@ -165,7 +165,7 @@ func (sv *StructVisitor) VisitAlternative(a *ast.Alternative) {
 	}
 }
 
-// VisitParserRule builds field information from an Antlr rule expression.
+// VisitExpression builds field information from an Antlr rule expression.
 func (sv *StructVisitor) VisitExpression(exp *ast.Expression) {
 	sv.lbls.push(ifStrPtr(exp.Label))
 	sv.visit(exp.Unary)
@@ -177,7 +177,7 @@ func (sv *StructVisitor) VisitExpression(exp *ast.Expression) {
 	}
 }
 
-// VisitParserRule builds field information from an Antlr rule unary operator.
+// VisitUnary builds field information from an Antlr rule unary operator.
 func (sv *StructVisitor) VisitUnary(u *ast.Unary) {
 	if u.Unary != nil {
 		sv.nots.push(u.Op == "~")
@@ -190,7 +190,7 @@ func (sv *StructVisitor) VisitUnary(u *ast.Unary) {
 	}
 }
 
-// VisitParserRule builds field information from an Antlr rule terminal or sub-rule.
+// VisitPrimary builds field information from an Antlr rule terminal or sub-rule.
 func (sv *StructVisitor) VisitPrimary(pr *ast.Primary) {
 	if pr == nil {
 		return

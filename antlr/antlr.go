@@ -1,3 +1,5 @@
+// Package antlr provides visitors for converting an Antlr grammar AST
+// into a Participle lexer and parser.
 package antlr
 
 import (

@@ -21,7 +21,7 @@ func (oc *OptionalChecker) VisitParserRule(pr *ast.ParserRule) {
 	pr.Alt.Accept(oc)
 }
 
-// VisitParserRule implements the ast.Visitor interface.
+// VisitAlternative implements the ast.Visitor interface.
 func (oc *OptionalChecker) VisitAlternative(a *ast.Alternative) {
 	if a.Exp == nil || a.EmptyNext {
 		oc.optional = true

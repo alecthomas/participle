@@ -1,3 +1,5 @@
+// Package ast contains a lexer and parser for ANTLR grammar files,
+// as well as all of the resulting AST objects.
 package ast
 
 import (
@@ -120,7 +122,7 @@ func (af *AntlrFile) LexRules() (ret LexerRules) {
 	return
 }
 
-// LexRules returns all of the parser rules present in the Antlr file.
+// PrsRules returns all of the parser rules present in the Antlr file.
 func (af *AntlrFile) PrsRules() (ret ParserRules) {
 	ret = make(ParserRules, 0, len(af.Rules))
 	for _, r := range af.Rules {
@@ -221,7 +223,7 @@ func (pr ParserRules) Accept(v Visitor) {
 	v.VisitParserRules(pr)
 }
 
-// ParseRule represents one named parser rule in the Antlr grammar.
+// ParserRule represents one named parser rule in the Antlr grammar.
 // Parser rules begin with a lowercase letter.
 type ParserRule struct {
 	Name string       `parser:" @LowerIdent ':' "`
@@ -241,7 +243,7 @@ func (lr LexerRules) Accept(v Visitor) {
 	v.VisitLexerRules(lr)
 }
 
-// ParseRule represents one named lexer rule in the Antlr grammar.
+// LexerRule represents one named lexer rule in the Antlr grammar.
 // Lexer rules begin with an uppercase letter.
 type LexerRule struct {
 	Fragment bool         `parser:" @'fragment'? "`

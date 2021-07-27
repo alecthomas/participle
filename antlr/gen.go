@@ -60,7 +60,7 @@ func compute(antlr *ast.AntlrFile) (lexRulesStr, parseObjs string, root *ast.Par
 		rm[lr.Name] = lr
 	}
 	lv := NewLexerVisitor(rm)
-	var lexResults []gen.LexerRule
+	lexResults := make([]gen.LexerRule, 0, len(lexRules))
 	for _, r := range lexRules {
 		if r.Fragment {
 			continue
