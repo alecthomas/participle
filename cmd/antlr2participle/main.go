@@ -14,9 +14,10 @@ import (
 )
 
 var cli struct {
-	Grammar      []string `arg required help:"The .g4 files to process.  Globs accepted."`
-	Name         string   `short:"n" help:"Override the generated package name."`
-	AltTagFormat bool     `short:"f" help:"Use the 'parser:\"xxx\"' struct tag format."`
+	Grammar         []string `arg required help:"The .g4 files to process.  Globs accepted."`
+	Name            string   `short:"n" help:"Override the generated package name."`
+	AltTagFormat    bool     `short:"f" help:"Use the 'parser:\"xxx\"' struct tag format."`
+	ExplodeLiterals bool     `short:"e" help:"Generate a separate lexer rule for each implicit literal in the Antlr parser rules; may help with ambiguous lexer rules."`
 }
 
 func main() {
@@ -47,7 +48,7 @@ func main() {
 	}
 
 	buf := new(bytes.Buffer)
-	err := antlr.ParticipleFromAntlr(parsed, buf, cli.AltTagFormat)
+	err := antlr.ParticipleFromAntlr(parsed, buf, cli.AltTagFormat, !cli.ExplodeLiterals)
 	ctx.FatalIfErrorf(err)
 
 	name := parsed.Grammar.Name

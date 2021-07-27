@@ -12,9 +12,10 @@ import (
 
 func TestComputedLexerBody(t *testing.T) {
 	tt := []struct {
-		name   string
-		code   string
-		result string
+		name             string
+		code             string
+		collapseLiterals bool
+		result           string
 	}{
 		{
 			name: "shortest literals should sort to the top",
@@ -27,11 +28,22 @@ func TestComputedLexerBody(t *testing.T) {
 		},
 		{
 			name: "additional lexer elements from literals in parser rules",
-			code: `grammar Test; STRING: '"' ~'"'* '"'; cmd: '+' STRING;`,
+			code: `grammar Test; STRING: '"' ~'"'* '"'; cmd: '+' '-' STRING;`,
+			result: fmt.Sprintf(
+				"{%s, %s, nil},\n{%s, %s, nil},\n{%s, %s, nil},\n",
+				`"STRING"`, "`\"[^\"]*\"`",
+				`"XXX__LITERAL_Plus"`, "`\\+`",
+				`"XXX__LITERAL_Minus"`, "`-`",
+			),
+		},
+		{
+			name:             "collapsed literals",
+			code:             `grammar Test; STRING: '"' ~'"'* '"'; cmd: '+' '-' STRING;`,
+			collapseLiterals: true,
 			result: fmt.Sprintf(
 				"{%s, %s, nil},\n{%s, %s, nil},\n",
 				`"STRING"`, "`\"[^\"]*\"`",
-				`"XXX__LITERAL_Plus"`, "`\\+`",
+				`"XXX__LITERALS"`, "`\\+|-`",
 			),
 		},
 		{
@@ -52,7 +64,7 @@ func TestComputedLexerBody(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		lexRules, _, _, err := compute(dst, false)
+		lexRules, _, _, err := compute(dst, false, test.collapseLiterals)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -101,7 +113,7 @@ func TestComputedParseObjects(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		_, parseObjs, _, err := compute(dst, test.altTagFormat)
+		_, parseObjs, _, err := compute(dst, test.altTagFormat, false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -113,14 +125,14 @@ func TestComputedParseObjects(t *testing.T) {
 
 func TestConvertWholeGrammar(t *testing.T) {
 	tt := []struct {
-		grammar string
-		rules   string
-		structs string
-		root    string
+		grammar          string
+		root             string
+		collapseLiterals bool
 	}{
 		{
-			grammar: "json",
-			root:    "json",
+			grammar:          "json",
+			root:             "json",
+			collapseLiterals: true,
 		},
 	}
 
@@ -136,7 +148,7 @@ func TestConvertWholeGrammar(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		lexRules, parseObjs, root, err := compute(dst, false)
+		lexRules, parseObjs, root, err := compute(dst, false, test.collapseLiterals)
 		if err != nil {
 			t.Fatal(err)
 		}

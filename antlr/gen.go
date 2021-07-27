@@ -16,9 +16,9 @@ import (
 
 // ParticipleFromAntlr produces Go source code from an Antlr grammar AST.
 // The code includes a Participle lexer and parse objects.
-func ParticipleFromAntlr(antlr *ast.AntlrFile, w io.Writer, altTagFormat bool) error {
+func ParticipleFromAntlr(antlr *ast.AntlrFile, w io.Writer, altTagFormat, collapseLiterals bool) error {
 
-	rulebody, parseObjs, root, err := compute(antlr, altTagFormat)
+	rulebody, parseObjs, root, err := compute(antlr, altTagFormat, collapseLiterals)
 	if err != nil {
 		return err
 	}
@@ -52,7 +52,7 @@ func ParticipleFromAntlr(antlr *ast.AntlrFile, w io.Writer, altTagFormat bool) e
 	return err
 }
 
-func compute(antlr *ast.AntlrFile, altTagFormat bool) (lexRulesStr, parseObjs string, root *ast.ParserRule, err error) {
+func compute(antlr *ast.AntlrFile, altTagFormat, collapseLiterals bool) (lexRulesStr, parseObjs string, root *ast.ParserRule, err error) {
 	// Compute each lexer rule
 	lexRules := antlr.LexRules()
 	rm := map[string]*ast.LexerRule{}
@@ -107,6 +107,8 @@ func compute(antlr *ast.AntlrFile, altTagFormat bool) (lexRulesStr, parseObjs st
 
 	// Add any lexer rules needed based on literals in the parsing rules
 	literals := dedupAndSort(sv.Literals)
+	literalsToAdd := make([]string, 0, len(literals))
+	maxLen := 0
 	for _, lit := range literals {
 		var found bool
 		for _, rule := range lv.RuleMap {
@@ -116,14 +118,27 @@ func compute(antlr *ast.AntlrFile, altTagFormat bool) (lexRulesStr, parseObjs st
 			}
 		}
 		if !found {
-			lexResults = append(lexResults, gen.LexerRule{
-				Name:    fmt.Sprintf("XXX__LITERAL_%s", toCamel(saySymbols(lit))),
-				Content: escapeRegexMeta(lit),
-				Length:  len(lit),
-			})
+			if collapseLiterals {
+				literalsToAdd = append(literalsToAdd, escapeRegexMeta(lit))
+				maxLen = max(maxLen, len(lit))
+			} else {
+				lexResults = append(lexResults, gen.LexerRule{
+					Name:    fmt.Sprintf("XXX__LITERAL_%s", toCamel(saySymbols(lit))),
+					Content: escapeRegexMeta(lit),
+					Length:  len(lit),
+				})
+			}
 		}
 	}
+	if len(literalsToAdd) > 0 {
+		lexResults = append(lexResults, gen.LexerRule{
+			Name:    "XXX__LITERALS",
+			Content: strings.Join(literalsToAdd, "|"),
+			Length:  maxLen,
+		})
+	}
 
+	// Not sorting the lexer rules currently, but this may come in handy some day.
 	// sort.SliceStable(lexResults, func(i, j int) bool {
 	// 	l, r := lexResults[i], lexResults[j]
 	// 	switch {
