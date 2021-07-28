@@ -1,6 +1,6 @@
 package antlr
 
-import "github.com/alecthomas/participle/v2/antlr/ast"
+import "github.com/alecthomas/participle/v2/experimental/antlr/ast"
 
 // OptionalChecker visits an Antlr parser rule to see if it contains
 // an empty alternative, which marks the entire rule as optional.

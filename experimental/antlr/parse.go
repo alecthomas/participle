@@ -3,7 +3,7 @@ package antlr
 import (
 	"io"
 
-	"github.com/alecthomas/participle/v2/antlr/ast"
+	"github.com/alecthomas/participle/v2/experimental/antlr/ast"
 )
 
 // Parse generates a walkable AST from an Antlr grammar file.

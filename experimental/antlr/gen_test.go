@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"github.com/alecthomas/participle/v2/antlr/ast"
+	"github.com/alecthomas/participle/v2/experimental/antlr/ast"
 	"github.com/sebdah/goldie/v2"
 	"github.com/stretchr/testify/assert"
 )

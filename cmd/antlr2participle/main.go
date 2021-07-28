@@ -9,8 +9,8 @@ import (
 
 	"github.com/alecthomas/kong"
 
-	"github.com/alecthomas/participle/v2/antlr"
-	"github.com/alecthomas/participle/v2/antlr/ast"
+	"github.com/alecthomas/participle/v2/experimental/antlr"
+	"github.com/alecthomas/participle/v2/experimental/antlr/ast"
 )
 
 var cli struct {

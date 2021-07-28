@@ -1,6 +1,6 @@
 package antlr
 
-import "github.com/alecthomas/participle/v2/antlr/ast"
+import "github.com/alecthomas/participle/v2/experimental/antlr/ast"
 
 // AltCounter counts the Alternatives in a portion of Antlr grammar AST.
 // It does not recurse.

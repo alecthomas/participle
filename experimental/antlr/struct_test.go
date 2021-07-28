@@ -3,8 +3,8 @@ package antlr
 import (
 	"testing"
 
-	"github.com/alecthomas/participle/v2/antlr/ast"
-	"github.com/alecthomas/participle/v2/antlr/gen"
+	"github.com/alecthomas/participle/v2/experimental/antlr/ast"
+	"github.com/alecthomas/participle/v2/experimental/antlr/gen"
 	"github.com/stretchr/testify/assert"
 )
 

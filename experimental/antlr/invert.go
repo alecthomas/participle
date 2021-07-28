@@ -3,7 +3,7 @@ package antlr
 import (
 	"reflect"
 
-	"github.com/alecthomas/participle/v2/antlr/ast"
+	"github.com/alecthomas/participle/v2/experimental/antlr/ast"
 )
 
 // CanInvert is an Antlr grammar AST visitor.
