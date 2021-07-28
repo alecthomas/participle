@@ -31,7 +31,7 @@ grammar CSV;
 csvFile: hdr row+ ;
 hdr : row ;
 
-row : field (',' field)* '\r'? '\n'? ;
+row : field (',' field)* '\r'? ('\n'|EOF) ;
 
 field
     : TEXT

@@ -30,7 +30,7 @@ type Hdr struct {
 	Row *Row `@@`
 }
 type Row struct {
-	Field []*Field `@@? ( ',' @@? )* '\r'? '\n'?`
+	Field []*Field `@@? ( ',' @@? )* '\r'? ( '\n' | EOF )`
 }
 type Field struct {
 	Text   *string `@TEXT`
