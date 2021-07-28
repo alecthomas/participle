@@ -77,7 +77,7 @@ func toCamel(s string) string {
 	return toCamelInitCase(s, true)
 }
 
-var charMap = []string{
+var charReplacer = strings.NewReplacer(
 	"!", "_bang_",
 	"@", "_at_",
 	"#", "_hash_",
@@ -116,11 +116,8 @@ var charMap = []string{
 	"/", "_fslash_",
 	"~", "_tilde_",
 	"`", "_tick_",
-}
+)
 
 func saySymbols(s string) string {
-	for i := 0; i < len(charMap); i += 2 {
-		s = strings.ReplaceAll(s, charMap[i], charMap[i+1])
-	}
-	return s
+	return charReplacer.Replace(s)
 }
