@@ -2,7 +2,10 @@
 package main
 
 import (
+	"embed"
+	"flag"
 	"fmt"
+	"io/ioutil"
 	"os"
 
 	"github.com/alecthomas/repr"
@@ -20,6 +23,11 @@ type production struct {
 	refs int
 	size int
 }
+
+// Embed the railroad-diagrams css and js files for later output.
+// From here: https://github.com/tabatkins/railroad-diagrams
+//go:embed assets/*
+var assets embed.FS
 
 func generate(productions map[string]*production, n ebnf.Node) (s string) {
 	switch n := n.(type) {
@@ -169,12 +177,68 @@ func countProductions(productions map[string]*production, n ebnf.Node) (size int
 func main() {
 	fmt.Fprintln(os.Stderr, "Generates railroad diagrams from a Participle EBNF grammar on stdin.")
 	fmt.Fprintln(os.Stderr, "  (EBNF is available from .String() on your parser)")
+	fmt.Fprintln(os.Stderr, "  (Use control-D to end input)")
+
+	help := flag.Bool("h", false, "output help and quit")
+	writeAssets := flag.Bool("w", false, "write css and js files")
+	outputFile := flag.String("o", "", "file to write html to")
+
+	flag.Parse()
+	if *help {
+
+		flag.PrintDefaults()
+		os.Exit(0)
+	}
+
 	ast, err := ebnf.Parse(os.Stdin)
 	if err != nil {
 		panic(err)
 	}
+
 	productions := map[string]*production{}
 	countProductions(productions, ast)
-	fmt.Println(generate(productions, ast))
-	fmt.Fprintln(os.Stderr, ">>> Copy railroad-diagrams.{css,js} from https://github.com/tabatkins/railroad-diagrams")
+	str := generate(productions, ast)
+
+	if *outputFile != "" {
+		err := ioutil.WriteFile(*outputFile, []byte(str), 0644)
+		if err != nil {
+			panic(err)
+		}
+
+		if *writeAssets {
+			err := writeAssetFiles()
+			if err != nil {
+				panic(err)
+			}
+		} else {
+			fmt.Fprintln(os.Stderr, ">>> Copy railroad-diagrams.{css,js} from https://github.com/tabatkins/railroad-diagrams")
+		}
+
+		fmt.Fprintf(os.Stderr, ">>> File written: %s\n", *outputFile)
+	} else {
+		fmt.Println(str)
+		fmt.Fprintln(os.Stderr, ">>> Copy railroad-diagrams.{css,js} from https://github.com/tabatkins/railroad-diagrams")
+	}
+}
+
+func writeAssetFiles() (err error) {
+	files, err := assets.ReadDir("assets")
+	if err != nil {
+		return
+	}
+
+	for _, f := range files {
+		fileName := f.Name()
+		data, err := assets.ReadFile(fmt.Sprintf("assets/%s", fileName))
+		if err != nil {
+			return err
+		}
+		err = ioutil.WriteFile(fileName, data, 0644)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(os.Stderr, ">>> File written: %s\n", fileName)
+	}
+
+	return
 }
