@@ -145,6 +145,8 @@ func countProductions(productions map[string]*production, n ebnf.Node) (size int
 		for _, a := range n.Alternatives {
 			size += countProductions(productions, a)
 		}
+	case *ebnf.SubExpression:
+		size += countProductions(productions, n.Expr)
 	case *ebnf.Sequence:
 		for _, t := range n.Terms {
 			size += countProductions(productions, t)
