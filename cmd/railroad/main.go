@@ -200,7 +200,7 @@ func main() {
 	str := generate(productions, ast)
 
 	if *outputFile != "" {
-		err := ioutil.WriteFile(*outputFile, []byte(str), 0644)
+		err := ioutil.WriteFile(*outputFile, []byte(str), 0644) // nolint
 		if err != nil {
 			panic(err)
 		}
@@ -233,7 +233,7 @@ func writeAssetFiles() (err error) {
 		if err != nil {
 			return err
 		}
-		err = ioutil.WriteFile(fileName, data, 0644)
+		err = ioutil.WriteFile(fileName, data, 0644) // nolint
 		if err != nil {
 			return err
 		}
