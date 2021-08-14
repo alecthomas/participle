@@ -34,7 +34,9 @@
 ## V2
 <a id="markdown-v2" name="v2"></a>
 
-This is version 2 of Participle. See the [Change Log](CHANGES.md) for details.
+This is an alpha of version 2 of Participle. It is still subject to change but should be mostly stable at this point.
+
+See the [Change Log](CHANGES.md) for details.
 
 > **Note:** semantic versioning API guarantees do not apply to the [experimental](https://pkg.go.dev/github.com/alecthomas/participle/v2/experimental) packages - the API may break between minor point releases.
 
