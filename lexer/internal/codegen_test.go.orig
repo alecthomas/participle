@@ -36,8 +36,13 @@ var (
 )
 
 func TestGenerate(t *testing.T) {
+<<<<<<< HEAD
 	w, err := os.Create("codegen_gen_test.go~")
+	require.NoError(t, err)
+=======
+	w, err := os.Create("codegen_gen_test.go")
 	assert.NoError(t, err)
+>>>>>>> 703c5a4 (A branch of Participle 2 using Go 1.18 generics.)
 	defer w.Close()
 	defer os.Rename("codegen_gen_test.go~", "codegen_gen_test.go") // nolint
 	err = lexer.ExperimentalGenerateLexer(w, "internal_test", exprLexer)

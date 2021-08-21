@@ -5,13 +5,13 @@ import (
 	"testing"
 
 	"github.com/alecthomas/repr"
-	"github.com/stretchr/testify/require"
+	"github.com/alecthomas/assert/v2"
 )
 
 func TestExe(t *testing.T) {
 	program := &Program{}
 	err := parser.ParseString("", sample, program)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	repr.Println(program)
 }
 

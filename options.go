@@ -5,11 +5,11 @@ import (
 )
 
 // An Option to modify the behaviour of the Parser.
-type Option func(p *Parser) error
+type Option func(p *options) error
 
 // Lexer is an Option that sets the lexer to use with the given grammar.
 func Lexer(def lexer.Definition) Option {
-	return func(p *Parser) error {
+	return func(p *options) error {
 		p.lex = def
 		return nil
 	}
@@ -22,7 +22,7 @@ func Lexer(def lexer.Definition) Option {
 // Note that increasing lookahead has a minor performance impact, but also
 // reduces the accuracy of error reporting.
 func UseLookahead(n int) Option {
-	return func(p *Parser) error {
+	return func(p *options) error {
 		p.useLookahead = n
 		return nil
 	}
@@ -33,7 +33,7 @@ func UseLookahead(n int) Option {
 // Note that the lexer itself will also have to be case-insensitive; this option
 // just controls whether literals in the grammar are matched case insensitively.
 func CaseInsensitive(tokens ...string) Option {
-	return func(p *Parser) error {
+	return func(p *options) error {
 		for _, token := range tokens {
 			p.caseInsensitive[token] = true
 		}

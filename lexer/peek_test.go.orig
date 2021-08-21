@@ -22,11 +22,26 @@ func (s *staticLexer) Next() (lexer.Token, error) {
 }
 
 func TestUpgrade(t *testing.T) {
+<<<<<<< HEAD
 	t0 := lexer.Token{Type: 1, Value: "moo"}
 	ts := lexer.Token{Type: 3, Value: " "}
 	t1 := lexer.Token{Type: 2, Value: "blah"}
 	tokens := []lexer.Token{t0, ts, t1}
 	l, err := lexer.Upgrade(&staticLexer{tokens: tokens}, 3)
+	require.NoError(t, err)
+	require.Equal(t, t0, mustPeek(t, l, 0))
+	require.Equal(t, t0, mustPeek(t, l, 0))
+	require.Equal(t, t1, mustPeek(t, l, 1))
+	require.Equal(t, t1, mustPeek(t, l, 1))
+	require.True(t, mustPeek(t, l, 2).EOF())
+	require.True(t, mustPeek(t, l, 3).EOF())
+	require.Equal(t, tokens, l.Range(0, 3))
+=======
+	t0 := Token{Type: 1, Value: "moo"}
+	ts := Token{Type: 3, Value: " "}
+	t1 := Token{Type: 2, Value: "blah"}
+	tokens := []Token{t0, ts, t1}
+	l, err := Upgrade(&staticLexer{tokens: tokens}, 3)
 	assert.NoError(t, err)
 	assert.Equal(t, t0, mustPeek(t, l, 0))
 	assert.Equal(t, t0, mustPeek(t, l, 0))
@@ -35,6 +50,7 @@ func TestUpgrade(t *testing.T) {
 	assert.True(t, mustPeek(t, l, 2).EOF())
 	assert.True(t, mustPeek(t, l, 3).EOF())
 	assert.Equal(t, tokens, l.Range(0, 3))
+>>>>>>> 703c5a4 (A branch of Participle 2 using Go 1.18 generics.)
 }
 
 func mustPeek(t *testing.T, lexer *lexer.PeekingLexer, n int) lexer.Token {

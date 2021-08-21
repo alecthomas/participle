@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/alecthomas/assert/v2"
 )
 
 func TestExe(t *testing.T) {
@@ -39,5 +39,5 @@ service SearchService {
   rpc Search(SearchRequest) returns (SearchResponse);
 }
 `, ast)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 }

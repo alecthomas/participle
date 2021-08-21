@@ -5,7 +5,7 @@ import (
 	"testing"
 	"text/scanner"
 
-	"github.com/stretchr/testify/require"
+	"github.com/alecthomas/assert/v2"
 
 	"github.com/alecthomas/participle/v2/lexer"
 )
@@ -17,19 +17,19 @@ func TestStructLexerTokens(t *testing.T) {
 	}
 
 	scan, err := lexStruct(reflect.TypeOf(testScanner{}))
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	t12 := lexer.Token{Type: scanner.Int, Value: "12", Pos: lexer.Position{Filename: "testScanner", Line: 1, Column: 1}}
 	t34 := lexer.Token{Type: scanner.Int, Value: "34", Pos: lexer.Position{Filename: "B", Line: 2, Column: 1}}
-	require.Equal(t, t12, mustPeek(scan))
-	require.Equal(t, 0, scan.field)
-	require.Equal(t, t12, mustNext(scan))
+	assert.Equal(t, t12, mustPeek(scan))
+	assert.Equal(t, 0, scan.field)
+	assert.Equal(t, t12, mustNext(scan))
 
-	require.Equal(t, t34, mustPeek(scan))
-	require.Equal(t, 0, scan.field)
-	require.Equal(t, t34, mustNext(scan))
-	require.Equal(t, 1, scan.field)
+	assert.Equal(t, t34, mustPeek(scan))
+	assert.Equal(t, 0, scan.field)
+	assert.Equal(t, t34, mustNext(scan))
+	assert.Equal(t, 1, scan.field)
 
-	require.True(t, mustNext(scan).EOF())
+	assert.True(t, mustNext(scan).EOF())
 }
 
 func TestStructLexer(t *testing.T) {
@@ -40,24 +40,24 @@ func TestStructLexer(t *testing.T) {
 
 	gt := reflect.TypeOf(g)
 	r, err := lexStruct(gt)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	f := []structLexerField{}
 	s := ""
 	for {
 		_, err := r.Peek()
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		rn, err := r.Next()
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		if rn.EOF() {
 			break
 		}
 		f = append(f, r.Field())
 		s += rn.String()
 	}
-	require.Equal(t, `a|b`, s)
+	assert.Equal(t, `a|b`, s)
 	f0 := r.GetField(0)
 	f1 := r.GetField(1)
-	require.Equal(t, []structLexerField{f0, f0, f1}, f)
+	assert.Equal(t, []structLexerField{f0, f0, f1}, f)
 }
 
 type testEmbeddedIndexes struct {
@@ -72,8 +72,8 @@ func TestCollectFieldIndexes(t *testing.T) {
 	}
 	typ := reflect.TypeOf(grammar)
 	indexes, err := collectFieldIndexes(typ)
-	require.NoError(t, err)
-	require.Equal(t, [][]int{{0, 0}, {0, 1}, {1}}, indexes)
+	assert.NoError(t, err)
+	assert.Equal(t, [][]int{{0, 0}, {0, 1}, {1}}, indexes)
 }
 
 func mustPeek(scan *structLexer) lexer.Token {

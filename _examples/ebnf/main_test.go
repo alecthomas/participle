@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/alecthomas/assert/v2"
 )
 
 func TestExe(t *testing.T) {
@@ -16,5 +16,5 @@ Production  = name "=" [ Expression ] "." .
   Group       = "(" Expression ")" .
   Option      = "[" Expression "]" .
   Repetition  = "{" Expression "}" .`, ast)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 }

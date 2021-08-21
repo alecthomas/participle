@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/alecthomas/assert/v2"
 )
 
 func TestExe(t *testing.T) {
@@ -21,5 +21,5 @@ func TestExe(t *testing.T) {
 80  PRINT B
 `
 	_, err := Parse(strings.NewReader(src))
-	require.NoError(t, err)
+	assert.NoError(t, err)
 }

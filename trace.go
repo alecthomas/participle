@@ -9,7 +9,7 @@ import (
 
 // Trace the parse to "w".
 func Trace(w io.Writer) Option {
-	return func(p *Parser) error {
+	return func(p *options) error {
 		p.trace = w
 		return nil
 	}

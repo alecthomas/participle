@@ -35,16 +35,15 @@ type RHS struct {
 	RHS  *Expr  `@@`
 }
 
-var parser = participle.MustBuild(&Expr{}, participle.UseLookahead(1024))
+var parser = participle.MustBuild[Expr](participle.UseLookahead(1024))
 
 func main() {
-	expr := &Expr{}
-	err := parser.ParseString("", "hello < world * (1 + 3)", expr)
+	expr, err := parser.ParseString("", "hello < world * (1 + 3)")
 	if err != nil {
 		panic(err)
 	}
 	repr.Println(expr)
-	err = parser.ParseString("", "type<int, string>.method(1, 2, 3)", expr)
+	expr, err = parser.ParseString("", "type<int, string>.method(1, 2, 3)")
 	if err != nil {
 		panic(err)
 	}

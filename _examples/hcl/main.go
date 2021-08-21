@@ -3,10 +3,9 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strings"
-
-	"gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/alecthomas/repr"
 
@@ -63,11 +62,11 @@ type Config struct {
 var parser = participle.MustBuild(&Config{}, participle.Unquote())
 
 func main() {
-	kingpin.Parse()
-
 	expr := &Config{}
 	err := parser.Parse("", os.Stdin, expr)
-	kingpin.FatalIfError(err, "")
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	repr.Println(expr)
 }

@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/alecthomas/repr"
-	"github.com/stretchr/testify/require"
+	"github.com/alecthomas/assert/v2"
 )
 
 func TestExe(t *testing.T) {
@@ -36,6 +36,6 @@ directory data {
     post_restore_script = "after_restore.sh"
 }
 `, ast)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	repr.Println(ast)
 }

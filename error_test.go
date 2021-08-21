@@ -4,8 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/alecthomas/assert/v2"
 
 	"github.com/alecthomas/participle/v2"
 	"github.com/alecthomas/participle/v2/lexer"
@@ -27,29 +26,28 @@ func TestErrorReporting(t *testing.T) {
 	type grammar struct {
 		Decls []*decl `( @@ ";" )*`
 	}
-	p := mustTestParser(t, &grammar{}, participle.UseLookahead(5))
+	p := mustTestParser[grammar](t, participle.UseLookahead(5))
 
 	var err error
-	ast := &grammar{}
-	err = p.ParseString("", `public class A;`, ast)
+	_, err = p.ParseString("", `public class A;`)
 	assert.NoError(t, err)
-	err = p.ParseString("", `public union A;`, ast)
+	_, err = p.ParseString("", `public union A;`)
 	assert.NoError(t, err)
-	err = p.ParseString("", `public struct Bar;`, ast)
-	assert.EqualError(t, err, `1:8: unexpected token "struct" (expected "union" <ident>)`)
-	err = p.ParseString("", `public class 1;`, ast)
-	assert.EqualError(t, err, `1:14: unexpected token "1" (expected <ident>)`)
+	_, err = p.ParseString("", `public struct Bar;`)
+	assert.Equal(t, err.Error(), `1:8: unexpected token "struct" (expected "union" <ident>)`)
+	_, err = p.ParseString("", `public class 1;`)
+	assert.Equal(t, err.Error(), `1:14: unexpected token "1" (expected <ident>)`)
 }
 
 func TestErrorWrap(t *testing.T) {
 	expected := errors.New("badbad")
 	err := participle.Wrapf(lexer.Position{Line: 1, Column: 1}, expected, "bad: %d", 10)
-	require.Equal(t, expected, errors.Unwrap(err))
-	require.Equal(t, "1:1: bad: 10: badbad", err.Error())
+	assert.Equal(t, expected, errors.Unwrap(err))
+	assert.Equal(t, "1:1: bad: 10: badbad", err.Error())
 }
 
 func TestAnnotateError(t *testing.T) {
 	orig := errors.New("an error")
 	err := participle.AnnotateError(lexer.Position{Line: 1, Column: 1}, orig)
-	require.Equal(t, "1:1: an error", err.Error())
+	assert.Equal(t, "1:1: an error", err.Error())
 }

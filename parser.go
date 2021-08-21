@@ -10,8 +10,8 @@ import (
 	"github.com/alecthomas/participle/v2/lexer"
 )
 
-// A Parser for a particular grammar and lexer.
-type Parser struct {
+// Seperate struct so Option doesn't need to be generic.
+type options struct {
 	root            node
 	trace           io.Writer
 	lex             lexer.Definition
@@ -22,9 +22,12 @@ type Parser struct {
 	elide           []string
 }
 
+// A Parser for a particular grammar and lexer.
+type Parser[T any] struct{ options }
+
 // MustBuild calls Build(grammar, options...) and panics if an error occurs.
-func MustBuild(grammar interface{}, options ...Option) *Parser {
-	parser, err := Build(grammar, options...)
+func MustBuild[T any](options ...Option) *Parser[T] {
+	parser, err := Build[T](options...)
 	if err != nil {
 		panic(err)
 	}
@@ -37,15 +40,15 @@ func MustBuild(grammar interface{}, options ...Option) *Parser {
 // like tokens.
 //
 // See documentation for details
-func Build(grammar interface{}, options ...Option) (parser *Parser, err error) {
+func Build[T any](opts ...Option) (parser *Parser[T], err error) {
 	// Configure Parser struct with defaults + options.
-	p := &Parser{
+	p := &Parser[T]{options{
 		lex:             lexer.TextScannerLexer,
 		caseInsensitive: map[string]bool{},
 		useLookahead:    1,
-	}
-	for _, option := range options {
-		if err = option(p); err != nil {
+	}}
+	for _, option := range opts {
+		if err = option(&p.options); err != nil {
 			return nil, err
 		}
 	}
@@ -83,7 +86,8 @@ func Build(grammar interface{}, options ...Option) (parser *Parser, err error) {
 	}
 
 	context := newGeneratorContext(p.lex)
-	v := reflect.ValueOf(grammar)
+	var zero T
+	v := reflect.ValueOf(&zero)
 	if v.Kind() == reflect.Interface {
 		v = v.Elem()
 	}
@@ -102,12 +106,12 @@ func Build(grammar interface{}, options ...Option) (parser *Parser, err error) {
 }
 
 // Lexer returns the parser's builtin lexer.
-func (p *Parser) Lexer() lexer.Definition {
+func (p *Parser[T]) Lexer() lexer.Definition {
 	return p.lex
 }
 
 // Lex uses the parser's lexer to tokenise input.
-func (p *Parser) Lex(filename string, r io.Reader) ([]lexer.Token, error) {
+func (p *Parser[T]) Lex(filename string, r io.Reader) ([]lexer.Token, error) {
 	lex, err := p.lex.Lex(filename, r)
 	if err != nil {
 		return nil, err
@@ -120,7 +124,8 @@ func (p *Parser) Lex(filename string, r io.Reader) ([]lexer.Token, error) {
 // Build().
 //
 // This may return a Error.
-func (p *Parser) ParseFromLexer(lex *lexer.PeekingLexer, v interface{}, options ...ParseOption) error {
+func (p *Parser[T]) ParseFromLexer(lex *lexer.PeekingLexer, options ...ParseOption) (*T, error) {
+	v := new(T)
 	rv := reflect.ValueOf(v)
 	if rv.Kind() == reflect.Interface {
 		rv = rv.Elem()
@@ -133,10 +138,10 @@ func (p *Parser) ParseFromLexer(lex *lexer.PeekingLexer, v interface{}, options 
 	}
 	rt := rv.Type()
 	if rt != p.typ {
-		return fmt.Errorf("must parse into value of type %s not %T", p.typ, v)
+		return nil, fmt.Errorf("must parse into value of type %s not %T", p.typ, v)
 	}
 	if rt.Kind() != reflect.Ptr || rt.Elem().Kind() != reflect.Struct {
-		return fmt.Errorf("target must be a pointer to a struct, not %s", rt)
+		return nil, fmt.Errorf("target must be a pointer to a struct, not %s", rt)
 	}
 	caseInsensitive := map[lexer.TokenType]bool{}
 	for sym, tt := range p.lex.Symbols() {
@@ -149,44 +154,45 @@ func (p *Parser) ParseFromLexer(lex *lexer.PeekingLexer, v interface{}, options 
 	for _, option := range options {
 		option(ctx)
 	}
+	var vi interface{} = v
 	// If the grammar implements Parseable, use it.
-	if parseable, ok := v.(Parseable); ok {
-		return p.rootParseable(ctx, parseable)
+	if parseable, ok := vi.(Parseable); ok {
+		return v, p.rootParseable(ctx, parseable)
 	}
 	if stream.IsValid() {
-		return p.parseStreaming(ctx, stream)
+		return v, p.parseStreaming(ctx, stream)
 	}
-	return p.parseOne(ctx, rv)
+	return v, p.parseOne(ctx, rv)
 }
 
-func (p *Parser) parse(lex lexer.Lexer, v interface{}, options ...ParseOption) (err error) {
+func (p *Parser[T]) parse(lex lexer.Lexer, options ...ParseOption) (v *T, err error) {
 	peeker, err := lexer.Upgrade(lex, p.getElidedTypes()...)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return p.ParseFromLexer(peeker, v, options...)
+	return p.ParseFromLexer(peeker, options...)
 }
 
 // Parse from r into grammar v which must be of the same type as the grammar passed to
 // Build().
 //
 // This may return an Error.
-func (p *Parser) Parse(filename string, r io.Reader, v interface{}, options ...ParseOption) (err error) {
+func (p *Parser[T]) Parse(filename string, r io.Reader, options ...ParseOption) (v *T, err error) {
 	if filename == "" {
 		filename = lexer.NameOfReader(r)
 	}
 	lex, err := p.lex.Lex(filename, r)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return p.parse(lex, v, options...)
+	return p.parse(lex, options...)
 }
 
 // ParseString from s into grammar v which must be of the same type as the grammar passed to
 // Build().
 //
 // This may return an Error.
-func (p *Parser) ParseString(filename string, s string, v interface{}, options ...ParseOption) (err error) {
+func (p *Parser[T]) ParseString(filename string, s string, options ...ParseOption) (v *T, err error) {
 	var lex lexer.Lexer
 	if sl, ok := p.lex.(lexer.StringDefinition); ok {
 		lex, err = sl.LexString(filename, s)
@@ -194,16 +200,16 @@ func (p *Parser) ParseString(filename string, s string, v interface{}, options .
 		lex, err = p.lex.Lex(filename, strings.NewReader(s))
 	}
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return p.parse(lex, v, options...)
+	return p.parse(lex, options...)
 }
 
 // ParseBytes from b into grammar v which must be of the same type as the grammar passed to
 // Build().
 //
 // This may return an Error.
-func (p *Parser) ParseBytes(filename string, b []byte, v interface{}, options ...ParseOption) (err error) {
+func (p *Parser[T]) ParseBytes(filename string, b []byte, options ...ParseOption) (v *T, err error) {
 	var lex lexer.Lexer
 	if sl, ok := p.lex.(lexer.BytesDefinition); ok {
 		lex, err = sl.LexBytes(filename, b)
@@ -211,12 +217,12 @@ func (p *Parser) ParseBytes(filename string, b []byte, v interface{}, options ..
 		lex, err = p.lex.Lex(filename, bytes.NewReader(b))
 	}
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return p.parse(lex, v, options...)
+	return p.parse(lex, options...)
 }
 
-func (p *Parser) parseStreaming(ctx *parseContext, rv reflect.Value) error {
+func (p *Parser[T]) parseStreaming(ctx *parseContext, rv reflect.Value) error {
 	t := rv.Type().Elem().Elem()
 	for {
 		if token, _ := ctx.Peek(0); token.EOF() {
@@ -231,7 +237,7 @@ func (p *Parser) parseStreaming(ctx *parseContext, rv reflect.Value) error {
 	}
 }
 
-func (p *Parser) parseOne(ctx *parseContext, rv reflect.Value) error {
+func (p *Parser[T]) parseOne(ctx *parseContext, rv reflect.Value) error {
 	err := p.parseInto(ctx, rv)
 	if err != nil {
 		return err
@@ -245,7 +251,7 @@ func (p *Parser) parseOne(ctx *parseContext, rv reflect.Value) error {
 	return nil
 }
 
-func (p *Parser) parseInto(ctx *parseContext, rv reflect.Value) error {
+func (p *Parser[T]) parseInto(ctx *parseContext, rv reflect.Value) error {
 	if rv.IsNil() {
 		return fmt.Errorf("target must be a non-nil pointer to a struct, but is a nil %s", rv.Type())
 	}
@@ -263,7 +269,7 @@ func (p *Parser) parseInto(ctx *parseContext, rv reflect.Value) error {
 	return nil
 }
 
-func (p *Parser) rootParseable(ctx *parseContext, parseable Parseable) error {
+func (p *Parser[T]) rootParseable(ctx *parseContext, parseable Parseable) error {
 	peek, err := ctx.Peek(0)
 	if err != nil {
 		return err
@@ -283,7 +289,7 @@ func (p *Parser) rootParseable(ctx *parseContext, parseable Parseable) error {
 	return nil
 }
 
-func (p *Parser) getElidedTypes() []lexer.TokenType {
+func (p *Parser[T]) getElidedTypes() []lexer.TokenType {
 	symbols := p.lex.Symbols()
 	elideTypes := make([]lexer.TokenType, 0, len(p.elide))
 	for _, elide := range p.elide {

@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/alecthomas/repr"
-	"github.com/stretchr/testify/require"
+	"github.com/alecthomas/assert/v2"
 )
 
 func TestExe(t *testing.T) {
@@ -45,6 +45,6 @@ hosts = [
   "omega"
 ]
 `, toml)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	repr.Println(toml)
 }

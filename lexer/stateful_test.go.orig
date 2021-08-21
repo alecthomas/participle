@@ -182,11 +182,19 @@ func TestStatefulLexer(t *testing.T) {
 			if test.lngst {
 				opts = append(opts, lexer.MatchLongest())
 			}
+<<<<<<< HEAD
 			def, err := lexer.New(test.rules, opts...)
+			require.NoError(t, err)
+			lex, err := def.Lex("", strings.NewReader(test.input))
+			require.NoError(t, err)
+			tokens, err := lexer.ConsumeAll(lex)
+=======
+			def, err := New(test.rules, opts...)
 			assert.NoError(t, err)
 			lex, err := def.Lex("", strings.NewReader(test.input))
 			assert.NoError(t, err)
-			tokens, err := lexer.ConsumeAll(lex)
+			tokens, err := ConsumeAll(lex)
+>>>>>>> 703c5a4 (A branch of Participle 2 using Go 1.18 generics.)
 			if test.err != "" {
 				assert.Equal(t, err.Error(), test.err)
 			} else {
@@ -424,13 +432,13 @@ func TestGenerate(t *testing.T) {
 		{"Comment", `(?i)rem[^\n]*\n`, nil},
 		{"Whitespace", `[ \t]+`, nil},
 	}})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	w, err := os.Create("stateful_codegen_test.go~")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = lexer.ExperimentalGenerateLexer(w, "lexer_test", def)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = os.Rename("stateful_codegen_test.go~", "stateful_codegen_test.go")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func basicBenchmark(b *testing.B, def lexer.Definition) {
@@ -478,13 +486,35 @@ func BenchmarkStatefulBASIC(b *testing.B) {
 		{"Ident", `[a-zA-Z_]\w*`, nil},
 		{"Punct", `[!-/:-@[-` + "`" + `{-~]+`, nil},
 		{"EOL", `\n`, nil},
+<<<<<<< HEAD
 		{"Comment", `(?i)rem[^\n]*\n`, nil},
 		{"Whitespace", `[ \t]+`, nil},
 	}})
-	assert.NoError(b, err)
+	require.NoError(b, err)
 	basicBenchmark(b, def)
 }
 
 func BenchmarkStatefulGeneratedBASIC(b *testing.B) {
 	basicBenchmark(b, Lexer)
+=======
+		{"comment", `(?i)rem[^\n]*\n`, nil},
+		{"whitespace", `[ \t]+`, nil},
+	})
+	assert.NoError(b, err)
+	b.ReportMetric(float64(len(source)), "B")
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		lex, err := def.Lex("", strings.NewReader(source))
+		if err != nil {
+			b.Fatal(err)
+		}
+		tokens, err := ConsumeAll(lex)
+		if err != nil {
+			b.Fatal(err)
+		}
+		if len(tokens) != 6601 {
+			b.Fatalf("%d != 401", len(tokens))
+		}
+	}
+>>>>>>> 703c5a4 (A branch of Participle 2 using Go 1.18 generics.)
 }

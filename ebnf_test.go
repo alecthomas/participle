@@ -4,11 +4,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/alecthomas/assert/v2"
 )
 
 func TestEBNF(t *testing.T) {
-	parser := mustTestParser(t, &EBNF{})
+	parser := mustTestParser[EBNF](t)
 	expected := `
 EBNF = Production* .
 Production = <ident> "=" Expression+ "." .
@@ -23,7 +23,7 @@ EBNFOption = "[" Expression "]" .
 Repetition = "{" Expression "}" .
 Negation = "!" Expression .
 `
-	require.Equal(t, strings.TrimSpace(expected), parser.String())
+	assert.Equal(t, strings.TrimSpace(expected), parser.String())
 }
 
 func TestEBNF_Other(t *testing.T) {
@@ -33,7 +33,7 @@ func TestEBNF_Other(t *testing.T) {
 		Negation          string `| !("anything" | 'but')`
 	}
 
-	parser := mustTestParser(t, &Grammar{})
+	parser := mustTestParser[Grammar](t)
 	expected := `Grammar = ((?= "good") <ident>) | ((?! "bad" | "worse") <ident>) | ~("anything" | "but") .`
-	require.Equal(t, expected, parser.String())
+	assert.Equal(t, expected, parser.String())
 }

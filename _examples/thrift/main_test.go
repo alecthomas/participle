@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	thriftparser "github.com/alecthomas/go-thrift/parser"
-	"github.com/stretchr/testify/require"
+  thriftparser "github.com/alecthomas/go-thrift/parser"
+  "github.com/alecthomas/assert/v2"
 
 	"github.com/alecthomas/participle/v2"
 )
@@ -59,9 +59,9 @@ service Twitter {
 )
 
 func BenchmarkParticipleThrift(b *testing.B) {
-	thrift := &Thrift{}
-	err := parser.ParseString("", source, thrift)
-	require.NoError(b, err)
+  thrift := &Thrift{}
+  err := parser.ParseString("", source, thrift)
+  assert.NoError(b, err)
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -81,9 +81,9 @@ func BenchmarkParticipleThriftGenerated(b *testing.B) {
 		participle.Elide("Whitespace"),
 	)
 
-	thrift := &Thrift{}
-	err := parser.ParseString("", source, thrift)
-	require.NoError(b, err)
+  thrift := &Thrift{}
+  err := parser.ParseString("", source, thrift)
+  assert.NoError(b, err)
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -97,8 +97,8 @@ func BenchmarkParticipleThriftGenerated(b *testing.B) {
 }
 
 func BenchmarkGoThriftParser(b *testing.B) {
-	_, err := thriftparser.ParseReader("user.thrift", strings.NewReader(source))
-	require.NoError(b, err)
+  _, err := thriftparser.ParseReader("user.thrift", strings.NewReader(source))
+  assert.NoError(b, err)
 
 	b.ResetTimer()
 	b.ReportAllocs()

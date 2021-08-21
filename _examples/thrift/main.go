@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/alecthomas/kong"
-	"gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/alecthomas/repr"
 
@@ -228,9 +227,9 @@ func main() {
 	for _, file := range cli.Files {
 		thrift := &Thrift{}
 		r, err := os.Open(file)
-		kingpin.FatalIfError(err, "")
+		ctx.FatalIfErrorf(err, "")
 		err = parser.Parse("", r, thrift)
-		kingpin.FatalIfError(err, "")
+		ctx.FatalIfErrorf(err, "")
 		repr.Println(thrift)
 	}
 }
