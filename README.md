@@ -378,11 +378,11 @@ var lexer = stateful.Must(Rules{
 ### Example simple/non-stateful lexer
 <a id="markdown-example-simple%2Fnon-stateful-lexer" name="example-simple%2Fnon-stateful-lexer"></a>
 
-Other than the default and `stateful` lexers, it's easy to define your
+Other than the default and stateful lexers, it's easy to define your
 own stateless lexer using the `stateful.MustSimple()` and
 `stateful.NewSimple()` methods.  These methods accept a slice of
-stateful.Rule{} objects consisting of a key and a regex-style pattern.
-The `stateful` lexer replaced the old `Regex` lexer.  
+`stateful.Rule{}` objects consisting of a key and a regex-style pattern.
+The stateful lexer replaced the old regex lexer.  
 
 For example, the lexer for a form of BASIC:
 
@@ -589,11 +589,11 @@ recursion must be eliminated by restructuring your grammar.
 <a id="markdown-ebnf" name="ebnf"></a>
 
 The old `EBNF` lexer was removed in a major refactoring at
-362b26640fa3dc406aa60960f7d9a5b9a909414e -- if you have an EBNF
-grammar you need to implement, you can either translate it into
+[362b26](https://github.com/alecthomas/participle/commit/362b26640fa3dc406aa60960f7d9a5b9a909414e)
+-- if you have an EBNF grammar you need to implement, you can either translate it into
 regex-style stateful.Rule{} syntax or implement your own EBNF lexer --
-you might be able to use [the old EBNF
-lexer](https://github.com/alecthomas/participle/blob/2403858c8b2068b4b0cf96a6b36dd7069674039b/lexer/ebnf/ebnf.go)
+you might be able to use 
+[the old EBNF lexer](https://github.com/alecthomas/participle/blob/2403858c8b2068b4b0cf96a6b36dd7069674039b/lexer/ebnf/ebnf.go)
 as a starting point.
 
 Participle supports outputting an EBNF grammar from a Participle parser. Once
