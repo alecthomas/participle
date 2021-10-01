@@ -1,9 +1,11 @@
-package lexer
+package lexer_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	. "github.com/alecthomas/participle/v2/lexer"
 )
 
 type staticLexer struct {

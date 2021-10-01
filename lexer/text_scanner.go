@@ -9,19 +9,35 @@ import (
 
 // TextScannerLexer is a lexer that uses the text/scanner module.
 var (
-	TextScannerLexer Definition = &defaultDefinition{}
+	TextScannerLexer Definition = &textScannerLexerDefinition{}
 
 	// DefaultDefinition defines properties for the default lexer.
 	DefaultDefinition = TextScannerLexer
 )
 
-type defaultDefinition struct{}
-
-func (d *defaultDefinition) Lex(filename string, r io.Reader) (Lexer, error) {
-	return Lex(filename, r), nil
+// NewTextScannerLexer constructs a Definition that uses an underlying scanner.Scanner
+//
+// "configure" will be called after the scanner.Scanner.Init(r) is called. If "configure"
+// is nil a default scanner.Scanner will be used.
+func NewTextScannerLexer(configure func(*scanner.Scanner)) Definition {
+	return &textScannerLexerDefinition{configure: configure}
 }
 
-func (d *defaultDefinition) Symbols() map[string]TokenType {
+type textScannerLexerDefinition struct {
+	configure func(*scanner.Scanner)
+}
+
+func (d *textScannerLexerDefinition) Lex(filename string, r io.Reader) (Lexer, error) {
+	s := &scanner.Scanner{}
+	s.Init(r)
+	if d.configure != nil {
+		d.configure(s)
+	}
+	lexer := lexWithScanner(filename, s)
+	return lexer, nil
+}
+
+func (d *textScannerLexerDefinition) Symbols() map[string]TokenType {
 	return map[string]TokenType{
 		"EOF":       EOF,
 		"Char":      scanner.Char,

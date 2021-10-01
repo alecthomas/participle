@@ -1,4 +1,4 @@
-package lexer
+package lexer_test
 
 import (
 	"strings"
@@ -6,6 +6,9 @@ import (
 	"text/scanner"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/alecthomas/participle/v2"
+	. "github.com/alecthomas/participle/v2/lexer"
 )
 
 func TestLexer(t *testing.T) {
@@ -39,6 +42,32 @@ func TestLexSingleString(t *testing.T) {
 	token, err = lexer.Next()
 	require.NoError(t, err)
 	require.Equal(t, Token{Type: scanner.Char, Value: `'\U00008a9e'`, Pos: Position{Line: 1, Column: 1}}, token)
+}
+
+func TestNewTextScannerLexerDefault(t *testing.T) {
+	type grammar struct {
+		Text string `@String @Ident`
+	}
+	p, err := participle.Build(&grammar{}, participle.Lexer(NewTextScannerLexer(nil)), participle.Unquote())
+	require.NoError(t, err)
+	g := &grammar{}
+	err = p.ParseString("", `"hello" world`, g)
+	require.NoError(t, err)
+	require.Equal(t, "helloworld", g.Text)
+}
+
+func TestNewTextScannerLexer(t *testing.T) {
+	type grammar struct {
+		Text string `(@String | @Comment | @Ident)+`
+	}
+	p, err := participle.Build(&grammar{}, participle.Lexer(NewTextScannerLexer(func(s *scanner.Scanner) {
+		s.Mode &^= scanner.SkipComments
+	})), participle.Unquote())
+	require.NoError(t, err)
+	g := &grammar{}
+	err = p.ParseString("", `"hello" /* comment */ world`, g)
+	require.NoError(t, err)
+	require.Equal(t, "hello/* comment */world", g.Text)
 }
 
 func BenchmarkTextScannerLexer(b *testing.B) {
