@@ -10,7 +10,6 @@ linters:
   enable-all: true
   disable:
     - maligned
-    - megacheck
     - lll
     - gocyclo
     - gochecknoglobals
@@ -43,6 +42,7 @@ linters:
     - golint
     - wastedassign
     - forcetypeassert
+    - gomoddirectives
 
 linters-settings:
   govet:

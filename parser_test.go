@@ -832,16 +832,6 @@ func TestNestedOptional(t *testing.T) {
 	require.Error(t, err)
 }
 
-type captureableWithPosition struct {
-	Pos   lexer.Position
-	Value string
-}
-
-func (c *captureableWithPosition) Capture(values []string) error {
-	c.Value = strings.Join(values, " ")
-	return nil
-}
-
 func TestInvalidNumbers(t *testing.T) {
 	type grammar struct {
 		Int8    int8    `  "int8" @Int`
@@ -1122,7 +1112,7 @@ func TestIssue62(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// nolint: structcheck
+// nolint: structcheck, unused
 func TestIssue71(t *testing.T) {
 	type Sub struct {
 		name string `@Ident`

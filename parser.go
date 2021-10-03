@@ -193,6 +193,9 @@ func (p *Parser) ParseString(filename string, s string, v interface{}, options .
 	} else {
 		lex, err = p.lex.Lex(filename, strings.NewReader(s))
 	}
+	if err != nil {
+		return err
+	}
 	return p.parse(lex, v, options...)
 }
 
@@ -206,6 +209,9 @@ func (p *Parser) ParseBytes(filename string, b []byte, v interface{}, options ..
 		lex, err = sl.LexBytes(filename, b)
 	} else {
 		lex, err = p.lex.Lex(filename, bytes.NewReader(b))
+	}
+	if err != nil {
+		return err
 	}
 	return p.parse(lex, v, options...)
 }
