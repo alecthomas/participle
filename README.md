@@ -330,8 +330,7 @@ As a convenience, any `Rule` starting with a lowercase letter will be elided fro
 
 Lexing starts in the `Root` group. Each rule is matched in order, with the first
 successful match producing a lexeme. If the matching rule has an associated Action
-it will be executed. The name of each non-root rule is prefixed with the name
-of its group to yield the token identifier used during matching.
+it will be executed.
 
 A state change can be introduced with the Action `Push(state)`. `Pop()` will
 return to the previous state.
