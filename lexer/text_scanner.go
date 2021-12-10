@@ -28,13 +28,11 @@ type textScannerLexerDefinition struct {
 }
 
 func (d *textScannerLexerDefinition) Lex(filename string, r io.Reader) (Lexer, error) {
-	s := &scanner.Scanner{}
-	s.Init(r)
+	l := Lex(filename, r)
 	if d.configure != nil {
-		d.configure(s)
+		d.configure(l.(*textScannerLexer).scanner)
 	}
-	lexer := lexWithScanner(filename, s)
-	return lexer, nil
+	return l, nil
 }
 
 func (d *textScannerLexerDefinition) Symbols() map[string]TokenType {
@@ -67,10 +65,7 @@ func Lex(filename string, r io.Reader) Lexer {
 	s.Init(r)
 	lexer := lexWithScanner(filename, s)
 	lexer.scanner.Error = func(s *scanner.Scanner, msg string) {
-		// This is to support single quoted strings. Hacky.
-		if !strings.HasSuffix(msg, "char literal") {
-			lexer.err = errorf(Position(lexer.scanner.Pos()), msg)
-		}
+		lexer.err = errorf(Position(lexer.scanner.Pos()), msg)
 	}
 	return lexer
 }
@@ -83,6 +78,7 @@ func LexWithScanner(filename string, scan *scanner.Scanner) Lexer {
 }
 
 func lexWithScanner(filename string, scan *scanner.Scanner) *textScannerLexer {
+	scan.Filename = filename
 	lexer := &textScannerLexer{
 		filename: filename,
 		scanner:  scan,
