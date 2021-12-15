@@ -4,6 +4,8 @@ import (
 	"encoding"
 	"errors"
 	"fmt"
+	"math"
+	"math/rand"
 	"reflect"
 	"strconv"
 	"strings"
@@ -33,6 +35,9 @@ type node interface {
 	//
 	// Returned slice will be nil if the node does not match.
 	Parse(ctx *parseContext, parent reflect.Value) ([]reflect.Value, error)
+
+	// Returns a random valid string that can be parsed to get a value
+	Fuzz(l lexer.Fuzzer) string
 
 	// Return a decent string representation of the Node.
 	fmt.Stringer
@@ -70,6 +75,15 @@ func (p *parseable) Parse(ctx *parseContext, parent reflect.Value) (out []reflec
 		return nil, err
 	}
 	return []reflect.Value{rv.Elem()}, nil
+}
+
+func (p *parseable) Fuzz(l lexer.Fuzzer) string {
+	rv := reflect.New(p.t)
+	v, ok := rv.Interface().(Fuzzable)
+	if !ok {
+		panic(fmt.Sprintf("%s does not support fuzzing", p.t))
+	}
+	return v.Fuzz(l)
 }
 
 // @@
@@ -123,6 +137,10 @@ func (s *strct) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Va
 	s.maybeInjectEndToken(t, sv)
 	s.maybeInjectTokens(ctx.Range(start, end), sv)
 	return []reflect.Value{sv}, ctx.Apply()
+}
+
+func (s *strct) Fuzz(l lexer.Fuzzer) string {
+	return s.expr.Fuzz(l)
 }
 
 func (s *strct) maybeInjectStartToken(token lexer.Token, v reflect.Value) {
@@ -184,6 +202,40 @@ type group struct {
 	mode groupMatchMode
 }
 
+func (g *group) Fuzz(l lexer.Fuzzer) string {
+	var (
+		maxCount int
+		minCount int
+	)
+
+	switch g.mode {
+	case groupMatchOnce:
+		minCount, maxCount = 1, 1
+	case groupMatchZeroOrOne:
+		minCount, maxCount = 0, 1
+	case groupMatchZeroOrMore:
+		minCount, maxCount = 0, math.MaxInt
+	case groupMatchOneOrMore:
+		minCount, maxCount = 1, math.MaxInt
+	case groupMatchNonEmpty:
+		minCount, maxCount = 1, 1
+	}
+
+	var items int
+	if maxCount-minCount == 0 {
+		items = minCount
+	} else {
+		items = minCount + rand.Intn(maxCount-minCount)
+	}
+	var s strings.Builder
+	for i := 0; i < items; i++ {
+		s.WriteString(g.expr.Fuzz(l))
+		if i < items-1 {
+			s.WriteString(" ")
+		}
+	}
+	return s.String()
+}
 func (g *group) String() string   { return ebnf(g) }
 func (g *group) GoString() string { return fmt.Sprintf("group{%s}", g.mode) }
 func (g *group) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
@@ -254,6 +306,9 @@ type lookaheadGroup struct {
 
 func (n *lookaheadGroup) String() string   { return ebnf(n) }
 func (n *lookaheadGroup) GoString() string { return "lookaheadGroup{}" }
+func (n *lookaheadGroup) Fuzz(l lexer.Fuzzer) string {
+	return n.expr.Fuzz(l)
+}
 
 func (n *lookaheadGroup) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	// Create a branch to avoid advancing the parser as any match will be discarded
@@ -278,6 +333,9 @@ type disjunction struct {
 
 func (d *disjunction) String() string   { return ebnf(d) }
 func (d *disjunction) GoString() string { return "disjunction{}" }
+func (d *disjunction) Fuzz(l lexer.Fuzzer) string {
+	return d.nodes[rand.Intn(len(d.nodes))].Fuzz(l)
+}
 
 func (d *disjunction) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	var (
@@ -325,6 +383,16 @@ type sequence struct {
 
 func (s *sequence) String() string   { return ebnf(s) }
 func (s *sequence) GoString() string { return "sequence{}" }
+func (s *sequence) Fuzz(l lexer.Fuzzer) string {
+	var sb strings.Builder
+	for n := s; n != nil; n = n.next {
+		sb.WriteString(n.node.Fuzz(l))
+		if n.next != nil {
+			sb.WriteString(" ")
+		}
+	}
+	return sb.String()
+}
 
 func (s *sequence) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	for n := s; n != nil; n = n.next {
@@ -356,6 +424,9 @@ type capture struct {
 
 func (c *capture) String() string   { return ebnf(c) }
 func (c *capture) GoString() string { return "capture{}" }
+func (c *capture) Fuzz(l lexer.Fuzzer) string {
+	return c.node.Fuzz(l)
+}
 
 func (c *capture) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	start := ctx.RawCursor()
@@ -380,6 +451,9 @@ type reference struct {
 
 func (r *reference) String() string   { return ebnf(r) }
 func (r *reference) GoString() string { return fmt.Sprintf("reference{%s}", r.identifier) }
+func (r *reference) Fuzz(l lexer.Fuzzer) string {
+	return l.Fuzz(r.typ)
+}
 
 func (r *reference) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	token, err := ctx.Peek(0)
@@ -400,6 +474,13 @@ type optional struct {
 
 func (o *optional) String() string   { return ebnf(o) }
 func (o *optional) GoString() string { return "optional{}" }
+func (o *optional) Fuzz(l lexer.Fuzzer) string {
+	if rand.Intn(1) == 0 {
+		return ""
+	} else {
+		return o.node.Fuzz(l)
+	}
+}
 
 func (o *optional) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	branch := ctx.Branch()
@@ -425,6 +506,19 @@ type repetition struct {
 
 func (r *repetition) String() string   { return ebnf(r) }
 func (r *repetition) GoString() string { return "repetition{}" }
+func (r *repetition) Fuzz(l lexer.Fuzzer) string {
+	var (
+		s   strings.Builder
+		max = rand.Intn(100)
+	)
+	for i := 0; i < max; i++ {
+		s.WriteString(r.node.Fuzz(l))
+		if i < max-1 {
+			s.WriteString(" ")
+		}
+	}
+	return s.String()
+}
 
 // Parse a repetition. Once a repetition is encountered it will always match, so grammars
 // should ensure that branches are differentiated prior to the repetition.
@@ -466,6 +560,9 @@ type literal struct {
 
 func (l *literal) String() string   { return ebnf(l) }
 func (l *literal) GoString() string { return fmt.Sprintf("literal{%q, %q}", l.s, l.tt) }
+func (lit *literal) Fuzz(l lexer.Fuzzer) string {
+	return lit.s
+}
 
 func (l *literal) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	token, err := ctx.Peek(0)
@@ -494,6 +591,9 @@ type negation struct {
 
 func (n *negation) String() string   { return ebnf(n) }
 func (n *negation) GoString() string { return "negation{}" }
+func (n *negation) Fuzz(l lexer.Fuzzer) string {
+	panic("todo")
+}
 
 func (n *negation) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	// Create a branch to avoid advancing the parser, but call neither Stop nor Accept on it

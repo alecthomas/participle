@@ -45,6 +45,11 @@ type Lexer interface {
 	Next() (Token, error)
 }
 
+// A Fuzzer returns a random valid string for a given token kind
+type Fuzzer interface {
+	Fuzz(t TokenType) string
+}
+
 // SymbolsByRune returns a map of lexer symbol names keyed by rune.
 func SymbolsByRune(def Definition) map[TokenType]string {
 	symbols := def.Symbols()

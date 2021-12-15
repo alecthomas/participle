@@ -245,6 +245,10 @@ func (p *Parser) parseOne(ctx *parseContext, rv reflect.Value) error {
 	return nil
 }
 
+func (p *Parser) Fuzz(l lexer.Fuzzer) string {
+	return p.root.Fuzz(l)
+}
+
 func (p *Parser) parseInto(ctx *parseContext, rv reflect.Value) error {
 	if rv.IsNil() {
 		return fmt.Errorf("target must be a non-nil pointer to a struct, but is a nil %s", rv.Type())

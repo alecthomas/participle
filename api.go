@@ -17,3 +17,10 @@ type Parseable interface {
 	// Nil should be returned if parsing was successful.
 	Parse(lex *lexer.PeekingLexer) error
 }
+
+// The Fuzzable interface can be implemented by any element in the grammar to provide custom fuzzing.
+type Fuzzable interface {
+	// Generate a valid string that can be parsed to get a value from
+	// the corresponding Node.
+	Fuzz(l lexer.Fuzzer) string
+}

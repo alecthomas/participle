@@ -3,8 +3,12 @@ package lexer
 import (
 	"bytes"
 	"io"
+	"math"
+	"math/rand"
+	"strconv"
 	"strings"
 	"text/scanner"
+	"unicode"
 )
 
 // TextScannerLexer is a lexer that uses the text/scanner module.
@@ -45,6 +49,104 @@ func (d *textScannerLexerDefinition) Symbols() map[string]TokenType {
 		"String":    scanner.String,
 		"RawString": scanner.RawString,
 		"Comment":   scanner.Comment,
+	}
+}
+
+func count16(rang unicode.Range16) int {
+	return int(((rang.Hi - rang.Lo) / rang.Stride) + 1)
+}
+
+func count32(rang unicode.Range32) int {
+	return int(((rang.Hi - rang.Lo) / rang.Stride) + 1)
+}
+
+func totalRunesInRange(tables []*unicode.RangeTable) int {
+	total := 0
+	for _, table := range tables {
+		for _, r16 := range table.R16 {
+			total += count16(r16)
+		}
+		for _, r32 := range table.R32 {
+			total += count32(r32)
+		}
+	}
+	return total
+}
+
+// we're pretending the tables are smushed up against
+// eachother here
+func nthRuneFromTables(at int, tables []*unicode.RangeTable) (ret rune) {
+	n := at
+
+	for _, table := range tables {
+		for _, rang := range table.R16 {
+			num := count16(rang)
+			if n <= num-1 {
+				return rune(int(rang.Lo) + (int(rang.Stride) * n))
+			}
+			n -= num
+		}
+		for _, rang := range table.R32 {
+			num := count32(rang)
+			if n <= num-1 {
+				return rune(int(rang.Lo) + (int(rang.Stride) * n))
+			}
+			n -= num
+		}
+	}
+
+	return ' '
+}
+
+func randomRune(len int, tables ...*unicode.RangeTable) rune {
+	return nthRuneFromTables(
+		rand.Intn(len),
+		tables)
+}
+
+var cleaner = strings.NewReplacer(
+	"\x00", "",
+)
+
+var defaultTableCount = totalRunesInRange([]*unicode.RangeTable{unicode.Letter, unicode.Symbol, unicode.Number})
+var letterTableCount = totalRunesInRange([]*unicode.RangeTable{unicode.Letter})
+var letterNumberTableCount = totalRunesInRange([]*unicode.RangeTable{unicode.Letter, unicode.Number})
+
+func randomString(length int, tableLength int, tables ...*unicode.RangeTable) string {
+	s := make([]rune, length)
+
+	if len(tables) == 0 {
+		tables = append(tables, unicode.Letter, unicode.Symbol, unicode.Number)
+	}
+
+	for i := 0; i < length; i++ {
+		char := randomRune(tableLength, tables...)
+		s = append(s, char)
+	}
+
+	return cleaner.Replace(string(s))
+}
+
+func (d *textScannerLexerDefinition) Fuzz(t TokenType) string {
+	switch t {
+	case EOF:
+		return ""
+	case scanner.Char:
+		return string(rune(rand.Intn(math.MaxInt)))
+	case scanner.Ident:
+		return string(randomRune(letterTableCount, unicode.Letter)) + randomString(rand.Intn(100), letterNumberTableCount, unicode.Letter, unicode.Number)
+	case scanner.Int:
+		return strconv.Itoa(rand.Int())
+	case scanner.Float:
+		return strconv.FormatFloat(rand.Float64(), 'f', -1, 64)
+	case scanner.String:
+		return `"` + strings.ReplaceAll(randomString(rand.Intn(50), defaultTableCount), "\n", " ") + `"`
+	case scanner.RawString:
+		return "`" + randomString(rand.Intn(50), defaultTableCount) + "`"
+	case scanner.Comment:
+		return randomString(rand.Intn(50), defaultTableCount)
+	default:
+		return string(rune(t))
 	}
 }
 
