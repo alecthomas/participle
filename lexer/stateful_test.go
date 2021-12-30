@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/alecthomas/assert/v2"
 	"github.com/alecthomas/repr"
@@ -451,6 +452,7 @@ func basicBenchmark(b *testing.B, def lexer.Definition) {
 	b.ReportMetric(float64(len(source)), "B")
 	b.ReportAllocs()
 	b.ResetTimer()
+	start := time.Now()
 	for i := 0; i < b.N; i++ {
 		lex, err := def.(lexer.StringDefinition).LexString("", source)
 		if err != nil {
@@ -469,6 +471,7 @@ func basicBenchmark(b *testing.B, def lexer.Definition) {
 			b.Fatalf("%d != 6601", count)
 		}
 	}
+	b.ReportMetric(float64(len(source)*b.N)*float64(time.Since(start)/time.Second)/1024/1024, "MiB/s")
 }
 
 func BenchmarkStatefulBASIC(b *testing.B) {

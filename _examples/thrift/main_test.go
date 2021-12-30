@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-  thriftparser "github.com/alecthomas/go-thrift/parser"
-  "github.com/alecthomas/assert/v2"
+	"github.com/alecthomas/assert/v2"
+	thriftparser "github.com/alecthomas/go-thrift/parser"
 
 	"github.com/alecthomas/participle/v2"
 )
@@ -59,46 +59,42 @@ service Twitter {
 )
 
 func BenchmarkParticipleThrift(b *testing.B) {
-  thrift := &Thrift{}
-  err := parser.ParseString("", source, thrift)
-  assert.NoError(b, err)
+	_, err := parser.ParseString("", source)
+	assert.NoError(b, err)
 
 	b.ResetTimer()
 	b.ReportAllocs()
 
 	start := time.Now()
 	for i := 0; i < b.N; i++ {
-		thrift := &Thrift{}
-		_ = parser.ParseString("", source, thrift)
+		_, _ = parser.ParseString("", source)
 	}
 	b.ReportMetric(float64(len(source)*b.N)*float64(time.Since(start)/time.Second)/1024/1024, "MiB/s")
 }
 
 func BenchmarkParticipleThriftGenerated(b *testing.B) {
-	parser := participle.MustBuild(&Thrift{},
+	parser := participle.MustBuild[Thrift](
 		participle.Lexer(Lexer),
 		participle.Unquote(),
 		participle.Elide("Whitespace"),
 	)
 
-  thrift := &Thrift{}
-  err := parser.ParseString("", source, thrift)
-  assert.NoError(b, err)
+	_, err := parser.ParseString("", source)
+	assert.NoError(b, err)
 
 	b.ResetTimer()
 	b.ReportAllocs()
 
 	start := time.Now()
 	for i := 0; i < b.N; i++ {
-		thrift := &Thrift{}
-		_ = parser.ParseString("", source, thrift)
+		_, _ = parser.ParseString("", source)
 	}
 	b.ReportMetric(float64(len(source)*b.N)*float64(time.Since(start)/time.Second)/1024/1024, "MiB/s")
 }
 
 func BenchmarkGoThriftParser(b *testing.B) {
-  _, err := thriftparser.ParseReader("user.thrift", strings.NewReader(source))
-  assert.NoError(b, err)
+	_, err := thriftparser.ParseReader("user.thrift", strings.NewReader(source))
+	assert.NoError(b, err)
 
 	b.ResetTimer()
 	b.ReportAllocs()

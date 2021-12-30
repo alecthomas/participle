@@ -4,27 +4,33 @@ package lexer_test
 
 import (
 	"io"
+	"regexp"
 	"strings"
+	"sync"
 	"unicode/utf8"
 
 	"github.com/alecthomas/participle/v2"
 	"github.com/alecthomas/participle/v2/lexer"
 )
 
-var Lexer lexer.Definition = definitionImpl{}
+var (
+	Lexer lexer.Definition = definitionImpl{}
+	backrefCache sync.Map
+	codegenBackrefRe = regexp.MustCompile(`\\+\d`)
+)
 
 type definitionImpl struct {}
 
 func (definitionImpl) Symbols() map[string]lexer.TokenType {
 	return map[string]lexer.TokenType{
-      "Comment": -7,
-      "EOF": -1,
-      "EOL": -6,
-      "Ident": -4,
-      "Number": -3,
-      "Punct": -5,
-      "String": -2,
-      "Whitespace": -8,
+		"Comment": -7,
+		"EOF": -1,
+		"EOL": -6,
+		"Ident": -4,
+		"Number": -3,
+		"Punct": -5,
+		"String": -2,
+		"Whitespace": -8,
 	}
 }
 
@@ -36,7 +42,7 @@ func (definitionImpl) LexString(filename string, s string) (lexer.Lexer, error) 
 			Line:     1,
 			Column:   1,
 		},
-		states: []lexerState{lexerState{name: "Root"}},
+		states: []lexerState{ {name: "Root"} },
 	}, nil
 }
 
@@ -60,13 +66,21 @@ type lexerState struct {
 
 type lexerImpl struct {
 	s       string
-	p       int
 	pos     lexer.Position
 	states  []lexerState
 }
 
+// https://github.com/golang/go/issues/31666
+func decodeRune(p string) (r rune, size int) {
+	if len(p) > 0 && p[0] < utf8.RuneSelf {
+		return rune(p[0]), 1
+	}
+	return utf8.DecodeRuneInString(p)
+}
+
+
 func (l *lexerImpl) Next() (lexer.Token, error) {
-	if l.p == len(l.s) {
+	if l.s == "" {
 		return lexer.EOFToken(l.pos), nil
 	}
 	var (
@@ -75,39 +89,40 @@ func (l *lexerImpl) Next() (lexer.Token, error) {
 		sym lexer.TokenType
 	)
 	switch state.name {
-	case "Root":if match := matchString(l.s, l.p); match[1] != 0 {
+
+	case "Root":if match := matchString(state.groups, l.s); match[0] == 0 && match[1] != 0 {
+			groups = match[:]
 			sym = -2
+		} else if match := matchNumber(state.groups, l.s); match[0] == 0 && match[1] != 0 {
 			groups = match[:]
-		} else if match := matchNumber(l.s, l.p); match[1] != 0 {
 			sym = -3
+		} else if match := matchIdent(state.groups, l.s); match[0] == 0 && match[1] != 0 {
 			groups = match[:]
-		} else if match := matchIdent(l.s, l.p); match[1] != 0 {
 			sym = -4
+		} else if match := matchPunct(state.groups, l.s); match[0] == 0 && match[1] != 0 {
 			groups = match[:]
-		} else if match := matchPunct(l.s, l.p); match[1] != 0 {
 			sym = -5
+		} else if match := matchEOL(state.groups, l.s); match[0] == 0 && match[1] != 0 {
 			groups = match[:]
-		} else if match := matchEOL(l.s, l.p); match[1] != 0 {
 			sym = -6
+		} else if match := matchComment(state.groups, l.s); match[0] == 0 && match[1] != 0 {
 			groups = match[:]
-		} else if match := matchComment(l.s, l.p); match[1] != 0 {
 			sym = -7
+		} else if match := matchWhitespace(state.groups, l.s); match[0] == 0 && match[1] != 0 {
 			groups = match[:]
-		} else if match := matchWhitespace(l.s, l.p); match[1] != 0 {
 			sym = -8
-			groups = match[:]
 		}
 	}
 	if groups == nil {
-		sample := []rune(l.s[l.p:])
+		sample := []rune(l.s)
 		if len(sample) > 16 {
 			sample = append(sample[:16], []rune("...")...)
 		}
-		return lexer.Token{}, participle.Errorf(l.pos, "invalid input text %q", sample)
+		return lexer.Token{}, participle.Errorf(l.pos, "invalid input text %q", string(sample))
 	}
 	pos := l.pos
-	span := l.s[groups[0]:groups[1]]
-	l.p = groups[1]
+	span := l.s[:groups[1]]
+	l.s = l.s[groups[1]:]
 	l.pos.Advance(span)
 	return lexer.Token{
 		Type:  sym,
@@ -116,17 +131,10 @@ func (l *lexerImpl) Next() (lexer.Token, error) {
 	}, nil
 }
 
-func (l *lexerImpl) sgroups(match []int) []string {
-	sgroups := make([]string, len(match)/2)
-	for i := 0; i < len(match)-1; i += 2 {
-		sgroups[i/2] = l.s[l.p+match[i]:l.p+match[i+1]]
-	}
-	return sgroups
-}
-
 
 // "(\\"|[^"])*"
-func matchString(s string, p int) (groups [4]int) {
+func matchString(groups []string, s string) (matches [4]int) {
+p := 0
 // " (Literal)
 l0 := func(s string, p int) int {
 if p < len(s) && s[p] == '"' { return p+1 }
@@ -162,8 +170,8 @@ return -1
 l4 := func(s string, p int) int {
 np := l3(s, p)
 if np != -1 {
-  groups[2] = p
-  groups[3] = np
+  matches[2] = p
+  matches[3] = np
 }
 return np}
 // (\\"|[^"])* (Star)
@@ -184,13 +192,14 @@ np := l6(s, p)
 if np == -1 {
   return
 }
-groups[0] = p
-groups[1] = np
+matches[0] = p
+matches[1] = np
 return
 }
 
 // [\+\-]?([0-9]*\.)?[0-9]+
-func matchNumber(s string, p int) (groups [4]int) {
+func matchNumber(groups []string, s string) (matches [4]int) {
+p := 0
 // [\+\-] (CharClass)
 l0 := func(s string, p int) int {
 if len(s) <= p { return -1 }
@@ -237,8 +246,8 @@ return p
 l6 := func(s string, p int) int {
 np := l5(s, p)
 if np != -1 {
-  groups[2] = p
-  groups[3] = np
+  matches[2] = p
+  matches[3] = np
 }
 return np}
 // ([0-9]*\.)? (Quest)
@@ -265,13 +274,14 @@ np := l9(s, p)
 if np == -1 {
   return
 }
-groups[0] = p
-groups[1] = np
+matches[0] = p
+matches[1] = np
 return
 }
 
 // [A-Z_a-z][0-9A-Z_a-z]*
-func matchIdent(s string, p int) (groups [2]int) {
+func matchIdent(groups []string, s string) (matches [2]int) {
+p := 0
 // [A-Z_a-z] (CharClass)
 l0 := func(s string, p int) int {
 if len(s) <= p { return -1 }
@@ -312,13 +322,14 @@ np := l3(s, p)
 if np == -1 {
   return
 }
-groups[0] = p
-groups[1] = np
+matches[0] = p
+matches[1] = np
 return
 }
 
 // [!-/:-@\[-`\{-~]+
-func matchPunct(s string, p int) (groups [2]int) {
+func matchPunct(groups []string, s string) (matches [2]int) {
+p := 0
 // [!-/:-@\[-`\{-~] (CharClass)
 l0 := func(s string, p int) int {
 if len(s) <= p { return -1 }
@@ -343,22 +354,24 @@ np := l1(s, p)
 if np == -1 {
   return
 }
-groups[0] = p
-groups[1] = np
+matches[0] = p
+matches[1] = np
 return
 }
 
 // \n
-func matchEOL(s string, p int) (groups [2]int) {
+func matchEOL(groups []string, s string) (matches [2]int) {
+p := 0
 if p < len(s) && s[p] == '\n' {
-groups[0] = p
-groups[1] = p + 1
+matches[0] = p
+matches[1] = p + 1
 }
 return
 }
 
 // (?i:REM)[^\n]*(?i:\n)
-func matchComment(s string, p int) (groups [2]int) {
+func matchComment(groups []string, s string) (matches [2]int) {
+p := 0
 // (?i:REM) (Literal)
 l0 := func(s string, p int) int {
 if p+3 < len(s) && s[p:p+3] == "REM" { return p+3 }
@@ -402,13 +415,14 @@ np := l4(s, p)
 if np == -1 {
   return
 }
-groups[0] = p
-groups[1] = np
+matches[0] = p
+matches[1] = np
 return
 }
 
 // [\t ]+
-func matchWhitespace(s string, p int) (groups [2]int) {
+func matchWhitespace(groups []string, s string) (matches [2]int) {
+p := 0
 // [\t ] (CharClass)
 l0 := func(s string, p int) int {
 if len(s) <= p { return -1 }
@@ -431,7 +445,7 @@ np := l1(s, p)
 if np == -1 {
   return
 }
-groups[0] = p
-groups[1] = np
+matches[0] = p
+matches[1] = np
 return
 }

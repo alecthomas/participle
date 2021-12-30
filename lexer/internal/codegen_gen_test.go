@@ -4,29 +4,35 @@ package internal_test
 
 import (
 	"io"
+	"regexp"
 	"strings"
+	"sync"
 	"unicode/utf8"
 
 	"github.com/alecthomas/participle/v2"
 	"github.com/alecthomas/participle/v2/lexer"
 )
 
-var Lexer lexer.Definition = definitionImpl{}
+var (
+	Lexer lexer.Definition = definitionImpl{}
+	backrefCache sync.Map
+	codegenBackrefRe = regexp.MustCompile(`\\+\d`)
+)
 
 type definitionImpl struct {}
 
 func (definitionImpl) Symbols() map[string]lexer.TokenType {
 	return map[string]lexer.TokenType{
-      "Char": -11,
-      "EOF": -1,
-      "Escaped": -8,
-      "Expr": -10,
-      "ExprEnd": -6,
-      "Ident": -5,
-      "Oper": -4,
-      "String": -7,
-      "StringEnd": -9,
-      "Whitespace": -3,
+		"Char": -11,
+		"EOF": -1,
+		"Escaped": -8,
+		"Expr": -10,
+		"ExprEnd": -6,
+		"Ident": -5,
+		"Oper": -4,
+		"String": -7,
+		"StringEnd": -9,
+		"Whitespace": -3,
 	}
 }
 
@@ -38,7 +44,7 @@ func (definitionImpl) LexString(filename string, s string) (lexer.Lexer, error) 
 			Line:     1,
 			Column:   1,
 		},
-		states: []lexerState{lexerState{name: "Root"}},
+		states: []lexerState{ {name: "Root"} },
 	}, nil
 }
 
@@ -62,13 +68,21 @@ type lexerState struct {
 
 type lexerImpl struct {
 	s       string
-	p       int
 	pos     lexer.Position
 	states  []lexerState
 }
 
+// https://github.com/golang/go/issues/31666
+func decodeRune(p string) (r rune, size int) {
+	if len(p) > 0 && p[0] < utf8.RuneSelf {
+		return rune(p[0]), 1
+	}
+	return utf8.DecodeRuneInString(p)
+}
+
+
 func (l *lexerImpl) Next() (lexer.Token, error) {
-	if l.p == len(l.s) {
+	if l.s == "" {
 		return lexer.EOFToken(l.pos), nil
 	}
 	var (
@@ -77,55 +91,62 @@ func (l *lexerImpl) Next() (lexer.Token, error) {
 		sym lexer.TokenType
 	)
 	switch state.name {
-	case "Expr":if match := matchString(l.s, l.p); match[1] != 0 {
-			sym = -7
+
+	case "Expr":if match := matchString(state.groups, l.s); match[0] == 0 && match[1] != 0 {
 			groups = match[:]
-			l.states = append(l.states, lexerState{name: "String"})
-		} else if match := matchWhitespace(l.s, l.p); match[1] != 0 {
+			sym = -7
+			l.states = append(l.states, lexerState{
+				name: "String",
+			})
+		} else if match := matchWhitespace(state.groups, l.s); match[0] == 0 && match[1] != 0 {
+			groups = match[:]
 			sym = -3
+		} else if match := matchOper(state.groups, l.s); match[0] == 0 && match[1] != 0 {
 			groups = match[:]
-		} else if match := matchOper(l.s, l.p); match[1] != 0 {
 			sym = -4
+		} else if match := matchIdent(state.groups, l.s); match[0] == 0 && match[1] != 0 {
 			groups = match[:]
-		} else if match := matchIdent(l.s, l.p); match[1] != 0 {
 			sym = -5
+		} else if match := matchExprEnd(state.groups, l.s); match[0] == 0 && match[1] != 0 {
 			groups = match[:]
-		} else if match := matchExprEnd(l.s, l.p); match[1] != 0 {
 			sym = -6
-			groups = match[:]
 			l.states = l.states[:len(l.states)-1]
 		}
-	case "Root":if match := matchString(l.s, l.p); match[1] != 0 {
+	case "Root":if match := matchString(state.groups, l.s); match[0] == 0 && match[1] != 0 {
+			groups = match[:]
 			sym = -7
-			groups = match[:]
-			l.states = append(l.states, lexerState{name: "String"})
+			l.states = append(l.states, lexerState{
+				name: "String",
+			})
 		}
-	case "String":if match := matchEscaped(l.s, l.p); match[1] != 0 {
+	case "String":if match := matchEscaped(state.groups, l.s); match[0] == 0 && match[1] != 0 {
+			groups = match[:]
 			sym = -8
+		} else if match := matchStringEnd(state.groups, l.s); match[0] == 0 && match[1] != 0 {
 			groups = match[:]
-		} else if match := matchStringEnd(l.s, l.p); match[1] != 0 {
 			sym = -9
-			groups = match[:]
 			l.states = l.states[:len(l.states)-1]
-		} else if match := matchExpr(l.s, l.p); match[1] != 0 {
+		} else if match := matchExpr(state.groups, l.s); match[0] == 0 && match[1] != 0 {
+			groups = match[:]
 			sym = -10
+			l.states = append(l.states, lexerState{
+				name: "Expr",
+			})
+		} else if match := matchChar(state.groups, l.s); match[0] == 0 && match[1] != 0 {
 			groups = match[:]
-			l.states = append(l.states, lexerState{name: "Expr"})
-		} else if match := matchChar(l.s, l.p); match[1] != 0 {
 			sym = -11
-			groups = match[:]
 		}
 	}
 	if groups == nil {
-		sample := []rune(l.s[l.p:])
+		sample := []rune(l.s)
 		if len(sample) > 16 {
 			sample = append(sample[:16], []rune("...")...)
 		}
-		return lexer.Token{}, participle.Errorf(l.pos, "invalid input text %q", sample)
+		return lexer.Token{}, participle.Errorf(l.pos, "invalid input text %q", string(sample))
 	}
 	pos := l.pos
-	span := l.s[groups[0]:groups[1]]
-	l.p = groups[1]
+	span := l.s[:groups[1]]
+	l.s = l.s[groups[1]:]
 	l.pos.Advance(span)
 	return lexer.Token{
 		Type:  sym,
@@ -134,26 +155,20 @@ func (l *lexerImpl) Next() (lexer.Token, error) {
 	}, nil
 }
 
-func (l *lexerImpl) sgroups(match []int) []string {
-	sgroups := make([]string, len(match)/2)
-	for i := 0; i < len(match)-1; i += 2 {
-		sgroups[i/2] = l.s[l.p+match[i]:l.p+match[i+1]]
-	}
-	return sgroups
-}
-
 
 // "
-func matchString(s string, p int) (groups [2]int) {
+func matchString(groups []string, s string) (matches [2]int) {
+p := 0
 if p < len(s) && s[p] == '"' {
-groups[0] = p
-groups[1] = p + 1
+matches[0] = p
+matches[1] = p + 1
 }
 return
 }
 
 // [\t-\n\f-\r ]+
-func matchWhitespace(s string, p int) (groups [2]int) {
+func matchWhitespace(groups []string, s string) (matches [2]int) {
+p := 0
 // [\t-\n\f-\r ] (CharClass)
 l0 := func(s string, p int) int {
 if len(s) <= p { return -1 }
@@ -177,13 +192,14 @@ np := l1(s, p)
 if np == -1 {
   return
 }
-groups[0] = p
-groups[1] = np
+matches[0] = p
+matches[1] = np
 return
 }
 
 // [%\*-\+\-/]
-func matchOper(s string, p int) (groups [2]int) {
+func matchOper(groups []string, s string) (matches [2]int) {
+p := 0
 // [%\*-\+\-/] (CharClass)
 l0 := func(s string, p int) int {
 if len(s) <= p { return -1 }
@@ -200,13 +216,14 @@ np := l0(s, p)
 if np == -1 {
   return
 }
-groups[0] = p
-groups[1] = np
+matches[0] = p
+matches[1] = np
 return
 }
 
 // [0-9A-Z_a-z]+
-func matchIdent(s string, p int) (groups [2]int) {
+func matchIdent(groups []string, s string) (matches [2]int) {
+p := 0
 // [0-9A-Z_a-z] (CharClass)
 l0 := func(s string, p int) int {
 if len(s) <= p { return -1 }
@@ -231,22 +248,24 @@ np := l1(s, p)
 if np == -1 {
   return
 }
-groups[0] = p
-groups[1] = np
+matches[0] = p
+matches[1] = np
 return
 }
 
 // \}
-func matchExprEnd(s string, p int) (groups [2]int) {
+func matchExprEnd(groups []string, s string) (matches [2]int) {
+p := 0
 if p < len(s) && s[p] == '}' {
-groups[0] = p
-groups[1] = p + 1
+matches[0] = p
+matches[1] = p + 1
 }
 return
 }
 
 // \\(?-s:.)
-func matchEscaped(s string, p int) (groups [2]int) {
+func matchEscaped(groups []string, s string) (matches [2]int) {
+p := 0
 // \\ (Literal)
 l0 := func(s string, p int) int {
 if p < len(s) && s[p] == '\\' { return p+1 }
@@ -273,31 +292,34 @@ np := l2(s, p)
 if np == -1 {
   return
 }
-groups[0] = p
-groups[1] = np
+matches[0] = p
+matches[1] = np
 return
 }
 
 // "
-func matchStringEnd(s string, p int) (groups [2]int) {
+func matchStringEnd(groups []string, s string) (matches [2]int) {
+p := 0
 if p < len(s) && s[p] == '"' {
-groups[0] = p
-groups[1] = p + 1
+matches[0] = p
+matches[1] = p + 1
 }
 return
 }
 
 // \$\{
-func matchExpr(s string, p int) (groups [2]int) {
+func matchExpr(groups []string, s string) (matches [2]int) {
+p := 0
 if p+2 < len(s) && s[p:p+2] == "${" {
-groups[0] = p
-groups[1] = p + 2
+matches[0] = p
+matches[1] = p + 2
 }
 return
 }
 
 // [^"\$\\]+
-func matchChar(s string, p int) (groups [2]int) {
+func matchChar(groups []string, s string) (matches [2]int) {
+p := 0
 // [^"\$\\] (CharClass)
 l0 := func(s string, p int) int {
 if len(s) <= p { return -1 }
@@ -327,7 +349,7 @@ np := l1(s, p)
 if np == -1 {
   return
 }
-groups[0] = p
-groups[1] = np
+matches[0] = p
+matches[1] = np
 return
 }

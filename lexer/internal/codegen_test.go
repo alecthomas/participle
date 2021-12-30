@@ -2,7 +2,6 @@ package internal_test
 
 import (
 	"os"
-	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -39,10 +38,11 @@ func TestGenerate(t *testing.T) {
 	w, err := os.Create("codegen_gen_test.go~")
 	assert.NoError(t, err)
 	defer w.Close()
-	defer os.Rename("codegen_gen_test.go~", "codegen_gen_test.go") // nolint
 	err = lexer.ExperimentalGenerateLexer(w, "internal_test", exprLexer)
 	assert.NoError(t, err)
-	err = exec.Command("gofmt", "-w", "codegen_gen_test.go").Run()
+	// err = exec.Command("gofmt", "-w", "codegen_gen_test.go~").Run()
+	// assert.NoError(t, err)
+	err = os.Rename("codegen_gen_test.go~", "codegen_gen_test.go") // nolint
 	assert.NoError(t, err)
 	// cmd.Stdin = strings.NewReader(source)
 	// err = cmd.Run()

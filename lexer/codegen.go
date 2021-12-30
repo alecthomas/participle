@@ -6,11 +6,12 @@ import (
 	"regexp"
 	"regexp/syntax"
 	"sort"
+	"strconv"
 	"text/template"
 	"unicode/utf8"
 )
 
-var codegenBackrefRe = regexp.MustCompile(`(\\+)(\d)`)
+var codegenBackrefRe = regexp.MustCompile(`\\\d`)
 
 var codegenTemplate *template.Template = template.Must(template.New("lexgen").Funcs(template.FuncMap{
 	"IsPush": func(r Rule) string {
@@ -26,7 +27,18 @@ var codegenTemplate *template.Template = template.Must(template.New("lexgen").Fu
 	"IsReturn": func(r Rule) bool {
 		return r == ReturnRule
 	},
+	"Rules": func(def *StatefulDefinition) map[string]Rule {
+		out := map[string]Rule{}
+		for _, rules := range def.Rules() {
+			for _, rule := range rules {
+				out[rule.Name] = rule
+			}
+		}
+		return out
+	},
 	"OrderRules": orderRules,
+	"Escape":     strconv.Quote,
+	"HasBackref": codegenBackrefRe.MatchString,
 	"HaveBackrefs": func(def *StatefulDefinition, state string) bool {
 		for _, rule := range def.Rules()[state] {
 			if codegenBackrefRe.MatchString(rule.Pattern) {
@@ -41,21 +53,32 @@ package {{.Package}}
 
 import (
 	"io"
+	"regexp"
 	"strings"
+	"sync"
 	"unicode/utf8"
 
 	"github.com/alecthomas/participle/v2"
 	"github.com/alecthomas/participle/v2/lexer"
 )
 
-var Lexer lexer.Definition = definitionImpl{}
+var (
+	Lexer lexer.Definition = definitionImpl{}
+	backrefCache sync.Map
+	codegenBackrefRe = regexp.MustCompile(` + "`" + `\\+\d` + "`" + `)
+{{- range .Def|Rules}}
+{{- if HaveBackrefs $.Def (.|IsPush)}}
+	re{{.Name}} = regexp.MustCompile({{.Pattern|Escape}})
+{{- end}}
+{{- end}}
+)
 
 type definitionImpl struct {}
 
 func (definitionImpl) Symbols() map[string]lexer.TokenType {
 	return map[string]lexer.TokenType{
 {{- range $sym, $rn := .Def.Symbols}}
-      "{{$sym}}": {{$rn}},
+		"{{$sym}}": {{$rn}},
 {{- end}}
 	}
 }
@@ -68,7 +91,7 @@ func (definitionImpl) LexString(filename string, s string) (lexer.Lexer, error) 
 			Line:     1,
 			Column:   1,
 		},
-		states: []lexerState{lexerState{name: "Root"}},
+		states: []lexerState{ {name: "Root"} },
 	}, nil
 }
 
@@ -92,13 +115,21 @@ type lexerState struct {
 
 type lexerImpl struct {
 	s       string
-	p       int
 	pos     lexer.Position
 	states  []lexerState
 }
 
+// https://github.com/golang/go/issues/31666
+func decodeRune(p string) (r rune, size int) {
+	if len(p) > 0 && p[0] < utf8.RuneSelf {
+		return rune(p[0]), 1
+	}
+	return utf8.DecodeRuneInString(p)
+}
+
+
 func (l *lexerImpl) Next() (lexer.Token, error) {
-	if l.p == len(l.s) {
+	if l.s == "" {
 		return lexer.EOFToken(l.pos), nil
 	}
 	var (
@@ -107,19 +138,30 @@ func (l *lexerImpl) Next() (lexer.Token, error) {
 		sym lexer.TokenType
 	)
 	switch state.name {
-{{- range $state := .Def.Rules|OrderRules}}
+{{range $state := .Def.Rules|OrderRules}}
 	case "{{$state.Name}}":
 {{- range $i, $rule := $state.Rules}}
 		{{- if $i}} else {{end -}}
 {{- if .Pattern -}}
-		if match := match{{.Name}}(l.s, l.p); match[1] != 0 {
-			sym = {{index $.Def.Symbols .Name}}
+		if match := match{{.Name}}(state.groups, l.s); match[0] == 0 && match[1] != 0 {
 			groups = match[:]
+			sym = {{index $.Def.Symbols .Name}}
 {{- else if .|IsReturn -}}
 		if true {
 {{- end}}
 {{- if .|IsPush}}
-			l.states = append(l.states, lexerState{name: "{{.|IsPush}}"{{if HaveBackrefs $.Def $state.Name}}, groups: l.sgroups(groups){{end}}})
+{{- if HaveBackrefs $.Def (.|IsPush)}}
+			spans := make([]string, len(match)/2)
+			for i := 0; i < len(match); i += 2 {
+				spans[i/2] = l.s[match[i]:match[i+1]]
+			}
+{{- end}}
+			l.states = append(l.states, lexerState{
+				name: "{{.|IsPush}}",
+{{- if HaveBackrefs $.Def (.|IsPush)}}
+				groups: spans,
+{{end}}
+			})
 {{- else if (or (.|IsPop) (.|IsReturn))}}
 			l.states = l.states[:len(l.states)-1]
 {{- if .|IsReturn}}
@@ -134,15 +176,15 @@ func (l *lexerImpl) Next() (lexer.Token, error) {
 {{- end}}
 	}
 	if groups == nil {
-		sample := []rune(l.s[l.p:])
+		sample := []rune(l.s)
 		if len(sample) > 16 {
 			sample = append(sample[:16], []rune("...")...)
 		}
-		return lexer.Token{}, participle.Errorf(l.pos, "invalid input text %q", sample)
+		return lexer.Token{}, participle.Errorf(l.pos, "invalid input text %q", string(sample))
 	}
 	pos := l.pos
-	span := l.s[groups[0]:groups[1]]
-	l.p = groups[1]
+	span := l.s[:groups[1]]
+	l.s = l.s[groups[1]:]
 	l.pos.Advance(span)
 	return lexer.Token{
 		Type:  sym,
@@ -151,19 +193,13 @@ func (l *lexerImpl) Next() (lexer.Token, error) {
 	}, nil
 }
 
-func (l *lexerImpl) sgroups(match []int) []string {
-	sgroups := make([]string, len(match)/2)
-	for i := 0; i < len(match)-1; i += 2 {
-		sgroups[i/2] = l.s[l.p+match[i]:l.p+match[i+1]]
-	}
-	return sgroups
-}
-
 `))
 
 // ExperimentalGenerateLexer generates Go code implementing the given stateful lexer.
 //
-// The generated code should in general by around 10x faster and produce zero garbage per token.
+// The generated code should in general by around 20x faster and produce zero
+// garbage per token. This throughput is significantly reduced if backrefs are used,
+// as the backref expressions are dynamically compiled to regexes.
 //
 // NOTE: This is an experimental interface and subject to change.
 func ExperimentalGenerateLexer(w io.Writer, pkg string, def *StatefulDefinition) error {
@@ -187,7 +223,11 @@ func ExperimentalGenerateLexer(w io.Writer, pkg string, def *StatefulDefinition)
 			}
 			seen[rule.Name] = true
 			fmt.Fprintf(w, "\n")
-			err := generateRegexMatch(w, rule.Name, rule.Pattern)
+			if codegenBackrefRe.MatchString(rule.Pattern) {
+				err = generateBackrefMatch(w, rule.Name, rule.Pattern)
+			} else {
+				err = generateRegexMatch(w, rule.Name, rule.Pattern)
+			}
 			if err != nil {
 				return err
 			}
@@ -215,6 +255,76 @@ func orderRules(rules Rules) []orderedRule {
 	return orderedRules
 }
 
+var backrefTmpl = template.Must(template.New("backref").Funcs(template.FuncMap{
+	"IsBackref": codegenBackrefRe.MatchString,
+	"Backref": func(s string) int {
+		n, err := strconv.ParseInt(s[1:], 10, 64)
+		if err != nil {
+			panic(err)
+		}
+		return int(n)
+	},
+	"Quote": strconv.Quote,
+}).Parse(`
+
+func match{{.Name}}(groups []string, s string) []int {
+	key := {{.Pattern|Quote}} + "\000" + strings.Join(groups, "\000")
+	cached, ok := backrefCache.Load(key)
+	var re *regexp.Regexp
+	if ok {
+		re = cached.(*regexp.Regexp)
+	} else {
+		pattern := "" + {{range .Fragments -}}
+{{- if .|IsBackref -}}
+regexp.QuoteMeta(groups[{{.|Backref}}]) +
+{{- else -}}
+{{.|Quote}} +
+{{- end -}}
+{{- end -}}
+""
+		re = regexp.MustCompile(pattern)
+		backrefCache.Store(key, re)
+	}
+	return re.FindStringSubmatchIndex(s)
+}
+`))
+
+// This is much slower than one would hope.
+func generateBackrefMatch(w io.Writer, name, pattern string) error {
+	matches := codegenBackrefRe.FindAllStringSubmatchIndex(pattern, -1)
+	fragments := []string{}
+	last := 0
+	for _, match := range matches {
+		if match[0] != last {
+			fragments = append(fragments, pattern[last:match[0]])
+		}
+		fragments = append(fragments, pattern[match[0]:match[1]])
+		last = match[1]
+	}
+	if last != len(pattern) {
+		fragments = append(fragments, pattern[last:])
+	}
+	type ctx struct {
+		Name      string
+		Pattern   string
+		Fragments []string
+	}
+	return backrefTmpl.Execute(w, ctx{
+		Name:      name,
+		Pattern:   pattern,
+		Fragments: fragments,
+	})
+}
+
+// This exists because of https://github.com/golang/go/issues/31666
+func decodeRune(w io.Writer, offset string, rn string, n string) {
+	fmt.Fprintf(w, "if s[%s] < utf8.RuneSelf {\n", offset)
+	fmt.Fprintf(w, "  %s, %s = rune(s[%s]), 1\n", rn, n, offset)
+	fmt.Fprintf(w, "} else {\n")
+	fmt.Fprintf(w, "  %s, %s = utf8.DecodeRuneInString(s[%s:])\n", rn, n, offset)
+	fmt.Fprintf(w, "}\n")
+}
+
 func generateRegexMatch(w io.Writer, name, pattern string) error {
 	re, err := syntax.Parse(pattern, syntax.Perl)
 	if err != nil {
@@ -240,8 +350,9 @@ func generateRegexMatch(w io.Writer, name, pattern string) error {
 	}
 	re = re.Simplify()
 	fmt.Fprintf(w, "// %s\n", re)
-	fmt.Fprintf(w, "func match%s(s string, p int) (groups [%d]int) {\n", name, 2*re.MaxCap()+2)
+	fmt.Fprintf(w, "func match%s(groups []string, s string) (matches [%d]int) {\n", name, 2*re.MaxCap()+2)
 	flattened := flatten(re)
+	fmt.Fprintf(w, "p := 0\n")
 
 	// Fast-path a single literal.
 	if len(flattened) == 1 && re.Op == syntax.OpLiteral {
@@ -251,8 +362,8 @@ func generateRegexMatch(w io.Writer, name, pattern string) error {
 		} else {
 			fmt.Fprintf(w, "if p+%d < len(s) && s[p:p+%d] == %q {\n", n, n, string(re.Rune))
 		}
-		fmt.Fprintf(w, "groups[0] = p\n")
-		fmt.Fprintf(w, "groups[1] = p + %d\n", n)
+		fmt.Fprintf(w, "matches[0] = p\n")
+		fmt.Fprintf(w, "matches[1] = p + %d\n", n)
 		fmt.Fprintf(w, "}\n")
 		fmt.Fprintf(w, "return\n")
 		fmt.Fprintf(w, "}\n")
@@ -368,8 +479,8 @@ func generateRegexMatch(w io.Writer, name, pattern string) error {
 		case syntax.OpCapture: // capturing subexpression with index Cap, optional name Name
 			fmt.Fprintf(w, "np := l%d(s, p)\n", reid(re.Sub0[0]))
 			fmt.Fprintf(w, "if np != -1 {\n")
-			fmt.Fprintf(w, "  groups[%d] = p\n", re.Cap*2)
-			fmt.Fprintf(w, "  groups[%d] = np\n", re.Cap*2+1)
+			fmt.Fprintf(w, "  matches[%d] = p\n", re.Cap*2)
+			fmt.Fprintf(w, "  matches[%d] = np\n", re.Cap*2+1)
 			fmt.Fprintf(w, "}\n")
 			fmt.Fprintf(w, "return np")
 
@@ -411,20 +522,11 @@ func generateRegexMatch(w io.Writer, name, pattern string) error {
 	fmt.Fprintf(w, "if np == -1 {\n")
 	fmt.Fprintf(w, "  return\n")
 	fmt.Fprintf(w, "}\n")
-	fmt.Fprintf(w, "groups[0] = p\n")
-	fmt.Fprintf(w, "groups[1] = np\n")
+	fmt.Fprintf(w, "matches[0] = p\n")
+	fmt.Fprintf(w, "matches[1] = np\n")
 	fmt.Fprintf(w, "return\n")
 	fmt.Fprintf(w, "}\n")
 	return nil
-}
-
-// This exists because of https://github.com/golang/go/issues/31666
-func decodeRune(w io.Writer, offset string, rn string, n string) {
-	fmt.Fprintf(w, "if s[%s] < utf8.RuneSelf {\n", offset)
-	fmt.Fprintf(w, "  %s, %s = rune(s[%s]), 1\n", rn, n, offset)
-	fmt.Fprintf(w, "} else {\n")
-	fmt.Fprintf(w, "  %s, %s = utf8.DecodeRuneInString(s[%s:])\n", rn, n, offset)
-	fmt.Fprintf(w, "}\n")
 }
 
 func flatten(re *syntax.Regexp) (out []*syntax.Regexp) {
