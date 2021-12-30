@@ -144,8 +144,9 @@ type StatefulDefinition struct {
 }
 
 // MustSimple creates a new lexer definition based on a single state described by `rules`.
-// panics if the rules trigger an error
-func MustSimple(rules []Rule, options ...Option) *StatefulDefinition {
+//
+// It panics if there is an error.
+func MustSimple(rules []SimpleRule, options ...Option) *StatefulDefinition {
 	def, err := NewSimple(rules, options...)
 	if err != nil {
 		panic(err)
@@ -162,9 +163,19 @@ func MustStateful(rules Rules, options ...Option) *StatefulDefinition {
 	return def
 }
 
+// SimpleRule is Rule without an Action.
+type SimpleRule struct {
+	Name    string
+	Pattern string
+}
+
 // NewSimple creates a new stateful lexer with a single "Root" state.
-func NewSimple(rules []Rule, options ...Option) (*StatefulDefinition, error) {
-	return New(Rules{"Root": rules}, options...)
+func NewSimple(rules []SimpleRule, options ...Option) (*StatefulDefinition, error) {
+	fullRules := make([]Rule, len(rules))
+	for i, rule := range rules {
+		fullRules[i] = Rule{Name: rule.Name, Pattern: rule.Pattern}
+	}
+	return New(Rules{"Root": fullRules}, options...)
 }
 
 // New constructs a new stateful lexer from rules.
@@ -245,7 +256,8 @@ func (d *StatefulDefinition) Rules() Rules {
 	return out
 }
 
-func (d *StatefulDefinition) LexString(filename string, s string) (Lexer, error) { // nolint: golint
+// LexString is a fast-path implementation for lexing strings.
+func (d *StatefulDefinition) LexString(filename string, s string) (Lexer, error) {
 	return &StatefulLexer{
 		def:   d,
 		data:  s,

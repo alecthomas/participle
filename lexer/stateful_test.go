@@ -426,14 +426,14 @@ func BenchmarkStatefulBasic(b *testing.B) {
 75  REM prints the result
 80  PRINT B
 	`, 100)
-	def, err := NewSimple([]Rule{
-		{"String", `"(\\"|[^"])*"`, nil},
-		{"Number", `[-+]?(\d*\.)?\d+`, nil},
-		{"Ident", `[a-zA-Z_]\w*`, nil},
-		{"Punct", `[!-/:-@[-` + "`" + `{-~]+`, nil},
-		{"EOL", `\n`, nil},
-		{"comment", `(?i)rem[^\n]*\n`, nil},
-		{"whitespace", `[ \t]+`, nil},
+	def, err := NewSimple([]SimpleRule{
+		{"String", `"(\\"|[^"])*"`},
+		{"Number", `[-+]?(\d*\.)?\d+`},
+		{"Ident", `[a-zA-Z_]\w*`},
+		{"Punct", `[!-/:-@[-` + "`" + `{-~]+`},
+		{"EOL", `\n`},
+		{"comment", `(?i)rem[^\n]*\n`},
+		{"whitespace", `[ \t]+`},
 	})
 	require.NoError(b, err)
 	b.ReportMetric(float64(len(source)), "B")

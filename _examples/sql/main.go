@@ -158,14 +158,14 @@ var (
 		SQL string `arg:"" required:"" help:"SQL to parse."`
 	}
 
-	sqlLexer = lexer.Must(lexer.NewSimple([]lexer.Rule{
-		{`Keyword`, `(?i)\b(SELECT|FROM|TOP|DISTINCT|ALL|WHERE|GROUP|BY|HAVING|UNION|MINUS|EXCEPT|INTERSECT|ORDER|LIMIT|OFFSET|TRUE|FALSE|NULL|IS|NOT|ANY|SOME|BETWEEN|AND|OR|LIKE|AS|IN)\b`, nil},
-		{`Ident`, `[a-zA-Z_][a-zA-Z0-9_]*`, nil},
-		{`Number`, `[-+]?\d*\.?\d+([eE][-+]?\d+)?`, nil},
-		{`String`, `'[^']*'|"[^"]*"`, nil},
-		{`Operators`, `<>|!=|<=|>=|[-+*/%,.()=<>]`, nil},
-		{"whitespace", `\s+`, nil},
-	}))
+	sqlLexer = lexer.MustSimple([]lexer.SimpleRule{
+		{`Keyword`, `(?i)\b(SELECT|FROM|TOP|DISTINCT|ALL|WHERE|GROUP|BY|HAVING|UNION|MINUS|EXCEPT|INTERSECT|ORDER|LIMIT|OFFSET|TRUE|FALSE|NULL|IS|NOT|ANY|SOME|BETWEEN|AND|OR|LIKE|AS|IN)\b`},
+		{`Ident`, `[a-zA-Z_][a-zA-Z0-9_]*`},
+		{`Number`, `[-+]?\d*\.?\d+([eE][-+]?\d+)?`},
+		{`String`, `'[^']*'|"[^"]*"`},
+		{`Operators`, `<>|!=|<=|>=|[-+*/%,.()=<>]`},
+		{"whitespace", `\s+`},
+	})
 	parser = participle.MustBuild(
 		&Select{},
 		participle.Lexer(sqlLexer),

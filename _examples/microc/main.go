@@ -227,14 +227,14 @@ type CallFunc struct {
 }
 
 var (
-	lex = lexer.MustSimple([]lexer.Rule{
-		{"comment", `//.*|/\*.*?\*/`, nil},
-		{"whitespace", `\s+`, nil},
+	lex = lexer.MustSimple([]lexer.SimpleRule{
+		{"comment", `//.*|/\*.*?\*/`},
+		{"whitespace", `\s+`},
 
-		{"Type", `\b(int|char)\b`, nil},
-		{"Ident", `\b([a-zA-Z_][a-zA-Z0-9_]*)\b`, nil},
-		{"Punct", `[-,()*/+%{};&!=:<>]|\[|\]`, nil},
-		{"Int", `\d+`, nil},
+		{"Type", `\b(int|char)\b`},
+		{"Ident", `\b([a-zA-Z_][a-zA-Z0-9_]*)\b`},
+		{"Punct", `[-,()*/+%{};&!=:<>]|\[|\]`},
+		{"Int", `\d+`},
 	})
 	parser = participle.MustBuild(&Program{},
 		participle.Lexer(lex),

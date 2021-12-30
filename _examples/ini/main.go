@@ -11,13 +11,13 @@ import (
 
 // A custom lexer for INI files. This illustrates a relatively complex Regexp lexer, as well
 // as use of the Unquote filter, which unquotes string tokens.
-var iniLexer = lexer.MustSimple([]lexer.Rule{
-	{`Ident`, `[a-zA-Z][a-zA-Z_\d]*`, nil},
-	{`String`, `"(?:\\.|[^"])*"`, nil},
-	{`Float`, `\d+(?:\.\d+)?`, nil},
-	{`Punct`, `[][=]`, nil},
-	{"comment", `[#;][^\n]*`, nil},
-	{"whitespace", `\s+`, nil},
+var iniLexer = lexer.MustSimple([]lexer.SimpleRule{
+	{`Ident`, `[a-zA-Z][a-zA-Z_\d]*`},
+	{`String`, `"(?:\\.|[^"])*"`},
+	{`Float`, `\d+(?:\.\d+)?`},
+	{`Punct`, `[][=]`},
+	{"comment", `[#;][^\n]*`},
+	{"whitespace", `\s+`},
 })
 
 type INI struct {

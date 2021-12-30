@@ -905,11 +905,11 @@ func TestCaseInsensitive(t *testing.T) {
 	// 		`|(?P<Ident>\w+)` +
 	// 		`|(\s+)`,
 	// ))
-	lex := lexer.Must(lexer.NewSimple([]lexer.Rule{
-		{"Keyword", `(?i)SELECT`, nil},
-		{"Ident", `\w+`, nil},
-		{"whitespace", `\s+`, nil},
-	}))
+	lex := lexer.MustSimple([]lexer.SimpleRule{
+		{"Keyword", `(?i)SELECT`},
+		{"Ident", `\w+`},
+		{"whitespace", `\s+`},
+	})
 
 	p := mustTestParser(t, &grammar{}, participle.Lexer(lex), participle.CaseInsensitive("Keyword"))
 	actual := &grammar{}
@@ -1378,10 +1378,10 @@ func TestASTTokens(t *testing.T) {
 
 	p := mustTestParser(t, &hello{},
 		participle.Elide("Whitespace"),
-		participle.Lexer(lexer.Must(lexer.NewSimple([]lexer.Rule{
-			{"Ident", `\w+`, nil},
-			{"Whitespace", `\s+`, nil},
-		}))))
+		participle.Lexer(lexer.MustSimple([]lexer.SimpleRule{
+			{"Ident", `\w+`},
+			{"Whitespace", `\s+`},
+		})))
 	actual := &hello{}
 	err := p.ParseString("", "hello world", actual)
 	require.NoError(t, err)
@@ -1511,7 +1511,7 @@ func TestCaptureOnSliceElements(t *testing.T) { // nolint:dupl
 	}
 
 	parser := participle.MustBuild(&capture{}, []participle.Option{
-		participle.Lexer(lexer.MustSimple([]lexer.Rule{
+		participle.Lexer(lexer.MustSimple([]lexer.SimpleRule{
 			{Name: "Capture", Pattern: `[a-z]{3}`},
 			{Name: "Whitespace", Pattern: `[\s|\n]+`},
 		})),
@@ -1558,7 +1558,7 @@ func TestParseOnSliceElements(t *testing.T) { // nolint:dupl
 	}
 
 	parser := participle.MustBuild(&parse{}, []participle.Option{
-		participle.Lexer(lexer.MustSimple([]lexer.Rule{
+		participle.Lexer(lexer.MustSimple([]lexer.SimpleRule{
 			{Name: "Element", Pattern: `[a-z]{3}`},
 			{Name: "Whitespace", Pattern: `[\s|\n]+`},
 		})),
@@ -1582,8 +1582,8 @@ func TestUnmarshalNetIP(t *testing.T) {
 		IP net.IP `@IP`
 	}
 
-	parser := mustTestParser(t, &grammar{}, participle.Lexer(lexer.MustSimple([]lexer.Rule{
-		{"IP", `[\d.]+`, nil},
+	parser := mustTestParser(t, &grammar{}, participle.Lexer(lexer.MustSimple([]lexer.SimpleRule{
+		{"IP", `[\d.]+`},
 	})))
 	ast := &grammar{}
 	err := parser.ParseString("", "10.2.3.4", ast)
@@ -1604,8 +1604,8 @@ func TestCaptureIP(t *testing.T) {
 		IP Address `@IP`
 	}
 
-	parser := mustTestParser(t, &grammar{}, participle.Lexer(lexer.MustSimple([]lexer.Rule{
-		{"IP", `[\d.]+`, nil},
+	parser := mustTestParser(t, &grammar{}, participle.Lexer(lexer.MustSimple([]lexer.SimpleRule{
+		{"IP", `[\d.]+`},
 	})))
 	ast := &grammar{}
 	err := parser.ParseString("", "10.2.3.4", ast)
@@ -1654,9 +1654,9 @@ func (b *Box) Capture(values []string) error {
 }
 
 func TestBoxedCapture(t *testing.T) {
-	lex := lexer.MustSimple([]lexer.Rule{
-		{"Ident", `[a-zA-Z](\w|\.|/|:|-)*`, nil},
-		{"whitespace", `\s+`, nil},
+	lex := lexer.MustSimple([]lexer.SimpleRule{
+		{"Ident", `[a-zA-Z](\w|\.|/|:|-)*`},
+		{"whitespace", `\s+`},
 	})
 
 	parser := participle.MustBuild(&Boxes{},

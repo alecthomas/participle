@@ -14,10 +14,10 @@ func TestUpper(t *testing.T) {
 	var grammar struct {
 		Text string `@Ident`
 	}
-	def := lexer.Must(lexer.NewSimple([]lexer.Rule{
-		{"Whitespace", `\s+`, nil},
-		{"Ident", `\w+`, nil},
-	}))
+	def := lexer.MustSimple([]lexer.SimpleRule{
+		{"Whitespace", `\s+`},
+		{"Ident", `\w+`},
+	})
 	parser := mustTestParser(t, &grammar, participle.Lexer(def), participle.Upper("Ident"))
 	actual, err := parser.Lex("", strings.NewReader("hello world"))
 	require.NoError(t, err)
@@ -36,12 +36,12 @@ func TestUnquote(t *testing.T) {
 	var grammar struct {
 		Text string `@Ident`
 	}
-	lex := lexer.Must(lexer.NewSimple([]lexer.Rule{
-		{"whitespace", `\s+`, nil},
-		{"Ident", `\w+`, nil},
-		{"String", `\"(?:[^\"]|\\.)*\"`, nil},
-		{"RawString", "`[^`]*`", nil},
-	}))
+	lex := lexer.MustSimple([]lexer.SimpleRule{
+		{"whitespace", `\s+`},
+		{"Ident", `\w+`},
+		{"String", `\"(?:[^\"]|\\.)*\"`},
+		{"RawString", "`[^`]*`"},
+	})
 	parser := mustTestParser(t, &grammar, participle.Lexer(lex), participle.Unquote("String", "RawString"))
 	actual, err := parser.Lex("", strings.NewReader("hello world \"quoted\\tstring\" `backtick quotes`"))
 	require.NoError(t, err)

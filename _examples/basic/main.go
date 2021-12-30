@@ -11,14 +11,14 @@ import (
 )
 
 var (
-	basicLexer = lexer.MustSimple([]lexer.Rule{
-		{"Comment", `(?i)rem[^\n]*`, nil},
-		{"String", `"(\\"|[^"])*"`, nil},
-		{"Number", `[-+]?(\d*\.)?\d+`, nil},
-		{"Ident", `[a-zA-Z_]\w*`, nil},
-		{"Punct", `[-[!@#$%^&*()+_={}\|:;"'<,>.?/]|]`, nil},
-		{"EOL", `[\n\r]+`, nil},
-		{"whitespace", `[ \t]+`, nil},
+	basicLexer = lexer.MustSimple([]lexer.SimpleRule{
+		{"Comment", `(?i)rem[^\n]*`},
+		{"String", `"(\\"|[^"])*"`},
+		{"Number", `[-+]?(\d*\.)?\d+`},
+		{"Ident", `[a-zA-Z_]\w*`},
+		{"Punct", `[-[!@#$%^&*()+_={}\|:;"'<,>.?/]|]`},
+		{"EOL", `[\n\r]+`},
+		{"whitespace", `[ \t]+`},
 	})
 
 	basicParser = participle.MustBuild(&Program{},

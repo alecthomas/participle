@@ -200,13 +200,13 @@ type Thrift struct {
 }
 
 var (
-	def = lexer.MustSimple([]lexer.Rule{
-		{"Number", `\d+`, nil},
-		{"Ident", `\w+`, nil},
-		{"String", `"[^"]*"`, nil},
-		{"Whitespace", `\s+`, nil},
-		{"Punct", `[,.<>(){}=:]`, nil},
-		{"Comment", `//.*`, nil},
+	def = lexer.MustSimple([]lexer.SimpleRule{
+		{"Number", `\d+`},
+		{"Ident", `\w+`},
+		{"String", `"[^"]*"`},
+		{"Whitespace", `\s+`},
+		{"Punct", `[,.<>(){}=:]`},
+		{"Comment", `//.*`},
 	})
 	parser = participle.MustBuild(&Thrift{},
 		participle.Lexer(def),

@@ -43,17 +43,17 @@ type Section struct {
 }
 
 var (
-	tomlLexer = lexer.Must(lexer.NewSimple([]lexer.Rule{
-		{"DateTime", `\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?(-\d\d:\d\d)?`, nil},
-		{"Date", `\d\d\d\d-\d\d-\d\d`, nil},
-		{"Time", `\d\d:\d\d:\d\d(\.\d+)?`, nil},
-		{"Ident", `[a-zA-Z_][a-zA-Z_0-9]*`, nil},
-		{"String", `"[^"]*"`, nil},
-		{"Number", `[-+]?[.0-9]+\b`, nil},
-		{"Punct", `\[|]|[-!()+/*=,]`, nil},
-		{"comment", `#[^\n]+`, nil},
-		{"whitespace", `\s+`, nil},
-	}))
+	tomlLexer = lexer.MustSimple([]lexer.SimpleRule{
+		{"DateTime", `\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?(-\d\d:\d\d)?`},
+		{"Date", `\d\d\d\d-\d\d-\d\d`},
+		{"Time", `\d\d:\d\d:\d\d(\.\d+)?`},
+		{"Ident", `[a-zA-Z_][a-zA-Z_0-9]*`},
+		{"String", `"[^"]*"`},
+		{"Number", `[-+]?[.0-9]+\b`},
+		{"Punct", `\[|]|[-!()+/*=,]`},
+		{"comment", `#[^\n]+`},
+		{"whitespace", `\s+`},
+	})
 	tomlParser = participle.MustBuild(&TOML{},
 		participle.Lexer(
 			tomlLexer,
