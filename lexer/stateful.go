@@ -10,7 +10,6 @@ import (
 	"strings"
 	"sync"
 	"unicode"
-	"unicode/utf8"
 )
 
 var (
@@ -143,17 +142,6 @@ type StatefulDefinition struct {
 	matchLongest bool
 }
 
-// MustSimple creates a new lexer definition based on a single state described by `rules`.
-//
-// It panics if there is an error.
-func MustSimple(rules []SimpleRule, options ...Option) *StatefulDefinition {
-	def, err := NewSimple(rules, options...)
-	if err != nil {
-		panic(err)
-	}
-	return def
-}
-
 // MustStateful creates a new stateful lexer and panics if it is incorrect.
 func MustStateful(rules Rules, options ...Option) *StatefulDefinition {
 	def, err := New(rules, options...)
@@ -161,21 +149,6 @@ func MustStateful(rules Rules, options ...Option) *StatefulDefinition {
 		panic(err)
 	}
 	return def
-}
-
-// SimpleRule is Rule without an Action.
-type SimpleRule struct {
-	Name    string
-	Pattern string
-}
-
-// NewSimple creates a new stateful lexer with a single "Root" state.
-func NewSimple(rules []SimpleRule, options ...Option) (*StatefulDefinition, error) {
-	fullRules := make([]Rule, len(rules))
-	for i, rule := range rules {
-		fullRules[i] = Rule{Name: rule.Name, Pattern: rule.Pattern}
-	}
-	return New(Rules{"Root": fullRules}, options...)
 }
 
 // New constructs a new stateful lexer from rules.
@@ -353,15 +326,7 @@ next:
 
 		// Update position.
 		pos := l.pos
-		l.pos.Offset += match[1]
-		lines := strings.Count(span, "\n")
-		l.pos.Line += lines
-		// Update column.
-		if lines == 0 {
-			l.pos.Column += utf8.RuneCountInString(span)
-		} else {
-			l.pos.Column = utf8.RuneCountInString(span[strings.LastIndex(span, "\n"):])
-		}
+		l.pos.Advance(span)
 		if rule.ignore {
 			parent = l.stack[len(l.stack)-1]
 			rules = l.def.rules[parent.name]

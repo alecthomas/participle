@@ -1,7 +1,9 @@
 package lexer_test
 
 import (
+	"flag"
 	"log"
+	"os"
 	"strings"
 	"testing"
 
@@ -9,32 +11,32 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/alecthomas/participle/v2"
-	. "github.com/alecthomas/participle/v2/lexer"
+	"github.com/alecthomas/participle/v2/lexer"
 )
 
-var interpolatedRules = Rules{
+var interpolatedRules = lexer.Rules{
 	"Root": {
-		{`String`, `"`, Push("String")},
+		{`String`, `"`, lexer.Push("String")},
 	},
 	"String": {
 		{"Escaped", `\\.`, nil},
-		{"StringEnd", `"`, Pop()},
-		{"Expr", `\${`, Push("Expr")},
+		{"StringEnd", `"`, lexer.Pop()},
+		{"Expr", `\${`, lexer.Push("Expr")},
 		{"Char", `[^$"\\]+`, nil},
 	},
 	"Expr": {
-		Include("Root"),
+		lexer.Include("Root"),
 		{`whitespace`, `\s+`, nil},
 		{`Oper`, `[-+/*%]`, nil},
 		{"Ident", `\w+`, nil},
-		{"ExprEnd", `}`, Pop()},
+		{"ExprEnd", `}`, lexer.Pop()},
 	},
 }
 
 func TestStatefulLexer(t *testing.T) {
 	tests := []struct {
 		name   string
-		rules  Rules
+		rules  lexer.Rules
 		lngst  bool
 		input  string
 		tokens []string
@@ -43,29 +45,29 @@ func TestStatefulLexer(t *testing.T) {
 		{name: "BackrefNoGroups",
 			input: `hello`,
 			err:   `1:1: rule "Backref": invalid backref expansion: "\\1": invalid group 1 from parent with 0 groups`,
-			rules: Rules{"Root": {{"Backref", `\1`, nil}}},
+			rules: lexer.Rules{"Root": {{"Backref", `\1`, nil}}},
 		},
 		{name: "BackrefInvalidGroups",
 			input: `<<EOF EOF`,
 			err:   "1:6: rule \"End\": invalid backref expansion: \"\\\\b\\\\2\\\\b\": invalid group 2 from parent with 2 groups",
-			rules: Rules{
+			rules: lexer.Rules{
 				"Root": {
-					{"Heredoc", `<<(\w+)\b`, Push("Heredoc")},
+					{"Heredoc", `<<(\w+)\b`, lexer.Push("Heredoc")},
 				},
 				"Heredoc": {
-					{"End", `\b\2\b`, Pop()},
+					{"End", `\b\2\b`, lexer.Pop()},
 				},
 			},
 		},
 		{name: "Heredoc",
-			rules: Rules{
+			rules: lexer.Rules{
 				"Root": {
-					{"Heredoc", `<<(\w+\b)`, Push("Heredoc")},
-					Include("Common"),
+					{"Heredoc", `<<(\w+\b)`, lexer.Push("Heredoc")},
+					lexer.Include("Common"),
 				},
 				"Heredoc": {
-					{"End", `\b\1\b`, Pop()},
-					Include("Common"),
+					{"End", `\b\1\b`, lexer.Pop()},
+					lexer.Include("Common"),
 				},
 				"Common": {
 					{"Whitespace", `\s+`, nil},
@@ -80,9 +82,9 @@ func TestStatefulLexer(t *testing.T) {
 			tokens: []string{"\n\t\t\t\t", "<<END", "\n\t\t\t\t", "hello", " ", "world", "\n\t\t\t\t", "END", "\n\t\t\t"},
 		},
 		{name: "BackslashIsntABackRef",
-			rules: Rules{
+			rules: lexer.Rules{
 				"Root": {
-					{"JustOne", `(\\\\1)`, Push("Convoluted")},
+					{"JustOne", `(\\\\1)`, lexer.Push("Convoluted")},
 				},
 				"Convoluted": {
 					{"ConvolutedMatch", `\\\1`, nil},
@@ -92,44 +94,44 @@ func TestStatefulLexer(t *testing.T) {
 			tokens: []string{`\\1`, `\\\1`},
 		},
 		{name: "Recursive",
-			rules: Rules{
+			rules: lexer.Rules{
 				"Root": {
-					{`String`, `"`, Push("String")},
+					{`String`, `"`, lexer.Push("String")},
 				},
 				"String": {
 					{"Escaped", `\\.`, nil},
-					{"StringEnd", `"`, Pop()},
-					{"Expr", `\${`, Push("Expr")},
+					{"StringEnd", `"`, lexer.Pop()},
+					{"Expr", `\${`, lexer.Push("Expr")},
 					{"Char", `[^$"\\]+`, nil},
 				},
 				"Expr": {
-					Include("Root"),
+					lexer.Include("Root"),
 					{`Whitespace`, `\s+`, nil},
 					{`Oper`, `[-+/*%]`, nil},
 					{"Ident", `\w+`, nil},
-					{"ExprEnd", `}`, Pop()},
+					{"ExprEnd", `}`, lexer.Pop()},
 				},
 			},
 			input:  `"hello ${user + "??" + "${nested}"}"`,
 			tokens: []string{"\"", "hello ", "${", "user", " ", "+", " ", "\"", "??", "\"", " ", "+", " ", "\"", "${", "nested", "}", "\"", "}", "\""},
 		},
 		{name: "Return",
-			rules: Rules{
+			rules: lexer.Rules{
 				"Root": {
-					{"Ident", `\w+`, Push("Reference")},
+					{"Ident", `\w+`, lexer.Push("Reference")},
 					{"whitespace", `\s+`, nil},
 				},
 				"Reference": {
 					{"Dot", `\.`, nil},
 					{"Ident", `\w+`, nil},
-					Return(),
+					lexer.Return(),
 				},
 			},
 			input:  `hello.world `,
 			tokens: []string{"hello", ".", "world"},
 		},
 		{name: "NoMatchLongest",
-			rules: Rules{
+			rules: lexer.Rules{
 				"Root": {
 					{"A", `a`, nil},
 					{"Ident", `\w+`, nil},
@@ -140,7 +142,7 @@ func TestStatefulLexer(t *testing.T) {
 			tokens: []string{"a", "a", "pple"},
 		},
 		{name: "MatchLongest",
-			rules: Rules{
+			rules: lexer.Rules{
 				"Root": {
 					{"A", `a`, nil},
 					{"Ident", `\w+`, nil},
@@ -152,7 +154,7 @@ func TestStatefulLexer(t *testing.T) {
 			tokens: []string{"a", "apple"},
 		},
 		{name: "NoMatchNoMutatorError",
-			rules: Rules{
+			rules: lexer.Rules{
 				"Root": {
 					{"NoMatch", "", nil},
 				},
@@ -161,9 +163,9 @@ func TestStatefulLexer(t *testing.T) {
 			err:   "1:1: rule \"NoMatch\" did not match any input",
 		},
 		{name: "NoMatchPushError",
-			rules: Rules{
+			rules: lexer.Rules{
 				"Root": {
-					{"NoMatch", "", Push("Sub")},
+					{"NoMatch", "", lexer.Push("Sub")},
 				},
 				"Sub": {
 					{"Ident", `\w+`, nil},
@@ -176,15 +178,15 @@ func TestStatefulLexer(t *testing.T) {
 	// nolint: scopelint
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			var opts []Option
+			var opts []lexer.Option
 			if test.lngst {
-				opts = append(opts, MatchLongest())
+				opts = append(opts, lexer.MatchLongest())
 			}
-			def, err := New(test.rules, opts...)
+			def, err := lexer.New(test.rules, opts...)
 			require.NoError(t, err)
 			lex, err := def.Lex("", strings.NewReader(test.input))
 			require.NoError(t, err)
-			tokens, err := ConsumeAll(lex)
+			tokens, err := lexer.ConsumeAll(lex)
 			if test.err != "" {
 				require.EqualError(t, err, test.err)
 			} else {
@@ -225,7 +227,7 @@ func ExampleNew() {
 		Fragments []*Fragment `"\"" @@* "\""`
 	}
 
-	def, err := New(interpolatedRules)
+	def, err := lexer.New(interpolatedRules)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -264,22 +266,22 @@ type Terminal struct {
 }
 
 func TestStateful(t *testing.T) {
-	def, err := New(Rules{
+	def, err := lexer.New(lexer.Rules{
 		"Root": {
-			{`String`, `"`, Push("String")},
+			{`String`, `"`, lexer.Push("String")},
 		},
 		"String": {
 			{"Escaped", `\\.`, nil},
-			{"StringEnd", `"`, Pop()},
-			{"Expr", `\${`, Push("Expr")},
+			{"StringEnd", `"`, lexer.Pop()},
+			{"Expr", `\${`, lexer.Push("Expr")},
 			{"Char", `[^$"\\]+`, nil},
 		},
 		"Expr": {
-			Include("Root"),
+			lexer.Include("Root"),
 			{`whitespace`, `\s+`, nil},
 			{`Oper`, `[-+/*%]`, nil},
 			{"Ident", `\w+`, nil},
-			{"ExprEnd", `}`, Pop()},
+			{"ExprEnd", `}`, lexer.Pop()},
 		},
 	})
 	require.NoError(t, err)
@@ -319,14 +321,14 @@ func TestHereDoc(t *testing.T) {
 		Doc *Heredoc `@@`
 	}
 
-	def, err := New(Rules{
+	def, err := lexer.New(lexer.Rules{
 		"Root": {
-			{"Heredoc", `<<(\w+\b)`, Push("Heredoc")},
-			Include("Common"),
+			{"Heredoc", `<<(\w+\b)`, lexer.Push("Heredoc")},
+			lexer.Include("Common"),
 		},
 		"Heredoc": {
-			{"End", `\b\1\b`, Pop()},
-			Include("Common"),
+			{"End", `\b\1\b`, lexer.Pop()},
+			lexer.Include("Common"),
 		},
 		"Common": {
 			{"whitespace", `\s+`, nil},
@@ -356,7 +358,7 @@ func TestHereDoc(t *testing.T) {
 
 func BenchmarkStateful(b *testing.B) {
 	source := strings.Repeat(`"hello ${user + "${last}"}"`, 100)
-	def := Must(New(interpolatedRules))
+	def := lexer.Must(lexer.New(interpolatedRules))
 	b.ReportMetric(float64(len(source)), "B")
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
@@ -364,7 +366,7 @@ func BenchmarkStateful(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		tokens, err := ConsumeAll(lex)
+		tokens, err := lexer.ConsumeAll(lex)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -380,14 +382,14 @@ func BenchmarkStatefulBackrefs(b *testing.B) {
 	hello world
 	END
 `, 100)
-	def, err := New(Rules{
+	def, err := lexer.New(lexer.Rules{
 		"Root": {
-			{"Heredoc", `<<(\w+\b)`, Push("Heredoc")},
-			Include("Common"),
+			{"Heredoc", `<<(\w+\b)`, lexer.Push("Heredoc")},
+			lexer.Include("Common"),
 		},
 		"Heredoc": {
-			{"End", `\b\1\b`, Pop()},
-			Include("Common"),
+			{"End", `\b\1\b`, lexer.Pop()},
+			lexer.Include("Common"),
 		},
 		"Common": {
 			{"whitespace", `\s+`, nil},
@@ -402,7 +404,7 @@ func BenchmarkStatefulBackrefs(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		tokens, err := ConsumeAll(lex)
+		tokens, err := lexer.ConsumeAll(lex)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -412,7 +414,32 @@ func BenchmarkStatefulBackrefs(b *testing.B) {
 	}
 }
 
-func BenchmarkStatefulBasic(b *testing.B) {
+var generateLexer = flag.Bool("generate", false, "generate lexer")
+
+func TestGenerate(t *testing.T) {
+	if !*generateLexer {
+		return
+	}
+	def, err := lexer.New(lexer.Rules{"Root": []lexer.Rule{
+		{"String", `"(\\"|[^"])*"`, nil},
+		{"Number", `[-+]?(\d*\.)?\d+`, nil},
+		{"Ident", `[a-zA-Z_]\w*`, nil},
+		{"Punct", `[!-/:-@[-` + "`" + `{-~]+`, nil},
+		{"EOL", `\n`, nil},
+		{"Comment", `(?i)rem[^\n]*\n`, nil},
+		{"Whitespace", `[ \t]+`, nil},
+	}})
+	require.NoError(t, err)
+	w, err := os.Create("stateful_codegen_test.go~")
+	require.NoError(t, err)
+	err = lexer.ExperimentalGenerateLexer(w, "lexer_test", def)
+	require.NoError(t, err)
+	err = os.Rename("stateful_codegen_test.go~", "stateful_codegen_test.go")
+	require.NoError(t, err)
+}
+
+func basicBenchmark(b *testing.B, def lexer.Definition) {
+	b.Helper()
 	source := strings.Repeat(`
  5  REM inputting the argument
 10  PRINT "Factorial of:"
@@ -425,30 +452,44 @@ func BenchmarkStatefulBasic(b *testing.B) {
 70  GOTO 40
 75  REM prints the result
 80  PRINT B
-	`, 100)
-	def, err := NewSimple([]SimpleRule{
-		{"String", `"(\\"|[^"])*"`},
-		{"Number", `[-+]?(\d*\.)?\d+`},
-		{"Ident", `[a-zA-Z_]\w*`},
-		{"Punct", `[!-/:-@[-` + "`" + `{-~]+`},
-		{"EOL", `\n`},
-		{"comment", `(?i)rem[^\n]*\n`},
-		{"whitespace", `[ \t]+`},
-	})
-	require.NoError(b, err)
+       `, 100)
 	b.ReportMetric(float64(len(source)), "B")
 	b.ReportAllocs()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		lex, err := def.Lex("", strings.NewReader(source))
+		lex, err := def.(lexer.StringDefinition).LexString("", source)
 		if err != nil {
 			b.Fatal(err)
 		}
-		tokens, err := ConsumeAll(lex)
-		if err != nil {
-			b.Fatal(err)
+		count := 0
+		var token lexer.Token
+		for !token.EOF() {
+			token, err = lex.Next()
+			if err != nil {
+				b.Fatal(err)
+			}
+			count++
 		}
-		if len(tokens) != 6601 {
-			b.Fatalf("%d != 401", len(tokens))
+		if count != 11101 {
+			b.Fatalf("%d != 6601", count)
 		}
 	}
+}
+
+func BenchmarkStatefulBASIC(b *testing.B) {
+	def, err := lexer.New(lexer.Rules{"Root": []lexer.Rule{
+		{"String", `"(\\"|[^"])*"`, nil},
+		{"Number", `[-+]?(\d*\.)?\d+`, nil},
+		{"Ident", `[a-zA-Z_]\w*`, nil},
+		{"Punct", `[!-/:-@[-` + "`" + `{-~]+`, nil},
+		{"EOL", `\n`, nil},
+		{"Comment", `(?i)rem[^\n]*\n`, nil},
+		{"Whitespace", `[ \t]+`, nil},
+	}})
+	require.NoError(b, err)
+	basicBenchmark(b, def)
+}
+
+func BenchmarkStatefulGeneratedBASIC(b *testing.B) {
+	basicBenchmark(b, Lexer)
 }

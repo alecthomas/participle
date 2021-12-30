@@ -36,9 +36,10 @@ var (
 )
 
 func TestGenerate(t *testing.T) {
-	w, err := os.Create("codegen_gen_test.go")
+	w, err := os.Create("codegen_gen_test.go~")
 	require.NoError(t, err)
 	defer w.Close()
+	defer os.Rename("codegen_gen_test.go~", "codegen_gen_test.go") // nolint
 	err = lexer.ExperimentalGenerateLexer(w, "internal_test", exprLexer)
 	require.NoError(t, err)
 	err = exec.Command("gofmt", "-w", "codegen_gen_test.go").Run()

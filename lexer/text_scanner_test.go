@@ -8,47 +8,47 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/alecthomas/participle/v2"
-	. "github.com/alecthomas/participle/v2/lexer"
+	"github.com/alecthomas/participle/v2/lexer"
 )
 
 func TestLexer(t *testing.T) {
-	lexer, err := Upgrade(LexString("", "hello world"))
+	lex, err := lexer.Upgrade(lexer.LexString("", "hello world"))
 	require.NoError(t, err)
-	helloPos := Position{Offset: 0, Line: 1, Column: 1}
-	worldPos := Position{Offset: 6, Line: 1, Column: 7}
-	eofPos := Position{Offset: 11, Line: 1, Column: 12}
-	require.Equal(t, Token{Type: scanner.Ident, Value: "hello", Pos: helloPos}, mustPeek(t, lexer, 0))
-	require.Equal(t, Token{Type: scanner.Ident, Value: "hello", Pos: helloPos}, mustPeek(t, lexer, 0))
-	require.Equal(t, Token{Type: scanner.Ident, Value: "hello", Pos: helloPos}, mustNext(t, lexer))
-	require.Equal(t, Token{Type: scanner.Ident, Value: "world", Pos: worldPos}, mustPeek(t, lexer, 0))
-	require.Equal(t, Token{Type: scanner.Ident, Value: "world", Pos: worldPos}, mustNext(t, lexer))
-	require.Equal(t, Token{Type: scanner.EOF, Value: "", Pos: eofPos}, mustPeek(t, lexer, 0))
-	require.Equal(t, Token{Type: scanner.EOF, Value: "", Pos: eofPos}, mustNext(t, lexer))
+	helloPos := lexer.Position{Offset: 0, Line: 1, Column: 1}
+	worldPos := lexer.Position{Offset: 6, Line: 1, Column: 7}
+	eofPos := lexer.Position{Offset: 11, Line: 1, Column: 12}
+	require.Equal(t, lexer.Token{Type: scanner.Ident, Value: "hello", Pos: helloPos}, mustPeek(t, lex, 0))
+	require.Equal(t, lexer.Token{Type: scanner.Ident, Value: "hello", Pos: helloPos}, mustPeek(t, lex, 0))
+	require.Equal(t, lexer.Token{Type: scanner.Ident, Value: "hello", Pos: helloPos}, mustNext(t, lex))
+	require.Equal(t, lexer.Token{Type: scanner.Ident, Value: "world", Pos: worldPos}, mustPeek(t, lex, 0))
+	require.Equal(t, lexer.Token{Type: scanner.Ident, Value: "world", Pos: worldPos}, mustNext(t, lex))
+	require.Equal(t, lexer.Token{Type: scanner.EOF, Value: "", Pos: eofPos}, mustPeek(t, lex, 0))
+	require.Equal(t, lexer.Token{Type: scanner.EOF, Value: "", Pos: eofPos}, mustNext(t, lex))
 }
 
 func TestLexString(t *testing.T) {
-	lexer := LexString("", "\"hello world\"")
-	token, err := lexer.Next()
+	lex := lexer.LexString("", "\"hello world\"")
+	token, err := lex.Next()
 	require.NoError(t, err)
-	require.Equal(t, token, Token{Type: scanner.String, Value: "\"hello world\"", Pos: Position{Line: 1, Column: 1}})
+	require.Equal(t, token, lexer.Token{Type: scanner.String, Value: "\"hello world\"", Pos: lexer.Position{Line: 1, Column: 1}})
 }
 
 func TestLexSingleString(t *testing.T) {
-	lexer := LexString("", "`hello world`")
-	token, err := lexer.Next()
+	lex := lexer.LexString("", "`hello world`")
+	token, err := lex.Next()
 	require.NoError(t, err)
-	require.Equal(t, Token{Type: scanner.RawString, Value: "`hello world`", Pos: Position{Line: 1, Column: 1}}, token)
-	lexer = LexString("", `'\U00008a9e'`)
-	token, err = lexer.Next()
+	require.Equal(t, lexer.Token{Type: scanner.RawString, Value: "`hello world`", Pos: lexer.Position{Line: 1, Column: 1}}, token)
+	lex = lexer.LexString("", `'\U00008a9e'`)
+	token, err = lex.Next()
 	require.NoError(t, err)
-	require.Equal(t, Token{Type: scanner.Char, Value: `'\U00008a9e'`, Pos: Position{Line: 1, Column: 1}}, token)
+	require.Equal(t, lexer.Token{Type: scanner.Char, Value: `'\U00008a9e'`, Pos: lexer.Position{Line: 1, Column: 1}}, token)
 }
 
 func TestNewTextScannerLexerDefault(t *testing.T) {
 	type grammar struct {
 		Text string `@String @Ident`
 	}
-	p, err := participle.Build(&grammar{}, participle.Lexer(NewTextScannerLexer(nil)), participle.Unquote())
+	p, err := participle.Build(&grammar{}, participle.Lexer(lexer.NewTextScannerLexer(nil)), participle.Unquote())
 	require.NoError(t, err)
 	g := &grammar{}
 	err = p.ParseString("", `"hello" world`, g)
@@ -60,7 +60,7 @@ func TestNewTextScannerLexer(t *testing.T) {
 	type grammar struct {
 		Text string `(@String | @Comment | @Ident)+`
 	}
-	p, err := participle.Build(&grammar{}, participle.Lexer(NewTextScannerLexer(func(s *scanner.Scanner) {
+	p, err := participle.Build(&grammar{}, participle.Lexer(lexer.NewTextScannerLexer(func(s *scanner.Scanner) {
 		s.Mode &^= scanner.SkipComments
 	})), participle.Unquote())
 	require.NoError(t, err)
@@ -76,10 +76,10 @@ func BenchmarkTextScannerLexer(b *testing.B) {
 	b.ReportMetric(float64(len(input)), "B")
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		lex, _ := TextScannerLexer.Lex("", r)
+		lex, _ := lexer.TextScannerLexer.Lex("", r)
 		for {
 			token, _ := lex.Next()
-			if token.Type == EOF {
+			if token.Type == lexer.EOF {
 				break
 			}
 		}

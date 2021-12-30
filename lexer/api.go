@@ -3,6 +3,8 @@ package lexer
 import (
 	"fmt"
 	"io"
+	"strings"
+	"unicode/utf8"
 )
 
 type TokenType int
@@ -97,6 +99,19 @@ type Position struct {
 	Offset   int
 	Line     int
 	Column   int
+}
+
+// Advance the Position based on the number of characters and newlines in "span".
+func (p *Position) Advance(span string) {
+	p.Offset += len(span)
+	lines := strings.Count(span, "\n")
+	p.Line += lines
+	// Update column.
+	if lines == 0 {
+		p.Column += utf8.RuneCountInString(span)
+	} else {
+		p.Column = utf8.RuneCountInString(span[strings.LastIndex(span, "\n"):])
+	}
 }
 
 func (p Position) GoString() string {

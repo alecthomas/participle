@@ -143,15 +143,7 @@ func (l *lexerImpl) Next() (lexer.Token, error) {
 	pos := l.pos
 	span := l.s[groups[0]:groups[1]]
 	l.p = groups[1]
-	l.pos.Offset = groups[1]
-	lines := strings.Count(span, "\n")
-	l.pos.Line += lines
-	// Update column.
-	if lines == 0 {
-		l.pos.Column += utf8.RuneCountInString(span)
-	} else {
-		l.pos.Column = utf8.RuneCountInString(span[strings.LastIndex(span, "\n"):])
-	}
+	l.pos.Advance(span)
 	return lexer.Token{
 		Type:  sym,
 		Value: span,

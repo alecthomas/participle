@@ -20,13 +20,6 @@ import (
 	"github.com/alecthomas/participle/v2/lexer"
 )
 
-var (
-	cli struct {
-		Gen   bool     `help:"Generate lexer."`
-		Files []string `help:"Thrift files."`
-	}
-)
-
 type Namespace struct {
 	Pos       lexer.Position
 	Language  string `"namespace" @Ident`
@@ -216,6 +209,11 @@ var (
 )
 
 func main() {
+	var cli struct {
+		Gen   bool     `help:"Generate lexer."`
+		Files []string `help:"Thrift files."`
+	}
+
 	ctx := kong.Parse(&cli)
 
 	if cli.Gen {
