@@ -1536,7 +1536,7 @@ func TestCaptureOnSliceElements(t *testing.T) { // nolint:dupl
 type sliceParse string
 
 func (s *sliceParse) Parse(lex *lexer.PeekingLexer) error {
-	token, err := lex.Peek(0)
+	token, err := lex.Peek()
 	if err != nil {
 		return err
 	}

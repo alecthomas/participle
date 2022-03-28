@@ -106,7 +106,7 @@ func (s *strct) GoString() string { return s.typ.Name() }
 func (s *strct) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	sv := reflect.New(s.typ).Elem()
 	start := ctx.RawCursor()
-	t, err := ctx.Peek(0)
+	t, err := ctx.Peek()
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +197,7 @@ func (g *group) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Va
 			return out, err
 		}
 		if len(out) == 0 {
-			t, _ := ctx.Peek(0)
+			t, _ := ctx.Peek()
 			return out, Errorf(t.Pos, "sub-expression %s cannot be empty", g)
 		}
 		return out, nil
@@ -232,7 +232,7 @@ func (g *group) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Va
 		}
 	}
 	// fmt.Printf("%d < %d < %d: out == nil? %v\n", min, matches, max, out == nil)
-	t, _ := ctx.Peek(0)
+	t, _ := ctx.Peek()
 	if matches >= MaxIterations {
 		panic(Errorf(t.Pos, "too many iterations of %s (> %d)", g, MaxIterations))
 	}
@@ -262,7 +262,7 @@ func (n *lookaheadGroup) Parse(ctx *parseContext, parent reflect.Value) (out []r
 	matchedLookahead := err == nil && out != nil
 	expectingMatch := !n.negative
 	if matchedLookahead != expectingMatch {
-		peek, err := ctx.Peek(0)
+		peek, err := ctx.Peek()
 		if err != nil {
 			return nil, err
 		}
@@ -300,8 +300,8 @@ func (d *disjunction) Parse(ctx *parseContext, parent reflect.Value) (out []refl
 				deepestError = branch.Cursor()
 			}
 		} else if value != nil {
-			bt, _ := branch.Peek(0)
-			ct, _ := ctx.Peek(0)
+			bt, _ := branch.Peek()
+			ct, _ := ctx.Peek()
 			if bt == ct && bt.Type != lexer.EOF {
 				panic(Errorf(bt.Pos, "branch %s was accepted but did not progress the lexer at %s (%q)", a, bt.Pos, bt.Value))
 			}
@@ -338,7 +338,7 @@ func (s *sequence) Parse(ctx *parseContext, parent reflect.Value) (out []reflect
 			if n == s {
 				return nil, nil
 			}
-			token, err := ctx.Peek(0)
+			token, err := ctx.Peek()
 			if err != nil {
 				return nil, err
 			}
@@ -382,7 +382,7 @@ func (r *reference) String() string   { return ebnf(r) }
 func (r *reference) GoString() string { return fmt.Sprintf("reference{%s}", r.identifier) }
 
 func (r *reference) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
-	token, err := ctx.Peek(0)
+	token, err := ctx.Peek()
 	if err != nil {
 		return nil, err
 	}
@@ -448,7 +448,7 @@ func (r *repetition) Parse(ctx *parseContext, parent reflect.Value) (out []refle
 		}
 	}
 	if i >= MaxIterations {
-		t, _ := ctx.Peek(0)
+		t, _ := ctx.Peek()
 		panic(Errorf(t.Pos, "too many iterations of %s (> %d)", r, MaxIterations))
 	}
 	if out == nil {
@@ -468,7 +468,7 @@ func (l *literal) String() string   { return ebnf(l) }
 func (l *literal) GoString() string { return fmt.Sprintf("literal{%q, %q}", l.s, l.tt) }
 
 func (l *literal) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
-	token, err := ctx.Peek(0)
+	token, err := ctx.Peek()
 	if err != nil {
 		return nil, err
 	}
@@ -499,7 +499,7 @@ func (n *negation) Parse(ctx *parseContext, parent reflect.Value) (out []reflect
 	// Create a branch to avoid advancing the parser, but call neither Stop nor Accept on it
 	// since we will discard a match.
 	branch := ctx.Branch()
-	notEOF, err := ctx.Peek(0)
+	notEOF, err := ctx.Peek()
 	if err != nil {
 		return nil, err
 	}

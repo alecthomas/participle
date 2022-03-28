@@ -228,7 +228,7 @@ var stringToScalar = map[string]Scalar{
 }
 
 func (s *Scalar) Parse(lex *lexer.PeekingLexer) error {
-	token, err := lex.Peek(0)
+	token, err := lex.Peek()
 	if err != nil {
 		return err
 	}

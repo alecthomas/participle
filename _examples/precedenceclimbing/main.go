@@ -104,7 +104,7 @@ func isOp(rn rune) bool {
 }
 
 func peek(lex *lexer.PeekingLexer) lexer.Token {
-	tok, err := lex.Peek(0)
+	tok, err := lex.Peek()
 	if err != nil {
 		panic("??")
 	}

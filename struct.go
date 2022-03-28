@@ -67,7 +67,7 @@ func (s *structLexer) Peek() (lexer.Token, error) {
 	field := s.field
 	lex := s.lexer
 	for {
-		token, err := lex.Peek(0)
+		token, err := lex.Peek()
 		if err != nil {
 			return token, err
 		}

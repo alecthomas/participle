@@ -219,7 +219,7 @@ func (p *Parser) ParseBytes(filename string, b []byte, v interface{}, options ..
 func (p *Parser) parseStreaming(ctx *parseContext, rv reflect.Value) error {
 	t := rv.Type().Elem().Elem()
 	for {
-		if token, _ := ctx.Peek(0); token.EOF() {
+		if token, _ := ctx.Peek(); token.EOF() {
 			rv.Close()
 			return nil
 		}
@@ -236,7 +236,7 @@ func (p *Parser) parseOne(ctx *parseContext, rv reflect.Value) error {
 	if err != nil {
 		return err
 	}
-	token, err := ctx.Peek(0)
+	token, err := ctx.Peek()
 	if err != nil {
 		return err
 	} else if !token.EOF() && !ctx.allowTrailing {
@@ -257,23 +257,23 @@ func (p *Parser) parseInto(ctx *parseContext, rv reflect.Value) error {
 		return err
 	}
 	if pv == nil {
-		token, _ := ctx.Peek(0)
+		token, _ := ctx.Peek()
 		return ctx.DeepestError(UnexpectedTokenError{Unexpected: token})
 	}
 	return nil
 }
 
 func (p *Parser) rootParseable(ctx *parseContext, parseable Parseable) error {
-	peek, err := ctx.Peek(0)
+	peek, err := ctx.Peek()
 	if err != nil {
 		return err
 	}
 	err = parseable.Parse(ctx.PeekingLexer)
 	if err == NextMatch {
-		token, _ := ctx.Peek(0)
+		token, _ := ctx.Peek()
 		return ctx.DeepestError(UnexpectedTokenError{Unexpected: token})
 	}
-	peek, err = ctx.Peek(0)
+	peek, err = ctx.Peek()
 	if err != nil {
 		return err
 	}

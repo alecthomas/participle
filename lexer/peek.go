@@ -68,16 +68,13 @@ func (p *PeekingLexer) Next() (Token, error) {
 }
 
 // Peek ahead at the n+1 token. eg. Peek(0) will peek at the next token.
-func (p *PeekingLexer) Peek(n int) (Token, error) {
+func (p *PeekingLexer) Peek() (Token, error) {
 	for i := int(p.rawCursor); i < len(p.tokens); i++ {
 		t := p.tokens[i]
 		if p.elide[t.Type] {
 			continue
 		}
-		if n == 0 {
-			return t, nil
-		}
-		n--
+		return t, nil
 	}
 	return p.eof, nil
 }
