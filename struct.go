@@ -67,10 +67,7 @@ func (s *structLexer) Peek() (lexer.Token, error) {
 	field := s.field
 	lex := s.lexer
 	for {
-		token, err := lex.Peek()
-		if err != nil {
-			return token, err
-		}
+		token := lex.Peek()
 		if !token.EOF() {
 			token.Pos.Line = field + 1
 			return token, nil
@@ -81,6 +78,7 @@ func (s *structLexer) Peek() (lexer.Token, error) {
 		}
 		ft := s.GetField(field).StructField
 		tag := fieldLexerTag(ft)
+		var err error
 		lex, err = lexer.Upgrade(newTagLexer(ft.Name, tag))
 		if err != nil {
 			return token, err

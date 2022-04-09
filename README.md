@@ -257,29 +257,6 @@ type Value struct {
 }
 ```
 
-## Streaming
-<a id="markdown-streaming" name="streaming"></a>
-
-Participle supports streaming parsing. Simply pass a channel of your grammar into
-`Parse*()`. The grammar will be repeatedly parsed and sent to the channel. Note that
-the `Parse*()` call will not return until parsing completes, so it should generally be
-started in a goroutine.
-
-```go
-type token struct {
-  Str string `  @Ident`
-  Num int    `| @Int`
-}
-
-parser, err := participle.Build(&token{})
-
-tokens := make(chan *token, 128)
-err := parser.ParseString("", `hello 10 11 12 world`, tokens)
-for token := range tokens {
-  fmt.Printf("%#v\n", token)
-}
-```
-
 ## Lexing
 <a id="markdown-lexing" name="lexing"></a>
 
@@ -380,20 +357,20 @@ var lexer = stateful.Must(Rules{
 Other than the default and stateful lexers, it's easy to define your
 own stateless lexer using the `stateful.MustSimple()` and
 `stateful.NewSimple()` methods.  These methods accept a slice of
-`stateful.Rule{}` objects consisting of a key and a regex-style pattern.
-The stateful lexer replaced the old regex lexer.  
+`stateful.SimpleRule{}` objects consisting of a key and a regex-style pattern.
+The stateful lexer replaced the old regex lexer.
 
 For example, the lexer for a form of BASIC:
 
 ```go
-var basicLexer = stateful.MustSimple([]stateful.Rule{
-    {"Comment", `(?i)rem[^\n]*`, nil},
-    {"String", `"(\\"|[^"])*"`, nil},
-    {"Number", `[-+]?(\d*\.)?\d+`, nil},
-    {"Ident", `[a-zA-Z_]\w*`, nil},
-    {"Punct", `[-[!@#$%^&*()+_={}\|:;"'<,>.?/]|]`, nil},
-    {"EOL", `[\n\r]+`, nil},
-    {"whitespace", `[ \t]+`, nil},
+var basicLexer = stateful.MustSimple([]stateful.SimpleRule{
+    {"Comment", `(?i)rem[^\n]*`},
+    {"String", `"(\\"|[^"])*"`},
+    {"Number", `[-+]?(\d*\.)?\d+`},
+    {"Ident", `[a-zA-Z_]\w*`},
+    {"Punct", `[-[!@#$%^&*()+_={}\|:;"'<,>.?/]|]`},
+    {"EOL", `[\n\r]+`},
+    {"whitespace", `[ \t]+`},
 })
 ```
 

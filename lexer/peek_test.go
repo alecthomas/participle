@@ -28,16 +28,9 @@ func TestUpgrade(t *testing.T) {
 	tokens := []lexer.Token{t0, ts, t1}
 	l, err := lexer.Upgrade(&staticLexer{tokens: tokens}, 3)
 	require.NoError(t, err)
-	require.Equal(t, t0, mustPeek(t, l))
-	require.Equal(t, t0, mustPeek(t, l))
+	require.Equal(t, t0, l.Peek())
+	require.Equal(t, t0, l.Peek())
 	require.Equal(t, tokens, l.Range(0, 3))
-}
-
-func mustPeek(t *testing.T, lexer *lexer.PeekingLexer) lexer.Token {
-	t.Helper()
-	token, err := lexer.Peek()
-	require.NoError(t, err)
-	return token
 }
 
 func mustNext(t *testing.T, lexer lexer.Lexer) lexer.Token {

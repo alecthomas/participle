@@ -22,7 +22,7 @@ type trace struct {
 }
 
 func (t *trace) Parse(ctx *parseContext, parent reflect.Value) ([]reflect.Value, error) {
-	tok, _ := ctx.Peek()
+	tok := ctx.Peek()
 	fmt.Fprintf(t.w, "%s%q %s\n", strings.Repeat(" ", t.indent), tok, t.node.GoString())
 	return t.node.Parse(ctx, parent)
 }

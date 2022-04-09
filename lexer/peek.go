@@ -67,30 +67,39 @@ func (p *PeekingLexer) Next() (Token, error) {
 	return p.eof, nil
 }
 
-// Peek ahead at the n+1 token. eg. Peek(0) will peek at the next token.
-func (p *PeekingLexer) Peek() (Token, error) {
+// PeekNext peeks forward over elided and non-elided tokens. If any tokens
+// in "types" are found they are returned.
+func (p *PeekingLexer) PeekNext(types ...TokenType) (Token, bool) {
+	for i := int(p.rawCursor); i < len(p.tokens); i++ {
+		for _, typ := range types {
+			if tok := p.tokens[p.rawCursor]; tok.Type == typ {
+				return tok, true
+			}
+		}
+	}
+	return p.eof, false
+}
+
+// Peek at the next token.
+func (p *PeekingLexer) Peek() Token {
 	for i := int(p.rawCursor); i < len(p.tokens); i++ {
 		t := p.tokens[i]
 		if p.elide[t.Type] {
 			continue
 		}
-		return t, nil
+		return t
 	}
-	return p.eof, nil
+	return p.eof
 }
 
-// RawPeek peeks ahead at the raw token n+1. eg. RawPeek(0) will peek at the next token.
+// RawPeek peeks ahead at the next raw token.
 //
 // Unlike Peek, this will include elided tokens.
-func (p *PeekingLexer) RawPeek(n int) (Token, error) {
-	for i := int(p.rawCursor); i < len(p.tokens); i++ {
-		t := p.tokens[i]
-		if n == 0 {
-			return t, nil
-		}
-		n--
+func (p *PeekingLexer) RawPeek() Token {
+	if int(p.rawCursor) < len(p.tokens) {
+		return p.tokens[p.rawCursor]
 	}
-	return p.eof, nil
+	return p.eof
 }
 
 // Clone creates a clone of this PeekingLexer at its current token.

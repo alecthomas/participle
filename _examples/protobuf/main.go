@@ -228,15 +228,12 @@ var stringToScalar = map[string]Scalar{
 }
 
 func (s *Scalar) Parse(lex *lexer.PeekingLexer) error {
-	token, err := lex.Peek()
-	if err != nil {
-		return err
-	}
+	token := lex.Peek()
 	v, ok := stringToScalar[token.Value]
 	if !ok {
 		return participle.NextMatch
 	}
-	_, err = lex.Next()
+	_, err := lex.Next()
 	if err != nil {
 		return err
 	}

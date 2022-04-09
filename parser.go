@@ -125,12 +125,6 @@ func (p *Parser) ParseFromLexer(lex *lexer.PeekingLexer, v interface{}, options 
 	if rv.Kind() == reflect.Interface {
 		rv = rv.Elem()
 	}
-	var stream reflect.Value
-	if rv.Kind() == reflect.Chan {
-		stream = rv
-		rt := rv.Type().Elem()
-		rv = reflect.New(rt).Elem()
-	}
 	rt := rv.Type()
 	if rt != p.typ {
 		return fmt.Errorf("must parse into value of type %s not %T", p.typ, v)
@@ -152,9 +146,6 @@ func (p *Parser) ParseFromLexer(lex *lexer.PeekingLexer, v interface{}, options 
 	// If the grammar implements Parseable, use it.
 	if parseable, ok := v.(Parseable); ok {
 		return p.rootParseable(ctx, parseable)
-	}
-	if stream.IsValid() {
-		return p.parseStreaming(ctx, stream)
 	}
 	return p.parseOne(ctx, rv)
 }
@@ -216,30 +207,13 @@ func (p *Parser) ParseBytes(filename string, b []byte, v interface{}, options ..
 	return p.parse(lex, v, options...)
 }
 
-func (p *Parser) parseStreaming(ctx *parseContext, rv reflect.Value) error {
-	t := rv.Type().Elem().Elem()
-	for {
-		if token, _ := ctx.Peek(); token.EOF() {
-			rv.Close()
-			return nil
-		}
-		v := reflect.New(t)
-		if err := p.parseInto(ctx, v); err != nil {
-			return err
-		}
-		rv.Send(v)
-	}
-}
-
 func (p *Parser) parseOne(ctx *parseContext, rv reflect.Value) error {
 	err := p.parseInto(ctx, rv)
 	if err != nil {
 		return err
 	}
-	token, err := ctx.Peek()
-	if err != nil {
-		return err
-	} else if !token.EOF() && !ctx.allowTrailing {
+	token := ctx.Peek()
+	if !token.EOF() && !ctx.allowTrailing {
 		return ctx.DeepestError(UnexpectedTokenError{Unexpected: token})
 	}
 	return nil
@@ -257,26 +231,20 @@ func (p *Parser) parseInto(ctx *parseContext, rv reflect.Value) error {
 		return err
 	}
 	if pv == nil {
-		token, _ := ctx.Peek()
+		token := ctx.Peek()
 		return ctx.DeepestError(UnexpectedTokenError{Unexpected: token})
 	}
 	return nil
 }
 
 func (p *Parser) rootParseable(ctx *parseContext, parseable Parseable) error {
-	peek, err := ctx.Peek()
-	if err != nil {
-		return err
-	}
-	err = parseable.Parse(ctx.PeekingLexer)
+	peek := ctx.Peek()
+	err := parseable.Parse(ctx.PeekingLexer)
 	if err == NextMatch {
-		token, _ := ctx.Peek()
+		token := ctx.Peek()
 		return ctx.DeepestError(UnexpectedTokenError{Unexpected: token})
 	}
-	peek, err = ctx.Peek()
-	if err != nil {
-		return err
-	}
+	peek = ctx.Peek()
 	if !peek.EOF() && !ctx.allowTrailing {
 		return ctx.DeepestError(UnexpectedTokenError{Unexpected: peek})
 	}

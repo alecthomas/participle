@@ -17,12 +17,12 @@ func TestLexer(t *testing.T) {
 	helloPos := lexer.Position{Offset: 0, Line: 1, Column: 1}
 	worldPos := lexer.Position{Offset: 6, Line: 1, Column: 7}
 	eofPos := lexer.Position{Offset: 11, Line: 1, Column: 12}
-	require.Equal(t, lexer.Token{Type: scanner.Ident, Value: "hello", Pos: helloPos}, mustPeek(t, lex))
-	require.Equal(t, lexer.Token{Type: scanner.Ident, Value: "hello", Pos: helloPos}, mustPeek(t, lex))
+	require.Equal(t, lexer.Token{Type: scanner.Ident, Value: "hello", Pos: helloPos}, lex.Peek())
+	require.Equal(t, lexer.Token{Type: scanner.Ident, Value: "hello", Pos: helloPos}, lex.Peek())
 	require.Equal(t, lexer.Token{Type: scanner.Ident, Value: "hello", Pos: helloPos}, mustNext(t, lex))
-	require.Equal(t, lexer.Token{Type: scanner.Ident, Value: "world", Pos: worldPos}, mustPeek(t, lex))
+	require.Equal(t, lexer.Token{Type: scanner.Ident, Value: "world", Pos: worldPos}, lex.Peek())
 	require.Equal(t, lexer.Token{Type: scanner.Ident, Value: "world", Pos: worldPos}, mustNext(t, lex))
-	require.Equal(t, lexer.Token{Type: scanner.EOF, Value: "", Pos: eofPos}, mustPeek(t, lex))
+	require.Equal(t, lexer.Token{Type: scanner.EOF, Value: "", Pos: eofPos}, lex.Peek())
 	require.Equal(t, lexer.Token{Type: scanner.EOF, Value: "", Pos: eofPos}, mustNext(t, lex))
 }
 

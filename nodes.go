@@ -106,10 +106,7 @@ func (s *strct) GoString() string { return s.typ.Name() }
 func (s *strct) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	sv := reflect.New(s.typ).Elem()
 	start := ctx.RawCursor()
-	t, err := ctx.Peek()
-	if err != nil {
-		return nil, err
-	}
+	t := ctx.Peek()
 	s.maybeInjectStartToken(t, sv)
 	if out, err = s.expr.Parse(ctx, sv); err != nil {
 		_ = ctx.Apply() // Best effort to give partial AST.
@@ -119,7 +116,7 @@ func (s *strct) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Va
 		return nil, nil
 	}
 	end := ctx.RawCursor()
-	t, _ = ctx.RawPeek(0)
+	t = ctx.RawPeek()
 	s.maybeInjectEndToken(t, sv)
 	s.maybeInjectTokens(ctx.Range(start, end), sv)
 	return []reflect.Value{sv}, ctx.Apply()
@@ -197,7 +194,7 @@ func (g *group) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Va
 			return out, err
 		}
 		if len(out) == 0 {
-			t, _ := ctx.Peek()
+			t := ctx.Peek()
 			return out, Errorf(t.Pos, "sub-expression %s cannot be empty", g)
 		}
 		return out, nil
@@ -232,9 +229,9 @@ func (g *group) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Va
 		}
 	}
 	// fmt.Printf("%d < %d < %d: out == nil? %v\n", min, matches, max, out == nil)
-	t, _ := ctx.Peek()
+	t := ctx.Peek()
 	if matches >= MaxIterations {
-		panic(Errorf(t.Pos, "too many iterations of %s (> %d)", g, MaxIterations))
+		return nil, Errorf(t.Pos, "too many iterations of %s (> %d)", g, MaxIterations)
 	}
 	if matches < min {
 		return out, Errorf(t.Pos, "sub-expression %s must match at least once", g)
@@ -262,10 +259,7 @@ func (n *lookaheadGroup) Parse(ctx *parseContext, parent reflect.Value) (out []r
 	matchedLookahead := err == nil && out != nil
 	expectingMatch := !n.negative
 	if matchedLookahead != expectingMatch {
-		peek, err := ctx.Peek()
-		if err != nil {
-			return nil, err
-		}
+		peek := ctx.Peek()
 		return nil, Errorf(peek.Pos, "unexpected '%s'", peek.Value)
 	}
 	return []reflect.Value{}, nil // Empty match slice means a match, unlike nil
@@ -300,8 +294,8 @@ func (d *disjunction) Parse(ctx *parseContext, parent reflect.Value) (out []refl
 				deepestError = branch.Cursor()
 			}
 		} else if value != nil {
-			bt, _ := branch.Peek()
-			ct, _ := ctx.Peek()
+			bt := branch.Peek()
+			ct := ctx.Peek()
 			if bt == ct && bt.Type != lexer.EOF {
 				panic(Errorf(bt.Pos, "branch %s was accepted but did not progress the lexer at %s (%q)", a, bt.Pos, bt.Value))
 			}
@@ -338,10 +332,7 @@ func (s *sequence) Parse(ctx *parseContext, parent reflect.Value) (out []reflect
 			if n == s {
 				return nil, nil
 			}
-			token, err := ctx.Peek()
-			if err != nil {
-				return nil, err
-			}
+			token := ctx.Peek()
 			return out, UnexpectedTokenError{Unexpected: token, at: n}
 		}
 	}
@@ -382,10 +373,7 @@ func (r *reference) String() string   { return ebnf(r) }
 func (r *reference) GoString() string { return fmt.Sprintf("reference{%s}", r.identifier) }
 
 func (r *reference) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
-	token, err := ctx.Peek()
-	if err != nil {
-		return nil, err
-	}
+	token := ctx.Peek()
 	if token.Type != r.typ {
 		return nil, nil
 	}
@@ -448,8 +436,8 @@ func (r *repetition) Parse(ctx *parseContext, parent reflect.Value) (out []refle
 		}
 	}
 	if i >= MaxIterations {
-		t, _ := ctx.Peek()
-		panic(Errorf(t.Pos, "too many iterations of %s (> %d)", r, MaxIterations))
+		t := ctx.Peek()
+		return nil, Errorf(t.Pos, "too many iterations of %s (> %d)", r, MaxIterations)
 	}
 	if out == nil {
 		out = []reflect.Value{}
@@ -468,10 +456,7 @@ func (l *literal) String() string   { return ebnf(l) }
 func (l *literal) GoString() string { return fmt.Sprintf("literal{%q, %q}", l.s, l.tt) }
 
 func (l *literal) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
-	token, err := ctx.Peek()
-	if err != nil {
-		return nil, err
-	}
+	token := ctx.Peek()
 	equal := false // nolint: ineffassign
 	if ctx.caseInsensitive[token.Type] {
 		equal = strings.EqualFold(token.Value, l.s)
@@ -499,17 +484,13 @@ func (n *negation) Parse(ctx *parseContext, parent reflect.Value) (out []reflect
 	// Create a branch to avoid advancing the parser, but call neither Stop nor Accept on it
 	// since we will discard a match.
 	branch := ctx.Branch()
-	notEOF, err := ctx.Peek()
-	if err != nil {
-		return nil, err
-	}
+	notEOF := ctx.Peek()
 	if notEOF.EOF() {
 		// EOF cannot match a negation, which expects something
 		return nil, nil
 	}
 
 	out, err = n.node.Parse(branch, parent)
-
 	if out != nil && err == nil {
 		// out being non-nil means that what we don't want is actually here, so we report nomatch
 		return nil, Errorf(notEOF.Pos, "unexpected '%s'", notEOF.Value)

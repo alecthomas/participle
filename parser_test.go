@@ -1058,30 +1058,6 @@ func TestNonEmptyMatchWithOptionalGroup(t *testing.T) {
 	require.EqualError(t, err, `1:2: sub-expression (Term? (":" Term)?)! cannot be empty`)
 }
 
-func TestStreamingParser(t *testing.T) {
-	type token struct {
-		Str string `  @Ident`
-		Num int    `| @Int`
-	}
-	parser := mustTestParser(t, &token{})
-
-	tokens := make(chan *token, 128)
-	err := parser.ParseString("", `hello 10 11 12 world`, tokens)
-	actual := []*token{}
-	for token := range tokens {
-		actual = append(actual, token)
-	}
-	expected := []*token{
-		{Str: "hello", Num: 0},
-		{Str: "", Num: 10},
-		{Str: "", Num: 11},
-		{Str: "", Num: 12},
-		{Str: "world", Num: 0},
-	}
-	require.Equal(t, expected, actual)
-	require.NoError(t, err)
-}
-
 func TestIssue60(t *testing.T) {
 	type grammar struct {
 		A string `@("one" | | "two")`
@@ -1536,14 +1512,11 @@ func TestCaptureOnSliceElements(t *testing.T) { // nolint:dupl
 type sliceParse string
 
 func (s *sliceParse) Parse(lex *lexer.PeekingLexer) error {
-	token, err := lex.Peek()
-	if err != nil {
-		return err
-	}
+	token := lex.Peek()
 	if len(token.Value) != 3 {
 		return participle.NextMatch
 	}
-	_, err = lex.Next()
+	_, err := lex.Next()
 	if err != nil {
 		return err
 	}

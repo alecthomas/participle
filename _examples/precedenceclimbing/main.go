@@ -104,11 +104,7 @@ func isOp(rn rune) bool {
 }
 
 func peek(lex *lexer.PeekingLexer) lexer.Token {
-	tok, err := lex.Peek()
-	if err != nil {
-		panic("??")
-	}
-	return tok
+	return lex.Peek()
 }
 
 func parseOp(op string, lhs *Expr, rhs *Expr) *Expr {
