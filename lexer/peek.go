@@ -67,27 +67,25 @@ func (p *PeekingLexer) Next() (Token, error) {
 	return p.eof, nil
 }
 
-// PeekNext peeks forward over elided and non-elided tokens. If any tokens
-// in "types" are found they are returned.
-func (p *PeekingLexer) PeekNext(types ...TokenType) (Token, bool) {
-	for i := int(p.rawCursor); i < len(p.tokens); i++ {
-		for _, typ := range types {
-			if tok := p.tokens[p.rawCursor]; tok.Type == typ {
-				return tok, true
-			}
-		}
-	}
-	return p.eof, false
-}
-
-// Peek at the next token.
-func (p *PeekingLexer) Peek() Token {
+// Peek peeks forward over elided and non-elided tokens.
+//
+// Elided tokens will be returned if they are in "types". If none are found
+// or "types" is empty the next non-elided token will be returned.
+func (p *PeekingLexer) Peek(types ...TokenType) Token {
 	for i := int(p.rawCursor); i < len(p.tokens); i++ {
 		t := p.tokens[i]
-		if p.elide[t.Type] {
+		elided := p.elide[t.Type]
+		if len(types) == 0 && elided {
 			continue
 		}
-		return t
+		for _, typ := range types {
+			if t.Type == typ {
+				return t
+			}
+		}
+		if !elided {
+			return t
+		}
 	}
 	return p.eof
 }
