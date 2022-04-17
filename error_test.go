@@ -4,7 +4,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/alecthomas/participle/v2"
@@ -32,13 +31,16 @@ func TestErrorReporting(t *testing.T) {
 	var err error
 	ast := &grammar{}
 	err = p.ParseString("", `public class A;`, ast)
-	assert.NoError(t, err)
+	require.NoError(t, err)
+	require.Equal(t, &grammar{Decls: []*decl{
+		{Class: &cls{Visibility: "public", Class: "A"}},
+	}}, ast)
 	err = p.ParseString("", `public union A;`, ast)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = p.ParseString("", `public struct Bar;`, ast)
-	assert.EqualError(t, err, `1:8: unexpected token "struct" (expected "union" <ident>)`)
+	require.EqualError(t, err, `1:8: unexpected token "struct" (expected "union" <ident>)`)
 	err = p.ParseString("", `public class 1;`, ast)
-	assert.EqualError(t, err, `1:14: unexpected token "1" (expected <ident>)`)
+	require.EqualError(t, err, `1:14: unexpected token "1" (expected <ident>)`)
 }
 
 func TestErrorWrap(t *testing.T) {

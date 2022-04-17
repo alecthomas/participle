@@ -12,8 +12,6 @@ type PeekingLexer struct {
 // RawCursor index in the token stream.
 type RawCursor int
 
-var _ Lexer = &PeekingLexer{}
-
 // Upgrade a Lexer to a PeekingLexer with arbitrary lookahead.
 //
 // "elide" is a slice of token types to elide from processing.
@@ -54,7 +52,7 @@ func (p *PeekingLexer) RawCursor() RawCursor {
 }
 
 // Next consumes and returns the next token.
-func (p *PeekingLexer) Next() (Token, error) {
+func (p *PeekingLexer) Next() Token {
 	for int(p.rawCursor) < len(p.tokens) {
 		t := p.tokens[p.rawCursor]
 		p.rawCursor++
@@ -62,32 +60,51 @@ func (p *PeekingLexer) Next() (Token, error) {
 			continue
 		}
 		p.cursor++
-		return p.tokens[p.rawCursor-1], nil
-	}
-	return p.eof, nil
-}
-
-// Peek peeks forward over elided and non-elided tokens.
-//
-// Elided tokens will be returned if they are in "types". If none are found
-// or "types" is empty the next non-elided token will be returned.
-func (p *PeekingLexer) Peek(types ...TokenType) Token {
-	for i := int(p.rawCursor); i < len(p.tokens); i++ {
-		t := p.tokens[i]
-		elided := p.elide[t.Type]
-		if len(types) == 0 && elided {
-			continue
-		}
-		for _, typ := range types {
-			if t.Type == typ {
-				return t
-			}
-		}
-		if !elided {
-			return t
-		}
+		return t
 	}
 	return p.eof
+}
+
+// Peek ahead at the next token.
+func (p *PeekingLexer) Peek() Token {
+	for i := int(p.rawCursor); i < len(p.tokens); i++ {
+		t := p.tokens[i]
+		if p.elide[t.Type] {
+			continue
+		}
+		return t
+	}
+	return p.eof
+}
+
+// PeekAny peeks forward over elided and non-elided tokens.
+//
+// Elided tokens will be returned if they match, otherwise the next
+// non-elided token will be returned.
+//
+// The returned RawCursor position is the location of the returned token.
+// Use FastForward to move the internal cursors forward.
+func (p *PeekingLexer) PeekAny(match func(Token) bool) (t Token, rawCursor RawCursor) {
+	tokenCount := RawCursor(len(p.tokens))
+	for i := p.rawCursor; i < tokenCount; i++ {
+		t = p.tokens[i]
+		if match(t) || !p.elide[t.Type] {
+			return t, i
+		}
+	}
+	return p.eof, tokenCount
+}
+
+// FastForward the internal cursors to this RawCursor position.
+func (p *PeekingLexer) FastForward(rawCursor RawCursor) {
+	tokenCount := RawCursor(len(p.tokens))
+	for ; p.rawCursor <= rawCursor && p.rawCursor < tokenCount; p.rawCursor++ {
+		t := p.tokens[p.rawCursor]
+		if p.elide[t.Type] {
+			continue
+		}
+		p.cursor++
+	}
 }
 
 // RawPeek peeks ahead at the next raw token.

@@ -706,12 +706,12 @@ type parseableStruct struct {
 }
 
 func (p *parseableStruct) Parse(lex *lexer.PeekingLexer) error {
-	tokens, err := lexer.ConsumeAll(lex)
-	if err != nil {
-		return err
-	}
-	for _, t := range tokens {
-		p.Tokens = append(p.Tokens, t.Value)
+	for {
+		tok := lex.Next()
+		if tok.EOF() {
+			break
+		}
+		p.Tokens = append(p.Tokens, tok.Value)
 	}
 	return nil
 }
@@ -725,7 +725,7 @@ func TestParseable(t *testing.T) {
 	require.NoError(t, err)
 
 	actual := &grammar{}
-	expected := &grammar{Inner: &parseableStruct{Tokens: []string{"hello", "123", "world", ""}}}
+	expected := &grammar{Inner: &parseableStruct{Tokens: []string{"hello", "123", "world"}}}
 	err = parser.ParseString("", `hello 123 "world"`, actual)
 	require.NoError(t, err)
 	require.Equal(t, expected, actual)
@@ -1071,10 +1071,8 @@ type Issue62Bar struct {
 }
 
 func (x *Issue62Bar) Parse(lex *lexer.PeekingLexer) error {
-	token, err := lex.Next()
-	if err != nil {
-		return err
-	}
+	token := lex.Next()
+	var err error
 	x.A, err = strconv.Atoi(token.Value)
 	return err
 }
@@ -1516,10 +1514,7 @@ func (s *sliceParse) Parse(lex *lexer.PeekingLexer) error {
 	if len(token.Value) != 3 {
 		return participle.NextMatch
 	}
-	_, err := lex.Next()
-	if err != nil {
-		return err
-	}
+	lex.Next()
 	*s = sliceParse(strings.Repeat(token.Value, 2))
 	return nil
 }
@@ -1653,4 +1648,50 @@ func TestMatchEOF(t *testing.T) {
 	require.NoError(t, err)
 	err = p.ParseString("", "hell world\n", ast)
 	require.NoError(t, err)
+}
+
+func TestParseExplicitElidedIdent(t *testing.T) { // nolint
+	lex := lexer.MustSimple([]lexer.SimpleRule{
+		{"Ident", `[a-zA-Z](\w|\.|/|:|-)*`},
+		{"Comment", `/\*[^*]*\*/`},
+		{"whitespace", `\s+`},
+	})
+	type grammar struct {
+		Comment string `@Comment?`
+		Ident   string `@Ident`
+	}
+	p := mustTestParser(t, &grammar{}, participle.Lexer(lex), participle.Elide("Comment"))
+
+	actual := grammar{}
+	err := p.ParseString("", `hello`, &actual)
+	require.NoError(t, err)
+	require.Equal(t, grammar{Ident: "hello"}, actual)
+
+	actual = grammar{}
+	err = p.ParseString("", `/* Comment */ hello`, &actual)
+	require.NoError(t, err)
+	require.Equal(t, grammar{Comment: `/* Comment */`, Ident: "hello"}, actual)
+}
+
+func TestParseExplicitElidedTypedLiteral(t *testing.T) { // nolint
+	lex := lexer.MustSimple([]lexer.SimpleRule{
+		{"Ident", `[a-zA-Z](\w|\.|/|:|-)*`},
+		{"Comment", `/\*[^*]*\*/`},
+		{"whitespace", `\s+`},
+	})
+	type grammar struct {
+		Comment string `@"/* Comment */":Comment?`
+		Ident   string `@Ident`
+	}
+	p := mustTestParser(t, &grammar{}, participle.Lexer(lex), participle.Elide("Comment"))
+
+	actual := grammar{}
+	err := p.ParseString("", `hello`, &actual)
+	require.NoError(t, err)
+	require.Equal(t, grammar{Ident: "hello"}, actual)
+
+	actual = grammar{}
+	err = p.ParseString("", `/* Comment */ hello`, &actual)
+	require.NoError(t, err)
+	require.Equal(t, grammar{Comment: `/* Comment */`, Ident: "hello"}, actual)
 }

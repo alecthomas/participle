@@ -33,19 +33,12 @@ func TestUpgrade(t *testing.T) {
 	require.Equal(t, tokens, l.Range(0, 3))
 }
 
-func mustNext(t *testing.T, lexer lexer.Lexer) lexer.Token {
-	t.Helper()
-	token, err := lexer.Next()
-	require.NoError(t, err)
-	return token
-}
-
-func TestPeekAny(t *testing.T) {
+func TestPeekAndNextAny(t *testing.T) {
 	slexdef := lexer.MustSimple([]lexer.SimpleRule{
 		{"Ident", `\w+`},
 		{"Whitespace", `\s+`},
 	})
-	slex, err := slexdef.LexString("", `hello world`)
+	slex, err := slexdef.LexString("", `hello world last`)
 	require.NoError(t, err)
 	plex, err := lexer.Upgrade(slex, slexdef.Symbols()["Whitespace"])
 	require.NoError(t, err)
@@ -53,11 +46,10 @@ func TestPeekAny(t *testing.T) {
 		{Type: -2, Value: "hello", Pos: lexer.Position{Line: 1, Column: 1}},
 		{Type: -3, Value: " ", Pos: lexer.Position{Line: 1, Column: 6, Offset: 5}},
 		{Type: -2, Value: "world", Pos: lexer.Position{Line: 1, Column: 7, Offset: 6}},
+		{Type: -3, Value: " ", Pos: lexer.Position{Line: 1, Column: 12, Offset: 11}},
+		{Type: -2, Value: "last", Pos: lexer.Position{Line: 1, Column: 13, Offset: 12}},
 	}
-	tok, err := plex.Next()
-	require.NoError(t, err)
+	tok := plex.Next()
 	require.Equal(t, expected[0], tok)
 	require.Equal(t, expected[2], plex.Peek(), "should have skipped whitespace")
-	require.Equal(t, expected[1], plex.Peek(-3), "should have returned whitespace")
-	require.Equal(t, expected[2], plex.Peek(-2), "should skip whitespace")
 }

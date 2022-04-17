@@ -373,11 +373,13 @@ func (r *reference) String() string   { return ebnf(r) }
 func (r *reference) GoString() string { return fmt.Sprintf("reference{%s}", r.identifier) }
 
 func (r *reference) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
-	token := ctx.Peek()
+	token, cursor := ctx.PeekAny(func(t lexer.Token) bool {
+		return t.Type == r.typ
+	})
 	if token.Type != r.typ {
 		return nil, nil
 	}
-	_, _ = ctx.Next()
+	ctx.FastForward(cursor)
 	return []reflect.Value{reflect.ValueOf(token.Value)}, nil
 }
 
@@ -456,19 +458,19 @@ func (l *literal) String() string   { return ebnf(l) }
 func (l *literal) GoString() string { return fmt.Sprintf("literal{%q, %q}", l.s, l.tt) }
 
 func (l *literal) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
-	token := ctx.Peek()
-	equal := false // nolint: ineffassign
-	if ctx.caseInsensitive[token.Type] {
-		equal = strings.EqualFold(token.Value, l.s)
-	} else {
-		equal = token.Value == l.s
-	}
-	if equal && (l.t == -1 || l.t == token.Type) {
-		next, err := ctx.Next()
-		if err != nil {
-			return nil, err
+	match := func(t lexer.Token) bool {
+		var equal bool
+		if ctx.caseInsensitive[t.Type] {
+			equal = l.s == "" || strings.EqualFold(t.Value, l.s)
+		} else {
+			equal = l.s == "" || t.Value == l.s
 		}
-		return []reflect.Value{reflect.ValueOf(next.Value)}, nil
+		return (l.t == lexer.EOF || l.t == t.Type) && equal
+	}
+	token, cursor := ctx.PeekAny(match)
+	if match(token) {
+		ctx.FastForward(cursor)
+		return []reflect.Value{reflect.ValueOf(token.Value)}, nil
 	}
 	return nil, nil
 }
@@ -497,10 +499,7 @@ func (n *negation) Parse(ctx *parseContext, parent reflect.Value) (out []reflect
 	}
 
 	// Just give the next token
-	next, err := ctx.Next()
-	if err != nil {
-		return nil, err
-	}
+	next := ctx.Next()
 	return []reflect.Value{reflect.ValueOf(next.Value)}, nil
 }
 

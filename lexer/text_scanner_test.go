@@ -19,11 +19,11 @@ func TestLexer(t *testing.T) {
 	eofPos := lexer.Position{Offset: 11, Line: 1, Column: 12}
 	require.Equal(t, lexer.Token{Type: scanner.Ident, Value: "hello", Pos: helloPos}, lex.Peek())
 	require.Equal(t, lexer.Token{Type: scanner.Ident, Value: "hello", Pos: helloPos}, lex.Peek())
-	require.Equal(t, lexer.Token{Type: scanner.Ident, Value: "hello", Pos: helloPos}, mustNext(t, lex))
+	require.Equal(t, lexer.Token{Type: scanner.Ident, Value: "hello", Pos: helloPos}, lex.Next())
 	require.Equal(t, lexer.Token{Type: scanner.Ident, Value: "world", Pos: worldPos}, lex.Peek())
-	require.Equal(t, lexer.Token{Type: scanner.Ident, Value: "world", Pos: worldPos}, mustNext(t, lex))
+	require.Equal(t, lexer.Token{Type: scanner.Ident, Value: "world", Pos: worldPos}, lex.Next())
 	require.Equal(t, lexer.Token{Type: scanner.EOF, Value: "", Pos: eofPos}, lex.Peek())
-	require.Equal(t, lexer.Token{Type: scanner.EOF, Value: "", Pos: eofPos}, mustNext(t, lex))
+	require.Equal(t, lexer.Token{Type: scanner.EOF, Value: "", Pos: eofPos}, lex.Next())
 }
 
 func TestLexString(t *testing.T) {
