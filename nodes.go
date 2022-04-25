@@ -294,8 +294,8 @@ func (d *disjunction) Parse(ctx *parseContext, parent reflect.Value) (out []refl
 				deepestError = branch.Cursor()
 			}
 		} else if value != nil {
-			bt := branch.Peek()
-			ct := ctx.Peek()
+			bt := branch.RawPeek()
+			ct := ctx.RawPeek()
 			if bt == ct && bt.Type != lexer.EOF {
 				panic(Errorf(bt.Pos, "branch %s was accepted but did not progress the lexer at %s (%q)", a, bt.Pos, bt.Value))
 			}
