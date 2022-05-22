@@ -238,13 +238,12 @@ func (p *Parser) parseInto(ctx *parseContext, rv reflect.Value) error {
 }
 
 func (p *Parser) rootParseable(ctx *parseContext, parseable Parseable) error {
-	peek := ctx.Peek()
 	err := parseable.Parse(ctx.PeekingLexer)
 	if err == NextMatch {
 		token := ctx.Peek()
 		return ctx.DeepestError(UnexpectedTokenError{Unexpected: token})
 	}
-	peek = ctx.Peek()
+	peek := ctx.Peek()
 	if !peek.EOF() && !ctx.allowTrailing {
 		return ctx.DeepestError(UnexpectedTokenError{Unexpected: peek})
 	}

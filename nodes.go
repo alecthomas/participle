@@ -335,6 +335,12 @@ func (s *sequence) Parse(ctx *parseContext, parent reflect.Value) (out []reflect
 			token := ctx.Peek()
 			return out, UnexpectedTokenError{Unexpected: token, at: n}
 		}
+		// Special-case for when children return an empty match.
+		// Appending an empty, non-nil slice to a nil slice returns a nil slice.
+		// https://go.dev/play/p/lV1Xk-IP6Ta
+		if out == nil {
+			out = []reflect.Value{}
+		}
 	}
 	return out, nil
 }

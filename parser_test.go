@@ -1695,3 +1695,21 @@ func TestParseExplicitElidedTypedLiteral(t *testing.T) { // nolint
 	require.NoError(t, err)
 	require.Equal(t, grammar{Comment: `/* Comment */`, Ident: "hello"}, actual)
 }
+
+func TestEmptySequenceMatches(t *testing.T) {
+	lex := lexer.MustSimple([]lexer.SimpleRule{
+		{"Ident", `[a-zA-Z](\w|\.|/|:|-)*`},
+		{"Comment", `/\*[^*]*\*/`},
+		{"Whitespace", `\s+`},
+	})
+	type grammar struct {
+		Ident    []string `@Ident*`
+		Comments []string `@Comment*`
+	}
+	p := mustTestParser(t, &grammar{}, participle.Lexer(lex), participle.Elide("Whitespace"))
+	actual := grammar{}
+	expected := grammar{}
+	err := p.ParseString("", "", &actual)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
+}
