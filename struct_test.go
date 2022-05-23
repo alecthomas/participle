@@ -5,8 +5,7 @@ import (
 	"testing"
 	"text/scanner"
 
-	"github.com/stretchr/testify/require"
-
+	require "github.com/alecthomas/assert/v2"
 	"github.com/alecthomas/participle/v2/lexer"
 )
 

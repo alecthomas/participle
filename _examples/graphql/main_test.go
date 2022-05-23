@@ -4,7 +4,7 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	require "github.com/alecthomas/assert/v2"
 )
 
 func BenchmarkParser(b *testing.B) {

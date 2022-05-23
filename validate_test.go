@@ -3,8 +3,7 @@ package participle_test
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
+	require "github.com/alecthomas/assert/v2"
 	"github.com/alecthomas/participle/v2"
 )
 

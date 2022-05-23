@@ -43,6 +43,13 @@ linters:
     - wastedassign
     - forcetypeassert
     - gomoddirectives
+    - varnamelen
+    - exhaustruct
+    - ireturn
+    - nonamedreturns
+    - errname
+    - nilnil
+    - maintidx
 
 linters-settings:
   govet:

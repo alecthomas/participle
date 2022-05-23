@@ -3,8 +3,8 @@ package participle_test
 import (
 	"testing"
 
+	require "github.com/alecthomas/assert/v2"
 	"github.com/alecthomas/participle/v2"
-	"github.com/stretchr/testify/require"
 )
 
 func TestBuild_Errors_Negation(t *testing.T) {

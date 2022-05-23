@@ -3,8 +3,8 @@ package main
 import (
 	"testing"
 
+	require "github.com/alecthomas/assert/v2"
 	"github.com/alecthomas/repr"
-	"github.com/stretchr/testify/require"
 )
 
 func TestExe(t *testing.T) {

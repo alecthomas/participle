@@ -5,9 +5,8 @@ import (
 	"testing"
 	"time"
 
+	require "github.com/alecthomas/assert/v2"
 	thriftparser "github.com/alecthomas/go-thrift/parser"
-	"github.com/stretchr/testify/require"
-
 	"github.com/alecthomas/participle/v2"
 )
 

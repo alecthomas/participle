@@ -9,8 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
+	require "github.com/alecthomas/assert/v2"
 	"github.com/alecthomas/participle/v2"
 	"github.com/alecthomas/participle/v2/lexer"
 )
@@ -1300,14 +1299,14 @@ func TestLookaheadGroup_Negative_SingleToken(t *testing.T) {
 
 	require.NoError(t, p.ParseString("", `one two three exception end`, ast))
 	require.Equal(t, []variable{{"one"}, {"two"}, {"three"}, {"exception"}}, ast.Identifiers)
-	require.Nil(t, ast.Except)
+	require.Zero(t, ast.Except)
 
 	require.NoError(t, p.ParseString("", `anything except this end`, ast))
 	require.Equal(t, []variable{{"anything"}}, ast.Identifiers)
 	require.Equal(t, &variable{"this"}, ast.Except)
 
 	require.NoError(t, p.ParseString("", `except the end`, ast))
-	require.Nil(t, ast.Identifiers)
+	require.Zero(t, ast.Identifiers)
 	require.Equal(t, &variable{"the"}, ast.Except)
 
 	err := p.ParseString("", `no ending`, ast)

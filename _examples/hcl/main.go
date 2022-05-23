@@ -6,8 +6,6 @@ import (
 	"os"
 	"strings"
 
-	"gopkg.in/alecthomas/kingpin.v2"
-
 	"github.com/alecthomas/repr"
 
 	"github.com/alecthomas/participle/v2"
@@ -63,11 +61,10 @@ type Config struct {
 var parser = participle.MustBuild(&Config{}, participle.Unquote())
 
 func main() {
-	kingpin.Parse()
-
 	expr := &Config{}
 	err := parser.Parse("", os.Stdin, expr)
-	kingpin.FatalIfError(err, "")
-
+	if err != nil {
+		panic(err)
+	}
 	repr.Println(expr)
 }

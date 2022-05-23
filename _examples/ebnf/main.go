@@ -7,14 +7,13 @@ import (
 	"os"
 	"strings"
 
-	"gopkg.in/alecthomas/kingpin.v2"
-
+	"github.com/alecthomas/kong"
 	"github.com/alecthomas/participle/v2"
 )
 
-var (
-	jsonFlag = kingpin.Flag("json", "Display AST as JSON.").Bool()
-)
+var cli struct {
+	JSON bool `help:"Display AST as JSON."`
+}
 
 type Group struct {
 	Expression *Expression `"(" @@ ")"`
@@ -139,7 +138,7 @@ func (e *EBNF) String() string {
 var parser = participle.MustBuild(&EBNF{})
 
 func main() {
-	kingpin.CommandLine.Help = `An EBNF parser compatible with Go"s exp/ebnf. The grammar is
+	help := `An EBNF parser compatible with Go"s exp/ebnf. The grammar is
 in the form:
 
   Production  = name "=" [ Expression ] "." .
@@ -150,13 +149,13 @@ in the form:
   Option      = "[" Expression "]" .
   Repetition  = "{" Expression "}" .
 `
-	kingpin.Parse()
+	ctx := kong.Parse(&cli, kong.Description(help))
 
 	ebnf := &EBNF{}
 	err := parser.Parse("", os.Stdin, ebnf)
-	kingpin.FatalIfError(err, "")
+	ctx.FatalIfErrorf(err, "")
 
-	if *jsonFlag {
+	if cli.JSON {
 		bytes, _ := json.MarshalIndent(ebnf, "", "  ")
 		fmt.Printf("%s\n", bytes)
 	} else {
