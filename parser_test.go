@@ -1,6 +1,7 @@
 package participle_test
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"net"
@@ -1711,4 +1712,18 @@ func TestEmptySequenceMatches(t *testing.T) {
 	err := p.ParseString("", "", &actual)
 	require.NoError(t, err)
 	require.Equal(t, expected, actual)
+}
+
+type RootParseableFail struct{}
+
+func (*RootParseableFail) String() string   { return "" }
+func (*RootParseableFail) GoString() string { return "" }
+func (*RootParseableFail) Parse(lex *lexer.PeekingLexer) error {
+	return errors.New("always fail immediately")
+}
+
+func TestRootParseableFail(t *testing.T) {
+	p := mustTestParser(t, &RootParseableFail{})
+	err := p.ParseString("<test>", "blah", &RootParseableFail{})
+	require.EqualError(t, err, "<test>:1:1: always fail immediately")
 }
