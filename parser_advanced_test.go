@@ -299,7 +299,9 @@ func TestUnionExprParser(t *testing.T) {
 			MemberBinAddSub{}, MemberBinMulDiv{}, MemberBinRem{}, MemberUnary{}, MemberIdent{}, MemberNumber{}, MemberString{}, MemberParens{})
 	)
 
-	exprParser := mustTestParser(t, &Wrapper{}, withExprPrecAll, withExprPrec1, withExprPrec2, withExprPrec3, withExprOperand)
+	exprParser := mustTestParser(t, &Wrapper{},
+		participle.UseLookahead(-1), // this grammar requires infinite lookahead to parse correctly
+		withExprPrecAll, withExprPrec1, withExprPrec2, withExprPrec3, withExprOperand)
 
 	requireParseExpr := func(src string, expected Wrapper) {
 		t.Helper()

@@ -102,44 +102,15 @@ func (u *union) String() string   { return ebnf(u) }
 func (u *union) GoString() string { return u.typ.Name() }
 
 func (u *union) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
-	var (
-		deepestError = 0
-		firstError   error
-		firstValues  []reflect.Value
-	)
-	for _, a := range u.members {
-		branch := ctx.Branch()
-		if value, err := a.Parse(branch, parent); err != nil {
-			// TODO: The union parser might need infinite lookahead...
-			// if ctx.Stop(err, branch) {
-			// 	return value, err
-			// }
-
-			// Show the closest error returned. The idea here is that the further the parser progresses
-			// without error, the more difficult it is to trace the error back to its root.
-			if branch.Cursor() >= deepestError {
-				firstError = err
-				firstValues = value
-				deepestError = branch.Cursor()
-			}
-		} else if value != nil {
-			bt := branch.RawPeek()
-			ct := ctx.RawPeek()
-			if bt == ct && bt.Type != lexer.EOF {
-				panic(Errorf(bt.Pos, "branch %s was accepted but did not progress the lexer at %s (%q)", a, bt.Pos, bt.Value))
-			}
-			ctx.Accept(branch)
-			for i := range value {
-				value[i] = value[i].Convert(u.typ)
-			}
-			return value, nil
-		}
+	temp := disjunction{u.members}
+	vals, err := temp.Parse(ctx, parent)
+	if err != nil {
+		return nil, err
 	}
-	if firstError != nil {
-		ctx.MaybeUpdateError(firstError)
-		return firstValues, firstError
+	for i := range vals {
+		vals[i] = vals[i].Convert(u.typ)
 	}
-	return nil, nil
+	return vals, nil
 }
 
 // @@
