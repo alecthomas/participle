@@ -1,6 +1,9 @@
 package participle
 
 import (
+	"fmt"
+	"reflect"
+
 	"github.com/alecthomas/participle/v2/lexer"
 )
 
@@ -21,6 +24,10 @@ func Lexer(def lexer.Definition) Option {
 //
 // Note that increasing lookahead has a minor performance impact, but also
 // reduces the accuracy of error reporting.
+//
+// If "n" is negative, this will be treated as "infinite lookahead".
+// This _will_ impact performance, but can be useful for parsing ambiguous
+// grammars.
 func UseLookahead(n int) Option {
 	return func(p *Parser) error {
 		p.useLookahead = n
@@ -37,6 +44,48 @@ func CaseInsensitive(tokens ...string) Option {
 		for _, token := range tokens {
 			p.caseInsensitive[token] = true
 		}
+		return nil
+	}
+}
+
+func UseCustom(parseFn interface{}) Option {
+	errorType := reflect.TypeOf((*error)(nil)).Elem()
+	peekingLexerType := reflect.TypeOf((*lexer.PeekingLexer)(nil))
+	return func(p *Parser) error {
+		parseFnVal := reflect.ValueOf(parseFn)
+		parseFnType := parseFnVal.Type()
+		if parseFnType.Kind() != reflect.Func {
+			return fmt.Errorf("production parser must be a function (got %s)", parseFnType)
+		}
+		if parseFnType.NumIn() != 1 || parseFnType.In(0) != reflect.TypeOf((*lexer.PeekingLexer)(nil)) {
+			return fmt.Errorf("production parser must take a single parameter of type %s", peekingLexerType)
+		}
+		if parseFnType.NumOut() != 2 {
+			return fmt.Errorf("production parser must return exactly two values: the parsed production, and an error")
+		}
+		if parseFnType.Out(0).Kind() != reflect.Interface {
+			return fmt.Errorf("production parser's first return must be an interface type")
+		}
+		if parseFnType.Out(1) != errorType {
+			return fmt.Errorf("production parser's second return must be %s", errorType)
+		}
+		prodType := parseFnType.Out(0)
+		p.customDefs = append(p.customDefs, customDef{prodType, parseFnVal})
+		return nil
+	}
+}
+
+func UseUnion[T any](members ...T) Option {
+	return func(p *Parser) error {
+		unionType := reflect.TypeOf((*T)(nil)).Elem()
+		if unionType.Kind() != reflect.Interface {
+			return fmt.Errorf("union type must be an interface (got %s)", unionType)
+		}
+		memberTypes := make([]reflect.Type, 0, len(members))
+		for _, m := range members {
+			memberTypes = append(memberTypes, reflect.TypeOf(m))
+		}
+		p.unionDefs = append(p.unionDefs, unionDef{unionType, memberTypes})
 		return nil
 	}
 }

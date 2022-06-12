@@ -22,6 +22,38 @@ func newGeneratorContext(lex lexer.Definition) *generatorContext {
 	}
 }
 
+func (g *generatorContext) addUnionDefs(defs []unionDef) error {
+	unionNodes := make([]*union, len(defs))
+	for i, def := range defs {
+		if _, exists := g.typeNodes[def.typ]; exists {
+			return fmt.Errorf("duplicate definition for interface or union type %s", def.typ)
+		}
+		unionNode := &union{def.typ, make([]node, 0, len(def.members))}
+		g.typeNodes[def.typ], unionNodes[i] = unionNode, unionNode
+	}
+	for i, def := range defs {
+		unionNode := unionNodes[i]
+		for _, memberType := range def.members {
+			memberNode, err := g.parseType(memberType)
+			if err != nil {
+				return err
+			}
+			unionNode.members = append(unionNode.members, memberNode)
+		}
+	}
+	return nil
+}
+
+func (g *generatorContext) addCustomDefs(defs []customDef) error {
+	for _, def := range defs {
+		if _, exists := g.typeNodes[def.typ]; exists {
+			return fmt.Errorf("duplicate definition for interface or union type %s", def.typ)
+		}
+		g.typeNodes[def.typ] = &custom{typ: def.typ, parseFn: def.parseFn}
+	}
+	return nil
+}
+
 // Takes a type and builds a tree of nodes out of it.
 func (g *generatorContext) parseType(t reflect.Type) (_ node, returnedError error) {
 	t = indirectType(t)

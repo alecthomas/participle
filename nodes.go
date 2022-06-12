@@ -72,6 +72,76 @@ func (p *parseable) Parse(ctx *parseContext, parent reflect.Value) (out []reflec
 	return []reflect.Value{rv.Elem()}, nil
 }
 
+// @@ (but for a custom production)
+type custom struct {
+	typ     reflect.Type
+	parseFn reflect.Value
+}
+
+func (c *custom) String() string   { return ebnf(c) }
+func (c *custom) GoString() string { return c.typ.Name() }
+
+func (c *custom) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
+	results := c.parseFn.Call([]reflect.Value{reflect.ValueOf(ctx.PeekingLexer)})
+	if err, _ := results[1].Interface().(error); err != nil {
+		if err == NextMatch {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return []reflect.Value{results[0]}, nil
+}
+
+// @@ (for a union)
+type union struct {
+	typ     reflect.Type
+	members []node
+}
+
+func (u *union) String() string   { return ebnf(u) }
+func (u *union) GoString() string { return u.typ.Name() }
+
+func (u *union) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
+	var (
+		deepestError = 0
+		firstError   error
+		firstValues  []reflect.Value
+	)
+	for _, a := range u.members {
+		branch := ctx.Branch()
+		if value, err := a.Parse(branch, parent); err != nil {
+			// TODO: The union parser might need infinite lookahead...
+			// if ctx.Stop(err, branch) {
+			// 	return value, err
+			// }
+
+			// Show the closest error returned. The idea here is that the further the parser progresses
+			// without error, the more difficult it is to trace the error back to its root.
+			if branch.Cursor() >= deepestError {
+				firstError = err
+				firstValues = value
+				deepestError = branch.Cursor()
+			}
+		} else if value != nil {
+			bt := branch.RawPeek()
+			ct := ctx.RawPeek()
+			if bt == ct && bt.Type != lexer.EOF {
+				panic(Errorf(bt.Pos, "branch %s was accepted but did not progress the lexer at %s (%q)", a, bt.Pos, bt.Value))
+			}
+			ctx.Accept(branch)
+			for i := range value {
+				value[i] = value[i].Convert(u.typ)
+			}
+			return value, nil
+		}
+	}
+	if firstError != nil {
+		ctx.MaybeUpdateError(firstError)
+		return firstValues, firstError
+	}
+	return nil, nil
+}
+
 // @@
 type strct struct {
 	typ              reflect.Type
@@ -710,7 +780,7 @@ func setField(tokens []lexer.Token, strct reflect.Value, field structLexerField,
 			f.Set(fv)
 		}
 
-	case reflect.Bool, reflect.Struct:
+	case reflect.Bool, reflect.Struct, reflect.Interface:
 		if f.Kind() == reflect.Bool && fv.Kind() == reflect.Bool {
 			f.SetBool(fv.Bool())
 			break

@@ -17,6 +17,15 @@ func visit(n node, visitor func(n node, next func() error) error) error {
 			return nil
 		case *strct:
 			return visit(n.expr, visitor)
+		case *custom:
+			return nil
+		case *union:
+			for _, member := range n.members {
+				if err := visit(member, visitor); err != nil {
+					return err
+				}
+			}
+			return nil
 		case *sequence:
 			if err := visit(n.node, visitor); err != nil {
 				return err

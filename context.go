@@ -94,12 +94,14 @@ func (p *parseContext) Stop(err error, branch *parseContext) bool {
 		p.deepestError = err
 		p.deepestErrorDepth = maxInt(branch.PeekingLexer.Cursor(), branch.deepestErrorDepth)
 	}
-	if branch.PeekingLexer.Cursor() > p.PeekingLexer.Cursor()+p.lookahead {
+	if !p.hasInfiniteLookahead() && branch.PeekingLexer.Cursor() > p.PeekingLexer.Cursor()+p.lookahead {
 		p.Accept(branch)
 		return true
 	}
 	return false
 }
+
+func (p *parseContext) hasInfiniteLookahead() bool { return p.lookahead < 0 }
 
 func maxInt(a, b int) int {
 	if a > b {
