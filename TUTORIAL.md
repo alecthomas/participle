@@ -58,7 +58,7 @@ working towards. Read on below for details.
 
  type Value struct {
    String *string  `  @String`
-   Number *float64 `| @Float`
+   Number *float64 `| (@Float | @Int)`
  }
  ```
 
@@ -147,6 +147,16 @@ type Value struct {
 }
 ```
 
+Since we want to parse also integers and the default lexer makes a difference,
+we need to be explicit:
+
+```go
+type Value struct {
+  String *string  `  @String`
+  Number *float64 `| (@Float | @Int)`
+}
+```
+
 > Note: the grammar can cross fields.
 
 Next, we'll match values and capture them into the `Property`. To recursively
@@ -189,7 +199,7 @@ type Property struct {
 
 type Value struct {
   String *string  `  @String`
-  Number *float64 `| @Float`
+  Number *float64 `| (@Float | @Int)`
 }
 ```
 
@@ -229,7 +239,7 @@ If a grammar node includes a field with the name `Pos` and type `lexer.Position`
 type Value struct {
   Pos    lexer.Position
   String *string  `  @String`
-  Number *float64 `| @Float`
+  Number *float64 `| (@Float | @Int)`
 }
 ```
 
