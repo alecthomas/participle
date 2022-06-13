@@ -81,7 +81,7 @@ func ParseTypeWith[T any](parseFn func(*lexer.PeekingLexer) (T, error)) Option {
 	}
 }
 
-// ParseUnion associates several member productions with some interface type T.
+// Union associates several member productions with some interface type T.
 // Given members X, Y, Z, and W for a union type U, the the EBNF rule is:
 //    U = X | Y | Z | W .
 // When the parser encounters a field of type T, it will attempt to parse each member
@@ -93,7 +93,7 @@ func ParseTypeWith[T any](parseFn func(*lexer.PeekingLexer) (T, error)) Option {
 // If the first member matches A, and the second member matches A B,
 // and he source string is "AB", then the parser will only match A, and will not
 // try to parse the second member at all.
-func ParseUnion[T any](members ...T) Option {
+func Union[T any](members ...T) Option {
 	return func(p *Parser) error {
 		unionType := reflect.TypeOf((*T)(nil)).Elem()
 		if unionType.Kind() != reflect.Interface {

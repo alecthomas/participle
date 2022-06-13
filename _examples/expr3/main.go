@@ -111,13 +111,13 @@ var parser = participle.MustBuild(&Expression{},
 	// expression until we know for sure that no `+` or `-` operator follows it
 	participle.UseLookahead(99999),
 	// Register the ExprOperand union so we can parse individual operands
-	participle.ParseUnion[ExprOperand](ExprUnary{}, ExprIdent{}, ExprNumber{}, ExprString{}, ExprParens{}),
+	participle.Union[ExprOperand](ExprUnary{}, ExprIdent{}, ExprNumber{}, ExprString{}, ExprParens{}),
 	// Register the ExprPrec3 union so we can parse expressions at precedence level 3
-	participle.ParseUnion[ExprPrec3](ExprRem{}, ExprUnary{}, ExprIdent{}, ExprNumber{}, ExprString{}, ExprParens{}),
+	participle.Union[ExprPrec3](ExprRem{}, ExprUnary{}, ExprIdent{}, ExprNumber{}, ExprString{}, ExprParens{}),
 	// Register the ExprPrec2 union so we can parse expressions at precedence level 2
-	participle.ParseUnion[ExprPrec2](ExprMulDiv{}, ExprRem{}, ExprUnary{}, ExprIdent{}, ExprNumber{}, ExprString{}, ExprParens{}),
+	participle.Union[ExprPrec2](ExprMulDiv{}, ExprRem{}, ExprUnary{}, ExprIdent{}, ExprNumber{}, ExprString{}, ExprParens{}),
 	// Register the ExprPrecAll union so we can parse expressions at the minimum precedence level
-	participle.ParseUnion[ExprPrecAll](ExprAddSub{}, ExprMulDiv{}, ExprRem{}, ExprUnary{}, ExprIdent{}, ExprNumber{}, ExprString{}, ExprParens{}),
+	participle.Union[ExprPrecAll](ExprAddSub{}, ExprMulDiv{}, ExprRem{}, ExprUnary{}, ExprIdent{}, ExprNumber{}, ExprString{}, ExprParens{}),
 )
 
 func main() {

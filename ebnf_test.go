@@ -64,7 +64,7 @@ func TestEBNF_Union(t *testing.T) {
 		TheUnion EBNFUnion `@@`
 	}
 
-	parser := mustTestParser(t, &Grammar{}, participle.ParseUnion[EBNFUnion](EBNFUnionA{}, EBNFUnionB{}, EBNFUnionC{}))
+	parser := mustTestParser(t, &Grammar{}, participle.Union[EBNFUnion](EBNFUnionA{}, EBNFUnionB{}, EBNFUnionC{}))
 	require.Equal(t,
 		strings.TrimSpace(`
 Grammar = EBNFUnion .

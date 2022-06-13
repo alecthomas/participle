@@ -1818,8 +1818,8 @@ func TestParserWithUnion(t *testing.T) {
 	}
 
 	parser := mustTestParser(t, &grammar{}, participle.UseLookahead(10),
-		participle.ParseUnion[TestUnionA](AMember1{}, AMember2{}),
-		participle.ParseUnion[TestUnionB](BMember1{}, BMember2{}))
+		participle.Union[TestUnionA](AMember1{}, AMember2{}),
+		participle.Union[TestUnionB](BMember1{}, BMember2{}))
 
 	type testCase struct {
 		src      string

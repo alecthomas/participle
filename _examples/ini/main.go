@@ -11,14 +11,21 @@ import (
 
 // A custom lexer for INI files. This illustrates a relatively complex Regexp lexer, as well
 // as use of the Unquote filter, which unquotes string tokens.
-var iniLexer = lexer.MustSimple([]lexer.SimpleRule{
-	{`Ident`, `[a-zA-Z][a-zA-Z_\d]*`},
-	{`String`, `"(?:\\.|[^"])*"`},
-	{`Float`, `\d+(?:\.\d+)?`},
-	{`Punct`, `[][=]`},
-	{"comment", `[#;][^\n]*`},
-	{"whitespace", `\s+`},
-})
+var (
+	iniLexer = lexer.MustSimple([]lexer.SimpleRule{
+		{`Ident`, `[a-zA-Z][a-zA-Z_\d]*`},
+		{`String`, `"(?:\\.|[^"])*"`},
+		{`Float`, `\d+(?:\.\d+)?`},
+		{`Punct`, `[][=]`},
+		{"comment", `[#;][^\n]*`},
+		{"whitespace", `\s+`},
+	})
+	parser = participle.MustBuild(&INI{},
+		participle.Lexer(iniLexer),
+		participle.Unquote("String"),
+		participle.Union[Value](String{}, Number{}),
+	)
+)
 
 type INI struct {
 	Properties []*Property `@@*`
@@ -32,18 +39,22 @@ type Section struct {
 
 type Property struct {
 	Key   string `@Ident "="`
-	Value *Value `@@`
+	Value Value  `@@`
 }
 
-type Value struct {
-	String *string  `  @String`
-	Number *float64 `| @Float`
+type Value interface{ value() }
+
+type String struct {
+	String string `@String`
 }
 
-var parser = participle.MustBuild(&INI{},
-	participle.Lexer(iniLexer),
-	participle.Unquote("String"),
-)
+func (String) value() {}
+
+type Number struct {
+	Number float64 `@Float`
+}
+
+func (Number) value() {}
 
 func main() {
 	ini := &INI{}

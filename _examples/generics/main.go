@@ -31,7 +31,7 @@ type Expr struct {
 }
 
 type RHS struct {
-	Oper string `@("<" | ">" | "=" "=" | "!" "=" | "+" | "-" | "*" | "/")`
+	Oper string `@("<" | ">" | "=" "=" | "!" "=" | "+" | "-" | "*" | "/" | "&" "&")`
 	RHS  *Expr  `@@`
 }
 
@@ -39,7 +39,7 @@ var parser = participle.MustBuild(&Expr{}, participle.UseLookahead(1024))
 
 func main() {
 	expr := &Expr{}
-	err := parser.ParseString("", "hello < world * (1 + 3)", expr)
+	err := parser.ParseString("", "hello < world * (1 + 3) && (world > 10)", expr)
 	if err != nil {
 		panic(err)
 	}
