@@ -7,6 +7,11 @@ import (
 	"github.com/alecthomas/participle/v2/lexer"
 )
 
+// MaxLookahead can be used with UseLookahead to get pseudo-infinite
+// lookahead without the risk of pathological cases causing a stack
+// overflow.
+const MaxLookahead = 99999
+
 // An Option to modify the behaviour of the Parser.
 type Option func(p *Parser) error
 
@@ -25,9 +30,13 @@ func Lexer(def lexer.Definition) Option {
 // Note that increasing lookahead has a minor performance impact, but also
 // reduces the accuracy of error reporting.
 //
-// If "n" is negative, this will be treated as "infinite lookahead".
-// This _will_ impact performance, but can be useful for parsing ambiguous
-// grammars.
+// If "n" is negative, it will be treated as "infinite" lookahead.
+// This can have a large impact on performance, and does not provide any
+// protection against stack overflow during parsing.
+// In most cases, using MaxLookahead will achieve the same results in practice,
+// but with a concrete upper bound to prevent pathological behavior in the parser.
+// Using infinite lookahead can be useful for testing, or for parsing especially
+// ambiguous grammars. Use at your own risk!
 func UseLookahead(n int) Option {
 	return func(p *Parser) error {
 		p.useLookahead = n
@@ -48,26 +57,23 @@ func CaseInsensitive(tokens ...string) Option {
 	}
 }
 
-func UseCustom(parseFn interface{}) Option {
-	errorType := reflect.TypeOf((*error)(nil)).Elem()
-	peekingLexerType := reflect.TypeOf((*lexer.PeekingLexer)(nil))
+// ParseTypeWith associates a custom parsing function with some interface type T.
+// When the parser encounters a value of type T, it will use the given parse function to
+// parse a value from the input.
+//
+// The parse function may return anything it wishes as long as that value satisfies the interface T.
+// However, only a single function can be defined for any type T.
+// If you want to have multiple parse functions returning types that satisfy the same interface, you'll
+// need to define new wrapper types for each one.
+//
+// This can be useful if you want to parse a DSL within the larger grammar, or if you want
+// to implement an optimized parsing scheme for some portion of the grammar.
+func ParseTypeWith[T any](parseFn func(*lexer.PeekingLexer) (T, error)) Option {
 	return func(p *Parser) error {
 		parseFnVal := reflect.ValueOf(parseFn)
 		parseFnType := parseFnVal.Type()
-		if parseFnType.Kind() != reflect.Func {
-			return fmt.Errorf("production parser must be a function (got %s)", parseFnType)
-		}
-		if parseFnType.NumIn() != 1 || parseFnType.In(0) != reflect.TypeOf((*lexer.PeekingLexer)(nil)) {
-			return fmt.Errorf("production parser must take a single parameter of type %s", peekingLexerType)
-		}
-		if parseFnType.NumOut() != 2 {
-			return fmt.Errorf("production parser must return exactly two values: the parsed production, and an error")
-		}
 		if parseFnType.Out(0).Kind() != reflect.Interface {
-			return fmt.Errorf("production parser's first return must be an interface type")
-		}
-		if parseFnType.Out(1) != errorType {
-			return fmt.Errorf("production parser's second return must be %s", errorType)
+			return fmt.Errorf("ParseTypeWith: T must be an interface type (got %s)", parseFnType.Out(0))
 		}
 		prodType := parseFnType.Out(0)
 		p.customDefs = append(p.customDefs, customDef{prodType, parseFnVal})
@@ -75,11 +81,23 @@ func UseCustom(parseFn interface{}) Option {
 	}
 }
 
-func UseUnion[T any](members ...T) Option {
+// ParseUnion associates several member productions with some interface type T.
+// Given members X, Y, Z, and W for a union type U, the the EBNF rule is:
+//    U = X | Y | Z | W .
+// When the parser encounters a field of type T, it will attempt to parse each member
+// in sequence and take the first matche. Because of this, the order in which the
+// members are defined is important. You must be careful to order your members appropriately.
+//
+// An example of a bad parse that can happen if members are out of order:
+//
+// If the first member matches A, and the second member matches A B,
+// and he source string is "AB", then the parser will only match A, and will not
+// try to parse the second member at all.
+func ParseUnion[T any](members ...T) Option {
 	return func(p *Parser) error {
 		unionType := reflect.TypeOf((*T)(nil)).Elem()
 		if unionType.Kind() != reflect.Interface {
-			return fmt.Errorf("union type must be an interface (got %s)", unionType)
+			return fmt.Errorf("ParseUnion: union type must be an interface (got %s)", unionType)
 		}
 		memberTypes := make([]reflect.Type, 0, len(members))
 		for _, m := range members {

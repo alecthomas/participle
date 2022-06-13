@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	require "github.com/alecthomas/assert/v2"
+	"github.com/alecthomas/participle/v2"
 )
 
 func TestEBNF(t *testing.T) {
@@ -36,4 +37,41 @@ func TestEBNF_Other(t *testing.T) {
 	parser := mustTestParser(t, &Grammar{})
 	expected := `Grammar = ((?= "good") <ident>) | ((?! "bad" | "worse") <ident>) | ~("anything" | "but") .`
 	require.Equal(t, expected, parser.String())
+}
+
+type (
+	EBNFUnion interface{ ebnfUnion() }
+
+	EBNFUnionA struct {
+		A string `@Ident`
+	}
+
+	EBNFUnionB struct {
+		B string `@String`
+	}
+
+	EBNFUnionC struct {
+		C string `@Float`
+	}
+)
+
+func (EBNFUnionA) ebnfUnion() {}
+func (EBNFUnionB) ebnfUnion() {}
+func (EBNFUnionC) ebnfUnion() {}
+
+func TestEBNF_Union(t *testing.T) {
+	type Grammar struct {
+		TheUnion EBNFUnion `@@`
+	}
+
+	parser := mustTestParser(t, &Grammar{}, participle.ParseUnion[EBNFUnion](EBNFUnionA{}, EBNFUnionB{}, EBNFUnionC{}))
+	require.Equal(t,
+		strings.TrimSpace(`
+Grammar = EBNFUnion .
+EBNFUnion = EBNFUnionA | EBNFUnionB | EBNFUnionC .
+EBNFUnionA = <ident> .
+EBNFUnionB = <string> .
+EBNFUnionC = <float> .
+`),
+		parser.String())
 }
