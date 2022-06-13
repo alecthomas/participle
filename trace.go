@@ -34,12 +34,17 @@ func injectTrace(w io.Writer, indent int, n node) node {
 		for i, child := range n.nodes {
 			n.nodes[i] = injectTrace(w, indent+2, child)
 		}
+	case *union:
+		for i, child := range n.members {
+			n.members[i] = injectTrace(w, indent+2, child)
+		}
 	case *strct:
 		n.expr = injectTrace(w, indent+2, n.expr)
 	case *sequence:
 		n.node = injectTrace(w, indent+2, n.node)
 		// injectTrace(w, indent, n.next)
 	case *parseable:
+	case *custom:
 	case *capture:
 		n.node = injectTrace(w, indent+2, n.node)
 	case *reference:

@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"text/scanner"
 
 	require "github.com/alecthomas/assert/v2"
 	"github.com/alecthomas/participle/v2"
@@ -1726,4 +1727,124 @@ func TestRootParseableFail(t *testing.T) {
 	p := mustTestParser(t, &RootParseableFail{})
 	err := p.ParseString("<test>", "blah", &RootParseableFail{})
 	require.EqualError(t, err, "<test>:1:1: always fail immediately")
+}
+
+type (
+	TestCustom interface{ isTestCustom() }
+
+	CustomIdent   string
+	CustomNumber  float64
+	CustomBoolean bool
+)
+
+func (CustomIdent) isTestCustom()   {}
+func (CustomNumber) isTestCustom()  {}
+func (CustomBoolean) isTestCustom() {}
+
+func TestParserWithCustomProduction(t *testing.T) {
+	type grammar struct {
+		Custom TestCustom `@@`
+	}
+
+	p := mustTestParser(t, &grammar{}, participle.ParseTypeWith(func(lex *lexer.PeekingLexer) (TestCustom, error) {
+		switch peek := lex.Peek(); {
+		case peek.Type == scanner.Int || peek.Type == scanner.Float:
+			v, err := strconv.ParseFloat(lex.Next().Value, 64)
+			if err != nil {
+				return nil, err
+			}
+			return CustomNumber(v), nil
+		case peek.Type == scanner.Ident:
+			name := lex.Next().Value
+			if name == "true" || name == "false" {
+				return CustomBoolean(name == "true"), nil
+			}
+			return CustomIdent(name), nil
+		default:
+			return nil, participle.NextMatch
+		}
+	}))
+
+	type testCase struct {
+		src      string
+		expected TestCustom
+	}
+
+	for _, c := range []testCase{
+		{"a", CustomIdent("a")},
+		{"12.5", CustomNumber(12.5)},
+		{"true", CustomBoolean(true)},
+		{"false", CustomBoolean(false)},
+	} {
+		var actual grammar
+		require.NoError(t, p.ParseString("", c.src, &actual))
+		require.Equal(t, c.expected, actual.Custom)
+	}
+
+	require.Equal(t, `Grammar = TestCustom .`, p.String())
+}
+
+type (
+	TestUnionA interface{ isTestUnionA() }
+	TestUnionB interface{ isTestUnionB() }
+
+	AMember1 struct {
+		V string `@Ident`
+	}
+
+	AMember2 struct {
+		V TestUnionB `"[" @@ "]"`
+	}
+
+	BMember1 struct {
+		V float64 `@Int | @Float`
+	}
+
+	BMember2 struct {
+		V TestUnionA `"{" @@ "}"`
+	}
+)
+
+func (AMember1) isTestUnionA() {}
+func (AMember2) isTestUnionA() {}
+
+func (BMember1) isTestUnionB() {}
+func (BMember2) isTestUnionB() {}
+
+func TestParserWithUnion(t *testing.T) {
+	type grammar struct {
+		A TestUnionA `@@`
+		B TestUnionB `| @@`
+	}
+
+	parser := mustTestParser(t, &grammar{}, participle.UseLookahead(10),
+		participle.ParseUnion[TestUnionA](AMember1{}, AMember2{}),
+		participle.ParseUnion[TestUnionB](BMember1{}, BMember2{}))
+
+	type testCase struct {
+		src      string
+		expected grammar
+	}
+
+	for _, c := range []testCase{
+		{`a`, grammar{A: AMember1{"a"}}},
+		{`1.5`, grammar{B: BMember1{1.5}}},
+		{`[2.5]`, grammar{A: AMember2{BMember1{2.5}}}},
+		{`{x}`, grammar{B: BMember2{AMember1{"x"}}}},
+		{`{ [ { [12] } ] }`, grammar{B: BMember2{AMember2{BMember2{AMember2{BMember1{12}}}}}}},
+	} {
+		var actual grammar
+		require.NoError(t, parser.ParseString("", c.src, &actual))
+		require.Equal(t, c.expected, actual)
+	}
+
+	require.Equal(t, strings.TrimSpace(`
+Grammar = TestUnionA | TestUnionB .
+TestUnionA = AMember1 | AMember2 .
+AMember1 = <ident> .
+AMember2 = "[" TestUnionB "]" .
+TestUnionB = BMember1 | BMember2 .
+BMember1 = <int> | <float> .
+BMember2 = "{" TestUnionA "}" .
+	`), parser.String())
 }

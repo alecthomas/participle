@@ -72,6 +72,47 @@ func (p *parseable) Parse(ctx *parseContext, parent reflect.Value) (out []reflec
 	return []reflect.Value{rv.Elem()}, nil
 }
 
+// @@ (but for a custom production)
+type custom struct {
+	typ     reflect.Type
+	parseFn reflect.Value
+}
+
+func (c *custom) String() string   { return ebnf(c) }
+func (c *custom) GoString() string { return c.typ.Name() }
+
+func (c *custom) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
+	results := c.parseFn.Call([]reflect.Value{reflect.ValueOf(ctx.PeekingLexer)})
+	if err, _ := results[1].Interface().(error); err != nil {
+		if err == NextMatch {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return []reflect.Value{results[0]}, nil
+}
+
+// @@ (for a union)
+type union struct {
+	typ     reflect.Type
+	members []node
+}
+
+func (u *union) String() string   { return ebnf(u) }
+func (u *union) GoString() string { return u.typ.Name() }
+
+func (u *union) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
+	temp := disjunction{u.members}
+	vals, err := temp.Parse(ctx, parent)
+	if err != nil {
+		return nil, err
+	}
+	for i := range vals {
+		vals[i] = vals[i].Convert(u.typ)
+	}
+	return vals, nil
+}
+
 // @@
 type strct struct {
 	typ              reflect.Type
@@ -710,7 +751,7 @@ func setField(tokens []lexer.Token, strct reflect.Value, field structLexerField,
 			f.Set(fv)
 		}
 
-	case reflect.Bool, reflect.Struct:
+	case reflect.Bool, reflect.Struct, reflect.Interface:
 		if f.Kind() == reflect.Bool && fv.Kind() == reflect.Bool {
 			f.SetBool(fv.Bool())
 			break

@@ -10,6 +10,16 @@ import (
 	"github.com/alecthomas/participle/v2/lexer"
 )
 
+type unionDef struct {
+	typ     reflect.Type
+	members []reflect.Type
+}
+
+type customDef struct {
+	typ     reflect.Type
+	parseFn reflect.Value
+}
+
 // A Parser for a particular grammar and lexer.
 type Parser struct {
 	root            node
@@ -19,6 +29,8 @@ type Parser struct {
 	useLookahead    int
 	caseInsensitive map[string]bool
 	mappers         []mapperByToken
+	unionDefs       []unionDef
+	customDefs      []customDef
 	elide           []string
 }
 
@@ -83,6 +95,13 @@ func Build(grammar interface{}, options ...Option) (parser *Parser, err error) {
 	}
 
 	context := newGeneratorContext(p.lex)
+	if err := context.addCustomDefs(p.customDefs); err != nil {
+		return nil, err
+	}
+	if err := context.addUnionDefs(p.unionDefs); err != nil {
+		return nil, err
+	}
+
 	v := reflect.ValueOf(grammar)
 	if v.Kind() == reflect.Interface {
 		v = v.Elem()

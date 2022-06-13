@@ -51,6 +51,28 @@ func buildEBNF(root bool, n node, seen map[node]bool, p *ebnfp, outp *[]*ebnfp) 
 			p.out += ")"
 		}
 
+	case *union:
+		name := strings.ToUpper(n.typ.Name()[:1]) + n.typ.Name()[1:]
+		if p != nil {
+			p.out += name
+		}
+		if seen[n] {
+			return
+		}
+		p = &ebnfp{name: name}
+		*outp = append(*outp, p)
+		seen[n] = true
+		for i, next := range n.members {
+			if i > 0 {
+				p.out += " | "
+			}
+			buildEBNF(false, next, seen, p, outp)
+		}
+
+	case *custom:
+		name := strings.ToUpper(n.typ.Name()[:1]) + n.typ.Name()[1:]
+		p.out += name
+
 	case *strct:
 		name := strings.ToUpper(n.typ.Name()[:1]) + n.typ.Name()[1:]
 		if p != nil {
