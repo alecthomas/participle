@@ -1826,7 +1826,6 @@ func TestParserWithUnion(t *testing.T) {
 		expected grammar
 	}
 
-	var trace strings.Builder
 	for _, c := range []testCase{
 		{`a`, grammar{A: AMember1{"a"}}},
 		{`1.5`, grammar{B: BMember1{1.5}}},
@@ -1835,10 +1834,10 @@ func TestParserWithUnion(t *testing.T) {
 		{`{ [ { [12] } ] }`, grammar{B: BMember2{AMember2{BMember2{AMember2{BMember1{12}}}}}}},
 	} {
 		var actual grammar
-		trace.Reset()
+		var trace strings.Builder
 		require.NoError(t, parser.ParseString("", c.src, &actual, participle.Trace(&trace)))
 		require.Equal(t, c.expected, actual)
-		fmt.Println(trace.String())
+		require.NotEqual(t, "", trace.String())
 	}
 
 	require.Equal(t, strings.TrimSpace(`
