@@ -257,7 +257,7 @@ func (p *Parser) rootParseable(ctx *parseContext, parseable Parseable) error {
 		if err == NextMatch {
 			err = UnexpectedTokenError{Unexpected: ctx.Peek()}
 		} else {
-			err = &parseError{Msg: err.Error(), Pos: ctx.Peek().Pos}
+			err = &ParseError{Msg: err.Error(), Pos: ctx.Peek().Pos}
 		}
 		return ctx.DeepestError(err)
 	}
