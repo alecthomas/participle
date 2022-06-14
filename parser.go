@@ -23,7 +23,6 @@ type customDef struct {
 // A Parser for a particular grammar and lexer.
 type Parser struct {
 	root            node
-	trace           io.Writer
 	lex             lexer.Definition
 	typ             reflect.Type
 	useLookahead    int
@@ -113,9 +112,6 @@ func Build(grammar interface{}, options ...Option) (parser *Parser, err error) {
 	}
 	if err := validate(p.root); err != nil {
 		return nil, err
-	}
-	if p.trace != nil {
-		p.root = injectTrace(p.trace, 0, p.root)
 	}
 	return p, nil
 }

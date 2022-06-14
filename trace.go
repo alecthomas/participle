@@ -8,10 +8,9 @@ import (
 )
 
 // Trace the parse to "w".
-func Trace(w io.Writer) Option {
-	return func(p *Parser) error {
+func Trace(w io.Writer) ParseOption {
+	return func(p *parseContext) {
 		p.trace = w
-		return nil
 	}
 }
 
