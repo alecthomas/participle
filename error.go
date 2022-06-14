@@ -56,23 +56,23 @@ func (u UnexpectedTokenError) Message() string { // nolint: golint
 }
 func (u UnexpectedTokenError) Position() lexer.Position { return u.Unexpected.Pos } // nolint: golint
 
-type parseError struct {
+type ParseError struct {
 	Msg string
 	Pos lexer.Position
 }
 
-func (p *parseError) Error() string            { return FormatError(p) }
-func (p *parseError) Message() string          { return p.Msg }
-func (p *parseError) Position() lexer.Position { return p.Pos }
+func (p *ParseError) Error() string            { return FormatError(p) }
+func (p *ParseError) Message() string          { return p.Msg }
+func (p *ParseError) Position() lexer.Position { return p.Pos }
 
 // Errorf creates a new Error at the given position.
 func Errorf(pos lexer.Position, format string, args ...interface{}) Error {
-	return &parseError{Msg: fmt.Sprintf(format, args...), Pos: pos}
+	return &ParseError{Msg: fmt.Sprintf(format, args...), Pos: pos}
 }
 
 type wrappingParseError struct {
 	err error
-	parseError
+	ParseError
 }
 
 func (w *wrappingParseError) Unwrap() error { return w.err }
@@ -90,7 +90,7 @@ func Wrapf(pos lexer.Position, err error, format string, args ...interface{}) Er
 	} else {
 		msg = fmt.Sprintf("%s: %s", fmt.Sprintf(format, args...), err.Error())
 	}
-	return &wrappingParseError{err: err, parseError: parseError{Msg: msg, Pos: pos}}
+	return &wrappingParseError{err: err, ParseError: ParseError{Msg: msg, Pos: pos}}
 }
 
 // AnnotateError wraps an existing error with a position.
@@ -100,5 +100,5 @@ func AnnotateError(pos lexer.Position, err error) error {
 	if perr, ok := err.(Error); ok {
 		return perr
 	}
-	return &wrappingParseError{err: err, parseError: parseError{Msg: err.Error(), Pos: pos}}
+	return &wrappingParseError{err: err, ParseError: ParseError{Msg: err.Error(), Pos: pos}}
 }

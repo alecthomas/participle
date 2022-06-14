@@ -47,7 +47,7 @@ func decorate(err *error, name func() string) {
 	if perr, ok := (*err).(Error); ok {
 		*err = Errorf(perr.Position(), "%s: %s", name(), perr.Message())
 	} else {
-		*err = &parseError{Msg: fmt.Sprintf("%s: %s", name(), *err)}
+		*err = &ParseError{Msg: fmt.Sprintf("%s: %s", name(), *err)}
 	}
 }
 
