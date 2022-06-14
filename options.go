@@ -82,22 +82,22 @@ func ParseTypeWith[T any](parseFn func(*lexer.PeekingLexer) (T, error)) Option {
 }
 
 // Union associates several member productions with some interface type T.
-// Given members X, Y, Z, and W for a union type U, the the EBNF rule is:
+// Given members X, Y, Z, and W for a union type U, then the EBNF rule is:
 //    U = X | Y | Z | W .
 // When the parser encounters a field of type T, it will attempt to parse each member
-// in sequence and take the first matche. Because of this, the order in which the
+// in sequence and take the first match. Because of this, the order in which the
 // members are defined is important. You must be careful to order your members appropriately.
 //
 // An example of a bad parse that can happen if members are out of order:
 //
 // If the first member matches A, and the second member matches A B,
-// and he source string is "AB", then the parser will only match A, and will not
+// and the source string is "AB", then the parser will only match A, and will not
 // try to parse the second member at all.
 func Union[T any](members ...T) Option {
 	return func(p *Parser) error {
 		unionType := reflect.TypeOf((*T)(nil)).Elem()
 		if unionType.Kind() != reflect.Interface {
-			return fmt.Errorf("ParseUnion: union type must be an interface (got %s)", unionType)
+			return fmt.Errorf("Union: union type must be an interface (got %s)", unionType)
 		}
 		memberTypes := make([]reflect.Type, 0, len(members))
 		for _, m := range members {

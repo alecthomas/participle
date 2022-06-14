@@ -215,7 +215,7 @@ for each captured token, so eg. `@(Ident Ident Ident)` will be called three time
 
 ### Capturing boolean value
 
-By default a boolean field is used to indicate that a match occurred, which
+By default, a boolean field is used to indicate that a match occurred, which
 turns out to be much more useful and common in Participle than parsing true
 or false literals. For example, parsing a variable declaration with a
 trailing optional syntax:
@@ -228,7 +228,7 @@ type Var struct {
 }
 ```
 
-In practice this gives more useful AST's. If bool were to be parsed literally
+In practice this gives more useful ASTs. If bool were to be parsed literally
 then you'd need to have some alternate type for Optional such as string or a
 custom type.
 
@@ -582,7 +582,7 @@ These related pieces of information can be combined to provide fairly comprehens
 
 ## Comments
 
-Comments can be difficult to capture as in most languagesthey may appear almost
+Comments can be difficult to capture as in most languages they may appear almost
 anywhere. There are three ways of capturing comments, with decreasing fidelity.
 
 The first is to elide tokens in the parser, then add `Tokens []lexer.Token` as a
