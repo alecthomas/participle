@@ -1834,8 +1834,10 @@ func TestParserWithUnion(t *testing.T) {
 		{`{ [ { [12] } ] }`, grammar{B: BMember2{AMember2{BMember2{AMember2{BMember1{12}}}}}}},
 	} {
 		var actual grammar
-		require.NoError(t, parser.ParseString("", c.src, &actual))
+		var trace strings.Builder
+		require.NoError(t, parser.ParseString("", c.src, &actual, participle.Trace(&trace)))
 		require.Equal(t, c.expected, actual)
+		require.NotEqual(t, "", trace.String())
 	}
 
 	require.Equal(t, strings.TrimSpace(`

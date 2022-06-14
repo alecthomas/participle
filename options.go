@@ -2,6 +2,7 @@ package participle
 
 import (
 	"fmt"
+	"io"
 	"reflect"
 
 	"github.com/alecthomas/participle/v2/lexer"
@@ -110,6 +111,13 @@ func Union[T any](members ...T) Option {
 
 // ParseOption modifies how an individual parse is applied.
 type ParseOption func(p *parseContext)
+
+// Trace the parse to "w".
+func Trace(w io.Writer) ParseOption {
+	return func(p *parseContext) {
+		p.trace = w
+	}
+}
 
 // AllowTrailing tokens without erroring.
 //
