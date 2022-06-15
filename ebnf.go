@@ -9,7 +9,7 @@ import (
 //
 // Productions are always upper cased. Lexer tokens are always lower case.
 func (p *Parser) String() string {
-	return ebnf(p.root)
+	return ebnf(p.typeNodes[p.rootType])
 }
 
 type ebnfp struct {

@@ -227,9 +227,9 @@ func main() {
 	for _, file := range cli.Files {
 		thrift := &Thrift{}
 		r, err := os.Open(file)
-		ctx.FatalIfError(err, "")
+		ctx.FatalIfErrorf(err, "")
 		err = parser.Parse("", r, thrift)
-		ctx.FatalIfError(err, "")
+		ctx.FatalIfErrorf(err, "")
 		repr.Println(thrift)
 	}
 }
