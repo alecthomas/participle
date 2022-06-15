@@ -285,13 +285,13 @@ func (p *Parser) parseNodeFor(v reflect.Value) (node, error) {
 	if t.Kind() != reflect.Ptr || (t.Elem().Kind() != reflect.Struct && t.Elem().Kind() != reflect.Interface) {
 		return nil, fmt.Errorf("expected a pointer to a struct or interface, but got %s", t)
 	}
-	node := p.typeNodes[t]
-	if node == nil {
+	parseNode := p.typeNodes[t]
+	if parseNode == nil {
 		t = t.Elem()
-		node = p.typeNodes[t]
+		parseNode = p.typeNodes[t]
 	}
-	if node == nil {
+	if parseNode == nil {
 		return nil, fmt.Errorf("parser does not know how to parse values of type %s", t)
 	}
-	return node, nil
+	return parseNode, nil
 }
