@@ -47,7 +47,7 @@ func MustBuild(grammar interface{}, options ...Option) *Parser {
 // If "Lexer()" is not provided as an option, a default lexer based on text/scanner will be used. This scans typical Go-
 // like tokens.
 //
-// See documentation for details
+// See documentation for details.
 func Build(grammar interface{}, options ...Option) (parser *Parser, err error) {
 	// Configure Parser struct with defaults + options.
 	p := &Parser{
@@ -122,6 +122,7 @@ func (p *Parser) Lexer() lexer.Definition {
 }
 
 // Lex uses the parser's lexer to tokenise input.
+// Parameter filename is used as an opaque prefix in error messages.
 func (p *Parser) Lex(filename string, r io.Reader) ([]lexer.Token, error) {
 	lex, err := p.lex.Lex(filename, r)
 	if err != nil {
@@ -174,7 +175,7 @@ func (p *Parser) parse(lex lexer.Lexer, v interface{}, options ...ParseOption) (
 }
 
 // Parse from r into grammar v which must be of the same type as the grammar passed to
-// Build().
+// Build(). Parameter filename is used as an opaque prefix in error messages.
 //
 // This may return an Error.
 func (p *Parser) Parse(filename string, r io.Reader, v interface{}, options ...ParseOption) (err error) {
@@ -189,7 +190,7 @@ func (p *Parser) Parse(filename string, r io.Reader, v interface{}, options ...P
 }
 
 // ParseString from s into grammar v which must be of the same type as the grammar passed to
-// Build().
+// Build(). Parameter filename is used as an opaque prefix in error messages.
 //
 // This may return an Error.
 func (p *Parser) ParseString(filename string, s string, v interface{}, options ...ParseOption) (err error) {
@@ -206,7 +207,7 @@ func (p *Parser) ParseString(filename string, s string, v interface{}, options .
 }
 
 // ParseBytes from b into grammar v which must be of the same type as the grammar passed to
-// Build().
+// Build(). Parameter filename is used as an opaque prefix in error messages.
 //
 // This may return an Error.
 func (p *Parser) ParseBytes(filename string, b []byte, v interface{}, options ...ParseOption) (err error) {
