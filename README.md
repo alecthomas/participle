@@ -112,7 +112,8 @@ parser from the tutorial.
 
  type Value struct {
    String *string  `  @String`
-   Number *float64 `| @Float`
+   Float *float64  `| @Float`
+   Int    *int     `| @Int`
  }
  ```
 
@@ -131,7 +132,7 @@ ast := &INI{}
 err := parser.ParseString("", "size = 10", ast)
 // ast == &INI{
 //   Properties: []*Property{
-//     {Key: "size", Value: &Value{Number: &10}},
+//     {Key: "size", Value: &Value{Int: &10}},
 //   },
 // }
 ```
