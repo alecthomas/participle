@@ -382,7 +382,7 @@ func (s *sequence) Parse(ctx *parseContext, parent reflect.Value) (out []reflect
 				return nil, nil
 			}
 			token := ctx.Peek()
-			return out, UnexpectedTokenError{Unexpected: token, at: n}
+			return out, &UnexpectedTokenError{Unexpected: token, at: n}
 		}
 		// Special-case for when children return an empty match.
 		// Appending an empty, non-nil slice to a nil slice returns a nil slice.

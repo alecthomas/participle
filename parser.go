@@ -244,7 +244,7 @@ func (p *Parser[G]) parseOne(ctx *parseContext, parseNode node, rv reflect.Value
 	}
 	token := ctx.Peek()
 	if !token.EOF() && !ctx.allowTrailing {
-		return ctx.DeepestError(UnexpectedTokenError{Unexpected: token})
+		return ctx.DeepestError(&UnexpectedTokenError{Unexpected: token})
 	}
 	return nil
 }
@@ -262,7 +262,7 @@ func (p *Parser[G]) parseInto(ctx *parseContext, parseNode node, rv reflect.Valu
 	}
 	if pv == nil {
 		token := ctx.Peek()
-		return ctx.DeepestError(UnexpectedTokenError{Unexpected: token})
+		return ctx.DeepestError(&UnexpectedTokenError{Unexpected: token})
 	}
 	return nil
 }
@@ -270,7 +270,7 @@ func (p *Parser[G]) parseInto(ctx *parseContext, parseNode node, rv reflect.Valu
 func (p *Parser[G]) rootParseable(ctx *parseContext, parseable Parseable) error {
 	if err := parseable.Parse(ctx.PeekingLexer); err != nil {
 		if err == NextMatch {
-			err = UnexpectedTokenError{Unexpected: ctx.Peek()}
+			err = &UnexpectedTokenError{Unexpected: ctx.Peek()}
 		} else {
 			err = &ParseError{Msg: err.Error(), Pos: ctx.Peek().Pos}
 		}
@@ -278,7 +278,7 @@ func (p *Parser[G]) rootParseable(ctx *parseContext, parseable Parseable) error 
 	}
 	peek := ctx.Peek()
 	if !peek.EOF() && !ctx.allowTrailing {
-		return ctx.DeepestError(UnexpectedTokenError{Unexpected: peek})
+		return ctx.DeepestError(&UnexpectedTokenError{Unexpected: peek})
 	}
 	return nil
 }

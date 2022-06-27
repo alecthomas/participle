@@ -45,16 +45,16 @@ type UnexpectedTokenError struct {
 	at         node
 }
 
-func (u UnexpectedTokenError) Error() string { return FormatError(u) }
+func (u *UnexpectedTokenError) Error() string { return FormatError(u) }
 
-func (u UnexpectedTokenError) Message() string { // nolint: golint
+func (u *UnexpectedTokenError) Message() string { // nolint: golint
 	var expected string
 	if u.at != nil {
 		expected = fmt.Sprintf(" (expected %s)", u.at)
 	}
 	return fmt.Sprintf("unexpected token %q%s", u.Unexpected, expected)
 }
-func (u UnexpectedTokenError) Position() lexer.Position { return u.Unexpected.Pos } // nolint: golint
+func (u *UnexpectedTokenError) Position() lexer.Position { return u.Unexpected.Pos } // nolint: golint
 
 type ParseError struct {
 	Msg string
