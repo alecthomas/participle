@@ -10,14 +10,14 @@ import (
 )
 
 func TestUpper(t *testing.T) {
-	var grammar struct {
+	type grammar struct {
 		Text string `@Ident`
 	}
 	def := lexer.MustSimple([]lexer.SimpleRule{
 		{"Whitespace", `\s+`},
 		{"Ident", `\w+`},
 	})
-	parser := mustTestParser(t, &grammar, participle.Lexer(def), participle.Upper("Ident"))
+	parser := mustTestParser[grammar](t, participle.Lexer(def), participle.Upper("Ident"))
 	actual, err := parser.Lex("", strings.NewReader("hello world"))
 	require.NoError(t, err)
 
@@ -32,7 +32,7 @@ func TestUpper(t *testing.T) {
 }
 
 func TestUnquote(t *testing.T) {
-	var grammar struct {
+	type grammar struct {
 		Text string `@Ident`
 	}
 	lex := lexer.MustSimple([]lexer.SimpleRule{
@@ -41,7 +41,7 @@ func TestUnquote(t *testing.T) {
 		{"String", `\"(?:[^\"]|\\.)*\"`},
 		{"RawString", "`[^`]*`"},
 	})
-	parser := mustTestParser(t, &grammar, participle.Lexer(lex), participle.Unquote("String", "RawString"))
+	parser := mustTestParser[grammar](t, participle.Lexer(lex), participle.Unquote("String", "RawString"))
 	actual, err := parser.Lex("", strings.NewReader("hello world \"quoted\\tstring\" `backtick quotes`"))
 	require.NoError(t, err)
 	expected := []lexer.Token{

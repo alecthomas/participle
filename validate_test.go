@@ -13,7 +13,7 @@ type leftRecursionSimple struct {
 }
 
 func TestValidateLeftRecursion(t *testing.T) {
-	_, err := participle.Build(&leftRecursionSimple{})
+	_, err := participle.Build[leftRecursionSimple]()
 	require.Error(t, err)
 	require.Equal(t, err.Error(), `left recursion detected on
 
@@ -31,7 +31,7 @@ type leftRecursionNested struct {
 }
 
 func TestValidateLeftRecursionNested(t *testing.T) {
-	_, err := participle.Build(&leftRecursionNested{})
+	_, err := participle.Build[leftRecursionNested]()
 	require.Error(t, err)
 	require.Equal(t, err.Error(), `left recursion detected on
 

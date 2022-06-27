@@ -7,8 +7,7 @@ import (
 )
 
 func TestExe(t *testing.T) {
-	ast := &Proto{}
-	err := parser.ParseString("", `
+	_, err := parser.ParseString("", `
 syntax = "proto3";
 
 package test.test;
@@ -38,6 +37,6 @@ enum Type {
 service SearchService {
   rpc Search(SearchRequest) returns (SearchResponse);
 }
-`, ast)
+`)
 	require.NoError(t, err)
 }

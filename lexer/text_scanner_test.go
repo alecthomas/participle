@@ -47,10 +47,9 @@ func TestNewTextScannerLexerDefault(t *testing.T) {
 	type grammar struct {
 		Text string `@String @Ident`
 	}
-	p, err := participle.Build(&grammar{}, participle.Lexer(lexer.NewTextScannerLexer(nil)), participle.Unquote())
+	p, err := participle.Build[grammar](participle.Lexer(lexer.NewTextScannerLexer(nil)), participle.Unquote())
 	require.NoError(t, err)
-	g := &grammar{}
-	err = p.ParseString("", `"hello" world`, g)
+	g, err := p.ParseString("", `"hello" world`)
 	require.NoError(t, err)
 	require.Equal(t, "helloworld", g.Text)
 }
@@ -59,12 +58,11 @@ func TestNewTextScannerLexer(t *testing.T) {
 	type grammar struct {
 		Text string `(@String | @Comment | @Ident)+`
 	}
-	p, err := participle.Build(&grammar{}, participle.Lexer(lexer.NewTextScannerLexer(func(s *scanner.Scanner) {
+	p, err := participle.Build[grammar](participle.Lexer(lexer.NewTextScannerLexer(func(s *scanner.Scanner) {
 		s.Mode &^= scanner.SkipComments
 	})), participle.Unquote())
 	require.NoError(t, err)
-	g := &grammar{}
-	err = p.ParseString("", `"hello" /* comment */ world`, g)
+	g, err := p.ParseString("", `"hello" /* comment */ world`)
 	require.NoError(t, err)
 	require.Equal(t, "hello/* comment */world", g.Text)
 }

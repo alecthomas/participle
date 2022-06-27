@@ -8,8 +8,7 @@ import (
 )
 
 func TestExe(t *testing.T) {
-	expr := &Expr{}
-	err := parser.ParseString("", `1 + 2 / 3 * (1 + 2)`, expr)
-	require.NoError(t, err)
+	expr, err := parser.ParseString("", `1 + 2 / 3 * (1 + 2)`)
 	repr.Println(expr)
+	require.NoError(t, err)
 }

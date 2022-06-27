@@ -104,7 +104,7 @@ type Expression struct {
 	X ExprPrecAll `@@`
 }
 
-var parser = participle.MustBuild(&Expression{},
+var parser = participle.MustBuild[Expression](
 	// This grammar requires enough lookahead to see the entire expression before
 	// it can select the proper binary expression type - in other words, we only
 	// know that `1 * 2 * 3 * 4` isn't the left-hand side of an addition or subtraction
@@ -126,8 +126,7 @@ func main() {
 	}
 	ctx := kong.Parse(&cli)
 
-	expr := &Expression{}
-	err := parser.ParseString("", strings.Join(cli.Expr, " "), expr)
+	expr, err := parser.ParseString("", strings.Join(cli.Expr, " "))
 	ctx.FatalIfErrorf(err)
 
 	repr.Println(expr)

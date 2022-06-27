@@ -8,8 +8,7 @@ import (
 )
 
 func TestExe(t *testing.T) {
-	actual := &String{}
-	err := parser.ParseString("", `"hello $(world) ${first + "${last}"}"`, actual)
+	actual, err := parser.ParseString("", `"hello $(world) ${first + "${last}"}"`)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -42,8 +42,8 @@ func TestExpressionParser(t *testing.T) {
 			},
 		},
 	} {
-		var actual Expression
-		require.NoError(t, parser.ParseString("<test>", c.src, &actual))
+		actual, err := parser.ParseString("<test>", c.src)
+		require.NoError(t, err)
 		require.Equal(t, c.expected, actual.X)
 	}
 }

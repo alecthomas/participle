@@ -22,7 +22,7 @@ type acc struct {
 	Index *int    `| @Int`
 }
 
-var parser = participle.MustBuild(&pathExpr{})
+var parser = participle.MustBuild[pathExpr]()
 
 func main() {
 	if len(os.Args) < 3 {
@@ -33,8 +33,8 @@ func main() {
 	q := os.Args[1]
 	files := os.Args[2:]
 
-	var expr pathExpr
-	if err := parser.ParseString("", q, &expr); err != nil {
+	expr, err := parser.ParseString("", q)
+	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
@@ -71,7 +71,7 @@ func main() {
 	}
 }
 
-func match(input map[string]interface{}, expr pathExpr) (interface{}, error) {
+func match(input map[string]interface{}, expr *pathExpr) (interface{}, error) {
 	var v interface{} = input
 	for _, e := range expr.Parts {
 		switch m := v.(type) {

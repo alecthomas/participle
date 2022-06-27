@@ -230,13 +230,12 @@ func ExampleNew() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	parser, err := participle.Build(&String{}, participle.Lexer(def))
+	parser, err := participle.Build[String](participle.Lexer(def))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	actual := &String{}
-	err = parser.ParseString("", `"hello ${user + "??"}"`, actual)
+	actual, err := parser.ParseString("", `"hello ${user + "??"}"`)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -284,11 +283,10 @@ func TestStateful(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	parser, err := participle.Build(&String{}, participle.Lexer(def))
+	parser, err := participle.Build[String](participle.Lexer(def))
 	require.NoError(t, err)
 
-	actual := &String{}
-	err = parser.ParseString("", `"hello ${user + "${last}"}"`, actual)
+	actual, err := parser.ParseString("", `"hello ${user + "${last}"}"`)
 	require.NoError(t, err)
 	expected := &String{
 		Fragments: []*Fragment{
@@ -335,9 +333,7 @@ func TestHereDoc(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	parser, err := participle.Build(&AST{},
-		participle.Lexer(def),
-	)
+	parser, err := participle.Build[AST](participle.Lexer(def))
 	require.NoError(t, err)
 
 	expected := &AST{
@@ -345,12 +341,11 @@ func TestHereDoc(t *testing.T) {
 			Idents: []string{"hello", "world"},
 		},
 	}
-	actual := &AST{}
-	err = parser.ParseString("", `
+	actual, err := parser.ParseString("", `
 		<<END
 		hello world
 		END
-	`, actual)
+	`)
 	require.NoError(t, err)
 	require.Equal(t, expected, actual)
 }

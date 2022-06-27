@@ -20,7 +20,7 @@ var (
 		{"comment", `[#;][^\n]*`},
 		{"whitespace", `\s+`},
 	})
-	parser = participle.MustBuild(&INI{},
+	parser = participle.MustBuild[INI](
 		participle.Lexer(iniLexer),
 		participle.Unquote("String"),
 		participle.Union[Value](String{}, Number{}),
@@ -57,10 +57,9 @@ type Number struct {
 func (Number) value() {}
 
 func main() {
-	ini := &INI{}
-	err := parser.Parse("", os.Stdin, ini)
+	ini, err := parser.Parse("", os.Stdin)
+	repr.Println(ini, repr.Indent("  "), repr.OmitEmpty(true))
 	if err != nil {
 		panic(err)
 	}
-	repr.Println(ini, repr.Indent("  "), repr.OmitEmpty(true))
 }

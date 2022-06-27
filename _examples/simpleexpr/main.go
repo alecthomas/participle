@@ -29,7 +29,7 @@ var (
 	cli struct {
 		Expr string `arg:"" help:"Expression."`
 	}
-	parser = participle.MustBuild(&Expr{})
+	parser = participle.MustBuild[Expr]()
 )
 
 func main() {
@@ -42,8 +42,7 @@ the parser, is that it is significantly less complex and less nested. The
 advantage of this over the "precedenceclimbing" example is that no custom
 parsing is required.
 `))
-	expr := &Expr{}
-	err := parser.ParseString("", cli.Expr, expr)
+	expr, err := parser.ParseString("", cli.Expr)
 	kctx.FatalIfErrorf(err)
 	repr.Println(expr)
 }

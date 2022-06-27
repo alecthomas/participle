@@ -120,7 +120,7 @@ type Expression struct {
 	X Expr `@@`
 }
 
-var parser = participle.MustBuild(&Expression{}, participle.ParseTypeWith(parseExprAny))
+var parser = participle.MustBuild[Expression](participle.ParseTypeWith(parseExprAny))
 
 func main() {
 	var cli struct {
@@ -128,8 +128,7 @@ func main() {
 	}
 	ctx := kong.Parse(&cli)
 
-	expr := &Expression{}
-	err := parser.ParseString("", strings.Join(cli.Expr, " "), expr)
+	expr, err := parser.ParseString("", strings.Join(cli.Expr, " "))
 	ctx.FatalIfErrorf(err)
 
 	repr.Println(expr)

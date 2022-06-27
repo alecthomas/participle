@@ -254,7 +254,7 @@ type MapType struct {
 }
 
 var (
-	parser = participle.MustBuild(&Proto{}, participle.UseLookahead(2))
+	parser = participle.MustBuild[Proto](participle.UseLookahead(2))
 
 	cli struct {
 		Files []string `required existingfile arg help:"Protobuf files."`
@@ -266,10 +266,9 @@ func main() {
 
 	for _, file := range cli.Files {
 		fmt.Println(file)
-		proto := &Proto{}
 		r, err := os.Open(file)
 		ctx.FatalIfErrorf(err, "")
-		err = parser.Parse("", r, proto)
+		proto, err := parser.Parse("", r)
 		ctx.FatalIfErrorf(err, "")
 		repr.Println(proto, repr.Hide(&lexer.Position{}))
 	}

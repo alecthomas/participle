@@ -14,11 +14,11 @@ import (
 const MaxLookahead = 99999
 
 // An Option to modify the behaviour of the Parser.
-type Option func(p *Parser) error
+type Option func(p *parserOptions) error
 
 // Lexer is an Option that sets the lexer to use with the given grammar.
 func Lexer(def lexer.Definition) Option {
-	return func(p *Parser) error {
+	return func(p *parserOptions) error {
 		p.lex = def
 		return nil
 	}
@@ -39,7 +39,7 @@ func Lexer(def lexer.Definition) Option {
 // Using infinite lookahead can be useful for testing, or for parsing especially
 // ambiguous grammars. Use at your own risk!
 func UseLookahead(n int) Option {
-	return func(p *Parser) error {
+	return func(p *parserOptions) error {
 		p.useLookahead = n
 		return nil
 	}
@@ -50,7 +50,7 @@ func UseLookahead(n int) Option {
 // Note that the lexer itself will also have to be case-insensitive; this option
 // just controls whether literals in the grammar are matched case insensitively.
 func CaseInsensitive(tokens ...string) Option {
-	return func(p *Parser) error {
+	return func(p *parserOptions) error {
 		for _, token := range tokens {
 			p.caseInsensitive[token] = true
 		}
@@ -70,7 +70,7 @@ func CaseInsensitive(tokens ...string) Option {
 // This can be useful if you want to parse a DSL within the larger grammar, or if you want
 // to implement an optimized parsing scheme for some portion of the grammar.
 func ParseTypeWith[T any](parseFn func(*lexer.PeekingLexer) (T, error)) Option {
-	return func(p *Parser) error {
+	return func(p *parserOptions) error {
 		parseFnVal := reflect.ValueOf(parseFn)
 		parseFnType := parseFnVal.Type()
 		if parseFnType.Out(0).Kind() != reflect.Interface {
@@ -95,7 +95,7 @@ func ParseTypeWith[T any](parseFn func(*lexer.PeekingLexer) (T, error)) Option {
 // and the source string is "AB", then the parser will only match A, and will not
 // try to parse the second member at all.
 func Union[T any](members ...T) Option {
-	return func(p *Parser) error {
+	return func(p *parserOptions) error {
 		unionType := reflect.TypeOf((*T)(nil)).Elem()
 		if unionType.Kind() != reflect.Interface {
 			return fmt.Errorf("Union: union type must be an interface (got %s)", unionType)

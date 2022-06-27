@@ -115,14 +115,13 @@ func parseOp(op string, lhs *Expr, rhs *Expr) *Expr {
 	}
 }
 
-var parser = participle.MustBuild(&Expr{})
+var parser = participle.MustBuild[Expr]()
 
 func main() {
-	e := &Expr{}
-	err := parser.ParseString("", strings.Join(os.Args[1:], " "), e)
+	e, err := parser.ParseString("", strings.Join(os.Args[1:], " "))
+	fmt.Println(e)
+	repr.Println(e)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(e)
-	repr.Println(e)
 }

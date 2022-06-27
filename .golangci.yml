@@ -50,6 +50,7 @@ linters:
     - errname
     - nilnil
     - maintidx
+    - unused # Does not work with type parameters
 
 linters-settings:
   govet:

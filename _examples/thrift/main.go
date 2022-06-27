@@ -200,7 +200,7 @@ var (
 		{"Punct", `[,.<>(){}=:]`},
 		{"Comment", `//.*`},
 	})
-	parser = participle.MustBuild(&Thrift{},
+	parser = participle.MustBuild[Thrift](
 		participle.Lexer(def),
 		participle.Unquote(),
 		participle.Elide("Whitespace"),
@@ -225,10 +225,9 @@ func main() {
 	}
 
 	for _, file := range cli.Files {
-		thrift := &Thrift{}
 		r, err := os.Open(file)
 		ctx.FatalIfErrorf(err, "")
-		err = parser.Parse("", r, thrift)
+		thrift, err := parser.Parse("", r)
 		ctx.FatalIfErrorf(err, "")
 		repr.Println(thrift)
 	}

@@ -252,21 +252,20 @@ To parse with this grammar we first construct the parser (we'll use the
 default lexer for now):
 
 ```go
-parser, err := participle.Build(&INI{})
+parser, err := participle.Build[INI]()
 ```
 
-Then create a root node and parse into it with `parser.Parse{,String,Bytes}()`:
+Then parse a new INI file with `parser.Parse{,String,Bytes}()`:
 
 ```go
-ini := &INI{}
-err = parser.ParseString("", `
+ini, err := parser.ParseString("", `
 age = 21
 name = "Bob Smith"
 
 [address]
 city = "Beverly Hills"
 postal_code = 90210
-`, ini)
+`)
 ```
 
 You can find the full example [here](_examples/ini/main.go), alongside

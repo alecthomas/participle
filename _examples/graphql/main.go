@@ -68,7 +68,7 @@ var (
 		{"Punct", `[-[!@#$%^&*()+_={}\|:;"'<,>.?/]|]`},
 		{"Whitespace", `[ \t\n\r]+`},
 	})
-	parser = participle.MustBuild(&File{},
+	parser = participle.MustBuild[File](
 		participle.Lexer(graphQLLexer),
 		participle.Elide("Comment", "Whitespace"),
 		participle.UseLookahead(2),
@@ -87,10 +87,9 @@ func main() {
 		ctx.Exit(0)
 	}
 	for _, file := range cli.Files {
-		ast := &File{}
 		r, err := os.Open(file)
 		ctx.FatalIfErrorf(err)
-		err = parser.Parse("", r, ast)
+		ast, err := parser.Parse("", r)
 		r.Close()
 		repr.Println(ast)
 		ctx.FatalIfErrorf(err)

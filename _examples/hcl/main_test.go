@@ -8,8 +8,7 @@ import (
 )
 
 func TestExe(t *testing.T) {
-	ast := &Config{}
-	err := parser.ParseString("", `
+	ast, err := parser.ParseString("", `
 region = "us-west-2"
 access_key = "something"
 secret_key = "something_else"
@@ -35,7 +34,7 @@ directory data {
     pre_restore_script = "before_restore.sh"
     post_restore_script = "after_restore.sh"
 }
-`, ast)
-	require.NoError(t, err)
+`)
 	repr.Println(ast)
+	require.NoError(t, err)
 }

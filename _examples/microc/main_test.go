@@ -9,8 +9,7 @@ import (
 )
 
 func TestExe(t *testing.T) {
-	program := &Program{}
-	err := parser.ParseString("", sample, program)
+	program, err := parser.ParseString("", sample)
 	require.NoError(t, err)
 	repr.Println(program)
 }
@@ -20,7 +19,6 @@ func BenchmarkParser(b *testing.B) {
 	b.ReportAllocs()
 	b.ReportMetric(float64(len(src)*b.N), "B/s")
 	for i := 0; i < b.N; i++ {
-		program := &Program{}
-		_ = parser.ParseString("", src, program)
+		_, _ = parser.ParseString("", src)
 	}
 }
