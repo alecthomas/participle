@@ -1850,3 +1850,45 @@ BMember1 = <int> | <float> .
 BMember2 = "{" TestUnionA "}" .
 	`), parser.String())
 }
+
+func TestParseSubProduction(t *testing.T) {
+	type (
+		ListItem struct {
+			Number *float64 `(@Int | @Float)`
+			String *string  `| @String`
+		}
+
+		Grammar struct {
+			List []ListItem `"[" @@ ("," @@)* "]"`
+		}
+	)
+
+	numberItem := func(n float64) ListItem { return ListItem{Number: &n} }
+	stringItem := func(s string) ListItem { return ListItem{String: &s} }
+
+	p := mustTestParser(t, &Grammar{}, participle.Unquote())
+
+	var (
+		actual   Grammar
+		expected = Grammar{List: []ListItem{numberItem(1), stringItem("test")}}
+	)
+
+	require.NoError(t, p.ParseString("", `[ 1, "test" ]`, &actual))
+	require.Equal(t, expected, actual)
+
+	var (
+		actualItem   ListItem
+		expectedItem = numberItem(1.234e5)
+	)
+
+	require.NoError(t, p.ParseString("", `1.234e5`, &actualItem))
+	require.Equal(t, expectedItem, actualItem)
+
+	var (
+		actualItem2   ListItem
+		expectedItem2 = stringItem("\t\ttest\t\t")
+	)
+
+	require.NoError(t, p.ParseString("", `"\t\ttest\t\t"`, &actualItem2))
+	require.Equal(t, expectedItem2, actualItem2)
+}

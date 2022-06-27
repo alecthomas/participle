@@ -22,9 +22,9 @@ type customDef struct {
 
 // A Parser for a particular grammar and lexer.
 type Parser struct {
-	root            node
 	lex             lexer.Definition
-	typ             reflect.Type
+	rootType        reflect.Type
+	typeNodes       map[reflect.Type]node
 	useLookahead    int
 	caseInsensitive map[string]bool
 	mappers         []mapperByToken
@@ -105,14 +105,16 @@ func Build(grammar interface{}, options ...Option) (parser *Parser, err error) {
 	if v.Kind() == reflect.Interface {
 		v = v.Elem()
 	}
-	p.typ = v.Type()
-	p.root, err = context.parseType(p.typ)
+	p.rootType = v.Type()
+	rootNode, err := context.parseType(p.rootType)
 	if err != nil {
 		return nil, err
 	}
-	if err := validate(p.root); err != nil {
+	if err := validate(rootNode); err != nil {
 		return nil, err
 	}
+	p.typeNodes = context.typeNodes
+	p.typeNodes[p.rootType] = rootNode
 	return p, nil
 }
 
@@ -138,15 +140,9 @@ func (p *Parser) Lex(filename string, r io.Reader) ([]lexer.Token, error) {
 // This may return a Error.
 func (p *Parser) ParseFromLexer(lex *lexer.PeekingLexer, v interface{}, options ...ParseOption) error {
 	rv := reflect.ValueOf(v)
-	if rv.Kind() == reflect.Interface {
-		rv = rv.Elem()
-	}
-	rt := rv.Type()
-	if rt != p.typ {
-		return fmt.Errorf("must parse into value of type %s not %T", p.typ, v)
-	}
-	if rt.Kind() != reflect.Ptr || rt.Elem().Kind() != reflect.Struct {
-		return fmt.Errorf("target must be a pointer to a struct, not %s", rt)
+	parseNode, err := p.parseNodeFor(rv)
+	if err != nil {
+		return err
 	}
 	caseInsensitive := map[lexer.TokenType]bool{}
 	for sym, tt := range p.lex.Symbols() {
@@ -163,7 +159,7 @@ func (p *Parser) ParseFromLexer(lex *lexer.PeekingLexer, v interface{}, options 
 	if parseable, ok := v.(Parseable); ok {
 		return p.rootParseable(ctx, parseable)
 	}
-	return p.parseOne(ctx, rv)
+	return p.parseOne(ctx, parseNode, rv)
 }
 
 func (p *Parser) parse(lex lexer.Lexer, v interface{}, options ...ParseOption) (err error) {
@@ -223,8 +219,8 @@ func (p *Parser) ParseBytes(filename string, b []byte, v interface{}, options ..
 	return p.parse(lex, v, options...)
 }
 
-func (p *Parser) parseOne(ctx *parseContext, rv reflect.Value) error {
-	err := p.parseInto(ctx, rv)
+func (p *Parser) parseOne(ctx *parseContext, parseNode node, rv reflect.Value) error {
+	err := p.parseInto(ctx, parseNode, rv)
 	if err != nil {
 		return err
 	}
@@ -235,11 +231,11 @@ func (p *Parser) parseOne(ctx *parseContext, rv reflect.Value) error {
 	return nil
 }
 
-func (p *Parser) parseInto(ctx *parseContext, rv reflect.Value) error {
+func (p *Parser) parseInto(ctx *parseContext, parseNode node, rv reflect.Value) error {
 	if rv.IsNil() {
-		return fmt.Errorf("target must be a non-nil pointer to a struct, but is a nil %s", rv.Type())
+		return fmt.Errorf("target must be a non-nil pointer to a struct or interface, but is a nil %s", rv.Type())
 	}
-	pv, err := p.root.Parse(ctx, rv.Elem())
+	pv, err := p.typeNodes[rv.Type().Elem()].Parse(ctx, rv.Elem())
 	if len(pv) > 0 && pv[0].Type() == rv.Elem().Type() {
 		rv.Elem().Set(reflect.Indirect(pv[0]))
 	}
@@ -280,4 +276,23 @@ func (p *Parser) getElidedTypes() []lexer.TokenType {
 		elideTypes = append(elideTypes, rn)
 	}
 	return elideTypes
+}
+
+func (p *Parser) parseNodeFor(v reflect.Value) (node, error) {
+	t := v.Type()
+	if t.Kind() == reflect.Interface {
+		t = t.Elem()
+	}
+	if t.Kind() != reflect.Ptr || (t.Elem().Kind() != reflect.Struct && t.Elem().Kind() != reflect.Interface) {
+		return nil, fmt.Errorf("expected a pointer to a struct or interface, but got %s", t)
+	}
+	parseNode := p.typeNodes[t]
+	if parseNode == nil {
+		t = t.Elem()
+		parseNode = p.typeNodes[t]
+	}
+	if parseNode == nil {
+		return nil, fmt.Errorf("parser does not know how to parse values of type %s", t)
+	}
+	return parseNode, nil
 }
