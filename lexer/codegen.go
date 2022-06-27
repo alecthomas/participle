@@ -43,10 +43,13 @@ import (
 	"io"
 	"strings"
 	"unicode/utf8"
+	"regexp/syntax"
 
 	"github.com/alecthomas/participle/v2"
 	"github.com/alecthomas/participle/v2/lexer"
 )
+
+var _ syntax.Op
 
 var Lexer lexer.Definition = definitionImpl{}
 

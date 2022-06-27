@@ -6,10 +6,13 @@ import (
 	"io"
 	"strings"
 	"unicode/utf8"
+	"regexp/syntax"
 
 	"github.com/alecthomas/participle/v2"
 	"github.com/alecthomas/participle/v2/lexer"
 )
+
+var _ syntax.Op
 
 var Lexer lexer.Definition = definitionImpl{}
 
@@ -119,7 +122,6 @@ func (l *lexerImpl) sgroups(match []int) []string {
 	}
 	return sgroups
 }
-
 
 // [0-9]+
 func matchNumber(s string, p int) (groups [2]int) {
