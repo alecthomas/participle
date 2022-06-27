@@ -35,7 +35,7 @@
 
 ## V2
 
-This is an alpha of version 2 of Participle. It is still subject to change but should be mostly stable at this point.
+This is a beta version of version 2 of Participle. It is still subject to change but should be mostly stable at this point.
 
 See the [Change Log](CHANGES.md) for details.
 
@@ -425,7 +425,9 @@ The Parser's behaviour can be configured via [Options](https://pkg.go.dev/github
 
 ## Examples
 
-There are several [examples](https://github.com/alecthomas/participle/tree/master/_examples) included:
+There are several [examples included](https://github.com/alecthomas/participle/tree/master/_examples),
+some of which are linked directly here. These examples should be run from the
+`_examples` subdirectory within a cloned copy of this repository.
 
 Example | Description
 --------|---------------
