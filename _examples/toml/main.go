@@ -54,10 +54,8 @@ var (
 		{"comment", `#[^\n]+`},
 		{"whitespace", `\s+`},
 	})
-	tomlParser = participle.MustBuild(&TOML{},
-		participle.Lexer(
-			tomlLexer,
-		),
+	tomlParser = participle.MustBuild[TOML](
+		participle.Lexer(tomlLexer),
 		participle.Unquote("String"),
 	)
 
@@ -68,11 +66,10 @@ var (
 
 func main() {
 	ctx := kong.Parse(&cli)
-	toml := &TOML{}
 	r, err := os.Open(cli.File)
 	ctx.FatalIfErrorf(err)
 	defer r.Close()
-	err = tomlParser.Parse(cli.File, r, toml)
+	toml, err := tomlParser.Parse(cli.File, r)
 	ctx.FatalIfErrorf(err)
 	repr.Println(toml)
 }

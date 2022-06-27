@@ -13,7 +13,6 @@ func BenchmarkParser(b *testing.B) {
 	b.ReportAllocs()
 	b.ReportMetric(float64(len(source)*b.N), "B/s")
 	for i := 0; i < b.N; i++ {
-		ast := &File{}
-		_ = parser.ParseBytes("", source, ast)
+		_, _ = parser.ParseBytes("", source)
 	}
 }

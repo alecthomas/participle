@@ -22,7 +22,7 @@ type Mapper func(token lexer.Token) (lexer.Token, error)
 //
 // "symbols" specifies the token symbols that the Mapper will be applied to. If empty, all tokens will be mapped.
 func Map(mapper Mapper, symbols ...string) Option {
-	return func(p *Parser) error {
+	return func(p *parserOptions) error {
 		p.mappers = append(p.mappers, mapperByToken{
 			mapper:  mapper,
 			symbols: symbols,
@@ -73,7 +73,7 @@ func Upper(types ...string) Option {
 
 // Elide drops tokens of the specified types.
 func Elide(types ...string) Option {
-	return func(p *Parser) error {
+	return func(p *parserOptions) error {
 		p.elide = append(p.elide, types...)
 		return nil
 	}

@@ -49,15 +49,14 @@ var (
 			{"ExprEnd", `}`, lexer.Pop()},
 		},
 	})
-	parser = participle.MustBuild(&String{}, participle.Lexer(def),
+	parser = participle.MustBuild[String](participle.Lexer(def),
 		participle.Elide("Whitespace"))
 )
 
 func main() {
-	actual := &String{}
-	err := parser.ParseString("", `"hello $(world) ${first + "${last}"}"`, actual)
+	actual, err := parser.ParseString("", `"hello $(world) ${first + "${last}"}"`)
+	repr.Println(actual)
 	if err != nil {
 		log.Fatal(err)
 	}
-	repr.Println(actual)
 }

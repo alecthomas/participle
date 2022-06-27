@@ -15,8 +15,7 @@ func TestExe(t *testing.T) {
 	err = json.NewDecoder(r).Decode(&input)
 	require.NoError(t, err)
 
-	ast := pathExpr{}
-	err = parser.ParseString(``, `check_run.check_suite.pull_requests[0].url`, &ast)
+	ast, err := parser.ParseString(``, `check_run.check_suite.pull_requests[0].url`)
 	require.NoError(t, err)
 
 	result, err := match(input, ast)

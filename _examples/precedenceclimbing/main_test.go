@@ -7,8 +7,7 @@ import (
 )
 
 func TestExe(t *testing.T) {
-	actual := &Expr{}
-	err := parser.ParseString("", `1 + 2 - 3 * (4 + 2)`, actual)
+	actual, err := parser.ParseString("", `1 + 2 - 3 * (4 + 2)`)
 	require.NoError(t, err)
 	expected := expr(
 		expr(intp(1), "+", intp(2)),

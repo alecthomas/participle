@@ -8,8 +8,7 @@ import (
 )
 
 func TestExe(t *testing.T) {
-	toml := &TOML{}
-	err := tomlParser.ParseString("", `
+	toml, err := tomlParser.ParseString("", `
 # This is a TOML document.
 
 title = "TOML Example"
@@ -44,7 +43,7 @@ hosts = [
   "alpha",
   "omega"
 ]
-`, toml)
+`)
 	require.NoError(t, err)
 	repr.Println(toml)
 }

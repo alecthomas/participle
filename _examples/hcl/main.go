@@ -58,11 +58,10 @@ type Config struct {
 	Entries []*Entry `@@*`
 }
 
-var parser = participle.MustBuild(&Config{}, participle.Unquote())
+var parser = participle.MustBuild[Config](participle.Unquote())
 
 func main() {
-	expr := &Config{}
-	err := parser.Parse("", os.Stdin, expr)
+	expr, err := parser.Parse("", os.Stdin)
 	if err != nil {
 		panic(err)
 	}

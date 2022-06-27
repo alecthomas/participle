@@ -135,7 +135,7 @@ func (e *EBNF) String() string {
 	return w.String()
 }
 
-var parser = participle.MustBuild(&EBNF{})
+var parser = participle.MustBuild[EBNF]()
 
 func main() {
 	help := `An EBNF parser compatible with Go"s exp/ebnf. The grammar is
@@ -151,8 +151,7 @@ in the form:
 `
 	ctx := kong.Parse(&cli, kong.Description(help))
 
-	ebnf := &EBNF{}
-	err := parser.Parse("", os.Stdin, ebnf)
+	ebnf, err := parser.Parse("", os.Stdin)
 	ctx.FatalIfErrorf(err, "")
 
 	if cli.JSON {

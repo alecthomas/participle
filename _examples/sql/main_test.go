@@ -8,8 +8,7 @@ import (
 )
 
 func TestExe(t *testing.T) {
-	sel := &Select{}
-	err := parser.ParseString("", `SELECT * FROM table WHERE attr = 10`, sel)
+	sel, err := parser.ParseString("", `SELECT * FROM table WHERE attr = 10`)
 	require.NoError(t, err)
 	repr.Println(sel)
 }

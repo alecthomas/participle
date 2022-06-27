@@ -63,7 +63,7 @@ type Primary struct {
 	SubExpression *Expression `| "(" @@ ")" `
 }
 
-var parser = participle.MustBuild(&Expression{}, participle.UseLookahead(2))
+var parser = participle.MustBuild[Expression](participle.UseLookahead(2))
 
 func main() {
 	var cli struct {
@@ -71,8 +71,7 @@ func main() {
 	}
 	ctx := kong.Parse(&cli)
 
-	expr := &Expression{}
-	err := parser.ParseString("", strings.Join(cli.Expr, " "), expr)
+	expr, err := parser.ParseString("", strings.Join(cli.Expr, " "))
 	ctx.FatalIfErrorf(err)
 
 	repr.Println(expr)

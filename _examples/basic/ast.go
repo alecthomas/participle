@@ -10,8 +10,7 @@ import (
 
 // Parse a BASIC program.
 func Parse(r io.Reader) (*Program, error) {
-	program := &Program{}
-	err := basicParser.Parse("", r, program)
+	program, err := basicParser.Parse("", r)
 	if err != nil {
 		return nil, err
 	}

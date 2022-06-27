@@ -166,8 +166,7 @@ var (
 		{`Operators`, `<>|!=|<=|>=|[-+*/%,.()=<>]`},
 		{"whitespace", `\s+`},
 	})
-	parser = participle.MustBuild(
-		&Select{},
+	parser = participle.MustBuild[Select](
 		participle.Lexer(sqlLexer),
 		participle.Unquote("String"),
 		participle.CaseInsensitive("Keyword"),
@@ -179,8 +178,7 @@ var (
 
 func main() {
 	ctx := kong.Parse(&cli)
-	sql := &Select{}
-	err := parser.ParseString("", cli.SQL, sql)
+	sql, err := parser.ParseString("", cli.SQL)
 	repr.Println(sql, repr.Indent("  "), repr.OmitEmpty(true))
 	ctx.FatalIfErrorf(err)
 }

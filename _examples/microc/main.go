@@ -236,7 +236,7 @@ var (
 		{"Punct", `[-,()*/+%{};&!=:<>]|\[|\]`},
 		{"Int", `\d+`},
 	})
-	parser = participle.MustBuild(&Program{},
+	parser = participle.MustBuild[Program](
 		participle.Lexer(lex),
 		participle.UseLookahead(2))
 )
@@ -278,11 +278,8 @@ int main(void)
 `
 
 func main() {
-	ast := &Program{}
-	defer func() {
-		repr.Println(ast)
-	}()
-	err := parser.ParseString("", sample, ast)
+	ast, err := parser.ParseString("", sample)
+	repr.Println(ast)
 	if err != nil {
 		panic(err)
 	}

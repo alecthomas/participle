@@ -21,7 +21,7 @@ var (
 		{"whitespace", `[ \t]+`},
 	})
 
-	basicParser = participle.MustBuild(&Program{},
+	basicParser = participle.MustBuild[Program](
 		participle.Lexer(basicLexer),
 		participle.CaseInsensitive("Ident"),
 		participle.Unquote("String"),

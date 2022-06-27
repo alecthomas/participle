@@ -17,7 +17,7 @@ import (
 	"github.com/alecthomas/participle/v2"
 )
 
-var parser = participle.MustBuild(&EBNF{})
+var parser = participle.MustBuild[EBNF]()
 
 // A Node in the EBNF grammar.
 type Node interface {
@@ -167,12 +167,10 @@ func (e *EBNF) String() (out string) {
 
 // ParseString string into EBNF.
 func ParseString(ebnf string) (*EBNF, error) {
-	out := &EBNF{}
-	return out, parser.ParseString("", ebnf, out)
+	return parser.ParseString("", ebnf)
 }
 
 // Parse io.Reader into EBNF.
 func Parse(r io.Reader) (*EBNF, error) {
-	out := &EBNF{}
-	return out, parser.Parse("", r, out)
+	return parser.Parse("", r)
 }

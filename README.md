@@ -122,14 +122,13 @@ parser from the tutorial.
 A parser is constructed from a grammar and a lexer:
 
 ```go
-parser, err := participle.Build(&INI{})
+parser, err := participle.Build[INI]()
 ```
 
 Once constructed, the parser is applied to input to produce an AST:
 
 ```go
-ast := &INI{}
-err := parser.ParseString("", "size = 10", ast)
+ast, err := parser.ParseString("", "size = 10")
 // ast == &INI{
 //   Properties: []*Property{
 //     {Key: "size", Value: &Value{Int: &10}},
@@ -282,7 +281,7 @@ now supports this pattern. Simply construct your parser with the `Union[T](membe
 option, eg.
 
 ```go
-parser := participle.MustBuild(&AST{}, participle.Union[Value](Float{}, Int{}, String{}, Bool{}))
+parser := participle.MustBuild[AST](participle.Union[Value](Float{}, Int{}, String{}, Bool{}))
 ```
 
 Custom parsers may also be defined for union types with the [ParseTypeWith](https://pkg.go.dev/github.com/alecthomas/participle/v2#ParseTypeWith) option.
@@ -516,7 +515,7 @@ var (
 		{"Punct", `[-[!@#$%^&*()+_={}\|:;"'<,>.?/]|]`, nil},
 		{"Whitespace", `[ \t\n\r]+`, nil},
 	})
-	parser = participle.MustBuild(&File{},
+	parser = participle.MustBuild[File](
 		participle.Lexer(graphQLLexer),
 		participle.Elide("Comment", "Whitespace"),
 		participle.UseLookahead(2),
@@ -535,10 +534,9 @@ func main() {
 		ctx.Exit(0)
 	}
 	for _, file := range cli.Files {
-		ast := &File{}
 		r, err := os.Open(file)
 		ctx.FatalIfErrorf(err)
-		err = parser.Parse(file, r, ast)
+		ast, err := parser.Parse(file, r)
 		r.Close()
 		repr.Println(ast)
 		ctx.FatalIfErrorf(err)
