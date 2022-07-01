@@ -289,7 +289,7 @@ next:
 			}
 			re, err := l.getPattern(candidate)
 			if err != nil {
-				return Token{}, wrapf(l.pos, err, "rule %q", candidate.Name)
+				return Token{}, errorf(l.pos, "rule %q: %s", candidate.Name, err)
 			}
 			m = re.FindStringSubmatchIndex(l.data)
 			if m != nil && (match == nil || m[1] > match[1]) {

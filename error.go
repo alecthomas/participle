@@ -56,6 +56,10 @@ func (u *UnexpectedTokenError) Message() string { // nolint: golint
 }
 func (u *UnexpectedTokenError) Position() lexer.Position { return u.Unexpected.Pos } // nolint: golint
 
+// ParseError is returned when a parse error occurs.
+//
+// It is useful for differentiating between parse errors and other errors such
+// as lexing and IO errors.
 type ParseError struct {
 	Msg string
 	Pos lexer.Position
@@ -79,7 +83,8 @@ func (w *wrappingParseError) Unwrap() error { return w.err }
 
 // Wrapf attempts to wrap an existing error in a new message.
 //
-// If "err" is a participle.Error, its positional information will be used.
+// If "err" is a participle.Error, its positional information will be used and
+// "pos" will be ignored.
 //
 // The returned error implements the Unwrap() method supported by the errors package.
 func Wrapf(pos lexer.Position, err error, format string, args ...interface{}) Error {
@@ -91,14 +96,4 @@ func Wrapf(pos lexer.Position, err error, format string, args ...interface{}) Er
 		msg = fmt.Sprintf("%s: %s", fmt.Sprintf(format, args...), err.Error())
 	}
 	return &wrappingParseError{err: err, ParseError: ParseError{Msg: msg, Pos: pos}}
-}
-
-// AnnotateError wraps an existing error with a position.
-//
-// If the existing error is a lexer.Error or participle.Error it will be returned unmodified.
-func AnnotateError(pos lexer.Position, err error) error {
-	if perr, ok := err.(Error); ok {
-		return perr
-	}
-	return &wrappingParseError{err: err, ParseError: ParseError{Msg: err.Error(), Pos: pos}}
 }

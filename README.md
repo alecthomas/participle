@@ -331,15 +331,16 @@ let a = "hello ${name + ", ${last + "!"}"}"
 ```
 
 This is impossible to tokenise with a normal lexer due to the arbitrarily
-deep nesting of expressions.
-
-To support this case Participle's lexer is now stateful by default.
+deep nesting of expressions. To support this case Participle's lexer is now
+stateful by default.
 
 The lexer is a state machine defined by a map of rules keyed by the state
 name. Each rule within the state includes the name of the produced token, the
 regex to match, and an optional operation to apply when the rule matches.
 
-As a convenience, any `Rule` starting with a lowercase letter will be elided from output.
+As a convenience, any `Rule` starting with a lowercase letter will be elided
+from output, though it is recommended to use `participle.Elide()` instead, as it
+better integrates with the parser.
 
 Lexing starts in the `Root` group. Each rule is matched in order, with the first
 successful match producing a lexeme. If the matching rule has an associated Action
@@ -570,7 +571,9 @@ A compiled `Parser` instance can be used concurrently. A `LexerDefinition` can b
 
 There are a few areas where Participle can provide useful feedback to users of your parser.
 
-1. Errors returned by [Parser.Parse*()](https://pkg.go.dev/github.com/alecthomas/participle/v2#Parser.Parse) will be of type [Error](https://pkg.go.dev/github.com/alecthomas/participle/v2#Error). This will contain positional information where available.
+1. Errors returned by [Parser.Parse*()](https://pkg.go.dev/github.com/alecthomas/participle/v2#Parser.Parse) will be:
+	1. Of type [Error](https://pkg.go.dev/github.com/alecthomas/participle/v2#Error). This will contain positional information where available.
+	2. May either be [ParseError](https://pkg.go.dev/github.com/alecthomas/participle/v2#ParseError) or [lexer.Error](https://pkg.go.dev/github.com/alecthomas/participle/v2/lexer#Error)
 2. Participle will make a best effort to return as much of the AST up to the error location as possible.
 3. Any node in the AST containing a field `Pos lexer.Position` will be automatically
    populated from the nearest matching token.
