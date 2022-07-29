@@ -53,20 +53,20 @@ func buildEBNF(root bool, n node, seen map[node]bool, p *ebnfp, outp *[]*ebnfp) 
 
 	case *union:
 		name := strings.ToUpper(n.typ.Name()[:1]) + n.typ.Name()[1:]
-		if p != nil {
-			p.out += name
-		}
 		if seen[n] {
 			return
 		}
-		p = &ebnfp{name: name}
-		*outp = append(*outp, p)
+		p2 := &ebnfp{name: name}
+		*outp = append(*outp, p2)
 		seen[n] = true
 		for i, next := range n.members {
 			if i > 0 {
-				p.out += " | "
+				p2.out += " | "
 			}
-			buildEBNF(false, next, seen, p, outp)
+			buildEBNF(false, next, seen, p2, outp)
+		}
+		if p != nil {
+			p.out += p2.out
 		}
 
 	case *custom:
@@ -75,16 +75,16 @@ func buildEBNF(root bool, n node, seen map[node]bool, p *ebnfp, outp *[]*ebnfp) 
 
 	case *strct:
 		name := strings.ToUpper(n.typ.Name()[:1]) + n.typ.Name()[1:]
-		if p != nil {
-			p.out += name
-		}
 		if seen[n] {
 			return
 		}
 		seen[n] = true
-		p = &ebnfp{name: name}
-		*outp = append(*outp, p)
-		buildEBNF(true, n.expr, seen, p, outp)
+		p2 := &ebnfp{name: name}
+		*outp = append(*outp, p2)
+		buildEBNF(true, n.expr, seen, p2, outp)
+		if p != nil {
+			p.out += p2.out
+		}
 
 	case *sequence:
 		group := n.next != nil && !root
