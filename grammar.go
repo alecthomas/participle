@@ -28,7 +28,10 @@ func (g *generatorContext) addUnionDefs(defs []unionDef) error {
 		if _, exists := g.typeNodes[def.typ]; exists {
 			return fmt.Errorf("duplicate definition for interface or union type %s", def.typ)
 		}
-		unionNode := &union{def.typ, make([]node, 0, len(def.members))}
+		unionNode := &union{
+			unionDef:    def,
+			nodeMembers: make([]node, 0, len(def.members)),
+		}
 		g.typeNodes[def.typ], unionNodes[i] = unionNode, unionNode
 	}
 	for i, def := range defs {
@@ -38,7 +41,7 @@ func (g *generatorContext) addUnionDefs(defs []unionDef) error {
 			if err != nil {
 				return err
 			}
-			unionNode.members = append(unionNode.members, memberNode)
+			unionNode.nodeMembers = append(unionNode.nodeMembers, memberNode)
 		}
 	}
 	return nil

@@ -96,9 +96,10 @@ func ParseTypeWith[T any](parseFn func(*lexer.PeekingLexer) (T, error)) Option {
 // try to parse the second member at all.
 func Union[T any](members ...T) Option {
 	return func(p *parserOptions) error {
-		unionType := reflect.TypeOf((*T)(nil)).Elem()
+		var t T
+		unionType := reflect.TypeOf(&t).Elem()
 		if unionType.Kind() != reflect.Interface {
-			return fmt.Errorf("Union: union type must be an interface (got %s)", unionType)
+			return fmt.Errorf("union: union type must be an interface (got %s)", unionType)
 		}
 		memberTypes := make([]reflect.Type, 0, len(members))
 		for _, m := range members {

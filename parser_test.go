@@ -1842,3 +1842,25 @@ func TestParseSubProduction(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, &expectedItem2, actualItem2)
 }
+
+type I255Grammar struct {
+	Union I255Union `@@`
+}
+
+type I255Union interface{ union() }
+
+type I255String struct {
+	Value string `@String`
+}
+
+func (*I255String) union() {}
+
+func TestIssue255(t *testing.T) {
+	parser, err := participle.Build[I255Grammar](
+		participle.Union[I255Union](&I255String{}),
+	)
+	require.NoError(t, err)
+	g, err := parser.ParseString("", `"Hello, World!"`)
+	require.NoError(t, err)
+	require.Equal(t, &I255Grammar{Union: &I255String{Value: `"Hello, World!"`}}, g)
+}

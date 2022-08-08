@@ -20,7 +20,7 @@ func visit(n node, visitor func(n node, next func() error) error) error {
 		case *custom:
 			return nil
 		case *union:
-			for _, member := range n.members {
+			for _, member := range n.nodeMembers {
 				if err := visit(member, visitor); err != nil {
 					return err
 				}

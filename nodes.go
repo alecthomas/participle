@@ -96,8 +96,8 @@ func (c *custom) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.V
 
 // @@ (for a union)
 type union struct {
-	typ     reflect.Type
-	members []node
+	unionDef
+	nodeMembers []node
 }
 
 func (u *union) String() string   { return ebnf(u) }
@@ -105,13 +105,13 @@ func (u *union) GoString() string { return u.typ.Name() }
 
 func (u *union) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	defer ctx.printTrace(u)()
-	temp := disjunction{u.members}
+	temp := disjunction{u.nodeMembers}
 	vals, err := temp.Parse(ctx, parent)
 	if err != nil {
 		return nil, err
 	}
 	for i := range vals {
-		vals[i] = vals[i].Convert(u.typ)
+		vals[i] = maybeRef(u.members[i], vals[i]).Convert(u.typ)
 	}
 	return vals, nil
 }
@@ -635,6 +635,21 @@ func sizeOfKind(kind reflect.Kind) int {
 		return strconv.IntSize
 	}
 	panic("unsupported kind " + kind.String())
+}
+
+func maybeRef(tmpl reflect.Type, strct reflect.Value) reflect.Value {
+	if strct.Type() == tmpl {
+		return strct
+	}
+	if tmpl.Kind() == reflect.Ptr {
+		if strct.CanAddr() {
+			return strct.Addr()
+		}
+		ptr := reflect.New(tmpl)
+		ptr.Set(strct)
+		return ptr
+	}
+	return strct
 }
 
 // Set field.
