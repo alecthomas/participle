@@ -122,11 +122,13 @@ type strct struct {
 	tokensFieldIndex []int
 	posFieldIndex    []int
 	endPosFieldIndex []int
+	usages           int
 }
 
 func newStrct(typ reflect.Type) *strct {
 	s := &strct{
-		typ: typ,
+		typ:    typ,
+		usages: 1,
 	}
 	field, ok := typ.FieldByName("Pos")
 	if ok && field.Type == positionType {

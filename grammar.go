@@ -61,6 +61,9 @@ func (g *generatorContext) addCustomDefs(defs []customDef) error {
 func (g *generatorContext) parseType(t reflect.Type) (_ node, returnedError error) {
 	t = indirectType(t)
 	if n, ok := g.typeNodes[t]; ok {
+		if s, ok := n.(*strct); ok {
+			s.usages++
+		}
 		return n, nil
 	}
 	if t.Implements(parseableType) {
