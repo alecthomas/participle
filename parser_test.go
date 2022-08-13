@@ -201,8 +201,9 @@ func TestRepetitionAcrossFields(t *testing.T) {
 }
 
 func TestAccumulateString(t *testing.T) {
+	type customString string
 	type testAccumulateString struct {
-		A string `@"."+`
+		A customString `@"."+`
 	}
 
 	parser := mustTestParser[testAccumulateString](t)

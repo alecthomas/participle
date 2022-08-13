@@ -734,9 +734,14 @@ func setField(tokens []lexer.Token, strct reflect.Value, field structLexerField,
 		if err != nil {
 			return err
 		}
-		for _, v := range fieldValue {
-			f.Set(reflect.ValueOf(f.String() + v.String()).Convert(f.Type()))
+		if len(fieldValue) == 0 {
+			return nil
 		}
+		accumulated := f.String()
+		for _, v := range fieldValue {
+			accumulated += v.String()
+		}
+		f.SetString(accumulated)
 		return nil
 	}
 
