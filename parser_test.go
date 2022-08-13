@@ -12,6 +12,7 @@ import (
 	"text/scanner"
 
 	require "github.com/alecthomas/assert/v2"
+
 	"github.com/alecthomas/participle/v2"
 	"github.com/alecthomas/participle/v2/lexer"
 )
@@ -1863,4 +1864,22 @@ func TestIssue255(t *testing.T) {
 	g, err := parser.ParseString("", `"Hello, World!"`)
 	require.NoError(t, err)
 	require.Equal(t, &I255Grammar{Union: &I255String{Value: `"Hello, World!"`}}, g)
+}
+
+func TestParseNumbers(t *testing.T) {
+	type grammar struct {
+		Int   int8    `@('-'? Int)`
+		Uint  uint16  `@('-'? Int)`
+		Float float64 `@Ident`
+	}
+	parser := participle.MustBuild[grammar]()
+	_, err := parser.ParseString("", `300 0 x`)
+	require.EqualError(t, err, `grammar.Int: invalid integer "300": strconv.ParseInt: parsing "300": value out of range`)
+	_, err = parser.ParseString("", `-2 -2 x`)
+	require.EqualError(t, err, `grammar.Uint: invalid integer "-2": strconv.ParseUint: parsing "-2": invalid syntax`)
+	_, err = parser.ParseString("", `0 0 nope`)
+	require.EqualError(t, err, `grammar.Float: invalid float "nope": strconv.ParseFloat: parsing "nope": invalid syntax`)
+	result, err := parser.ParseString("", `-30 3000 Inf`)
+	require.NoError(t, err)
+	require.Equal(t, grammar{Int: -30, Uint: 3000, Float: math.Inf(1)}, *result)
 }
