@@ -55,3 +55,19 @@ func TestPeekingLexer_Peek_Next_Checkpoint(t *testing.T) {
 	plex.Checkpoint = checkpoint
 	require.Equal(t, expected[0], *plex.Peek(), "should have reverted to pre-Next state")
 }
+
+func BenchmarkPeekingLexer_Peek(b *testing.B) {
+	tokens := []lexer.Token{{Type: 1, Value: "x"}, {Type: 3, Value: " "}, {Type: 2, Value: "y"}}
+	l, err := lexer.Upgrade(&staticLexer{tokens: tokens}, 3)
+	require.NoError(b, err)
+	l.Next()
+	t := l.Peek()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		t = l.Peek()
+		if t.EOF() {
+			return
+		}
+	}
+	require.Equal(b, lexer.Token{Type: 2, Value: "y"}, *t)
+}
