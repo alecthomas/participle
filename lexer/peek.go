@@ -13,7 +13,7 @@ type RawCursor int
 
 // Checkpoint wraps the mutable state of the PeekingLexer.
 //
-// Copying and restoring this state provides an allocation-free alternative to PeekingLexer.Clone.
+// Copying and restoring just this state is a bit faster than copying the entire PeekingLexer.
 type Checkpoint struct {
 	rawCursor RawCursor
 	cursor    int
@@ -122,12 +122,4 @@ func (p *PeekingLexer) RawPeek() *Token {
 		return &p.tokens[p.rawCursor]
 	}
 	return &p.eof
-}
-
-// Clone creates a clone of this PeekingLexer at its current token.
-//
-// The parent and clone are completely independent.
-func (p *PeekingLexer) Clone() *PeekingLexer {
-	clone := *p
-	return &clone
 }

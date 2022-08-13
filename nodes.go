@@ -63,7 +63,7 @@ func (p *parseable) Parse(ctx *parseContext, parent reflect.Value) (out []reflec
 	defer ctx.printTrace(p)()
 	rv := reflect.New(p.t)
 	v := rv.Interface().(Parseable)
-	err = v.Parse(ctx.PeekingLexer)
+	err = v.Parse(&ctx.PeekingLexer)
 	if err != nil {
 		if err == NextMatch {
 			return nil, nil
@@ -84,7 +84,7 @@ func (c *custom) GoString() string { return c.typ.Name() }
 
 func (c *custom) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	defer ctx.printTrace(c)()
-	results := c.parseFn.Call([]reflect.Value{reflect.ValueOf(ctx.PeekingLexer)})
+	results := c.parseFn.Call([]reflect.Value{reflect.ValueOf(&ctx.PeekingLexer)})
 	if err, _ := results[1].Interface().(error); err != nil {
 		if err == NextMatch {
 			return nil, nil

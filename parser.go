@@ -169,7 +169,7 @@ func (p *Parser[G]) ParseFromLexer(lex *lexer.PeekingLexer, options ...ParseOpti
 		}
 	}
 	ctx := newParseContext(lex, p.useLookahead, caseInsensitive)
-	defer func() { *lex = *ctx.PeekingLexer }()
+	defer func() { *lex = ctx.PeekingLexer }()
 	for _, option := range options {
 		option(ctx)
 	}
@@ -268,7 +268,7 @@ func (p *Parser[G]) parseInto(ctx *parseContext, parseNode node, rv reflect.Valu
 }
 
 func (p *Parser[G]) rootParseable(ctx *parseContext, parseable Parseable) error {
-	if err := parseable.Parse(ctx.PeekingLexer); err != nil {
+	if err := parseable.Parse(&ctx.PeekingLexer); err != nil {
 		if err == NextMatch {
 			err = &UnexpectedTokenError{Unexpected: *ctx.Peek()}
 		} else {
