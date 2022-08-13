@@ -2,15 +2,22 @@ package lexer
 
 // PeekingLexer supports arbitrary lookahead as well as cloning.
 type PeekingLexer struct {
-	rawCursor RawCursor
-	cursor    int
-	eof       Token
-	tokens    []Token
-	elide     map[TokenType]bool
+	Checkpoint
+	eof    Token
+	tokens []Token
+	elide  map[TokenType]bool
 }
 
 // RawCursor index in the token stream.
 type RawCursor int
+
+// Checkpoint wraps the mutable state of the PeekingLexer.
+//
+// Copying and restoring this state provides an allocation-free alternative to PeekingLexer.Clone.
+type Checkpoint struct {
+	rawCursor RawCursor
+	cursor    int
+}
 
 // Upgrade a Lexer to a PeekingLexer with arbitrary lookahead.
 //
@@ -42,13 +49,13 @@ func (p *PeekingLexer) Range(rawStart, rawEnd RawCursor) []Token {
 }
 
 // Cursor position in tokens, excluding elided tokens.
-func (p *PeekingLexer) Cursor() int {
-	return p.cursor
+func (c Checkpoint) Cursor() int {
+	return c.cursor
 }
 
 // RawCursor position in tokens, including elided tokens.
-func (p *PeekingLexer) RawCursor() RawCursor {
-	return p.rawCursor
+func (c Checkpoint) RawCursor() RawCursor {
+	return c.rawCursor
 }
 
 // Next consumes and returns the next token.
