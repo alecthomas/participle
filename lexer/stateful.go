@@ -1,6 +1,7 @@
 package lexer
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -21,9 +22,99 @@ type Option func(d *StatefulDefinition)
 
 // A Rule matching input and possibly changing state.
 type Rule struct {
-	Name    string
-	Pattern string
-	Action  Action
+	Name    string `json:"name"`
+	Pattern string `json:"pattern"`
+	Action  Action `json:"action"`
+}
+
+var _ json.Marshaler = &Rule{}
+var _ json.Unmarshaler = &Rule{}
+
+type jsonRule struct {
+	Name    string          `json:"name,omitempty"`
+	Pattern string          `json:"pattern,omitempty"`
+	Action  json.RawMessage `json:"action,omitempty"`
+}
+
+func (r *Rule) UnmarshalJSON(data []byte) error {
+	jrule := jsonRule{}
+	err := json.Unmarshal(data, &jrule)
+	if err != nil {
+		return err
+	}
+	r.Name = jrule.Name
+	r.Pattern = jrule.Pattern
+	jaction := struct {
+		Kind string `json:"kind"`
+	}{}
+	if jrule.Action == nil {
+		return nil
+	}
+	err = json.Unmarshal(jrule.Action, &jaction)
+	if err != nil {
+		return fmt.Errorf("could not unmarshal action %q: %w", string(jrule.Action), err)
+	}
+	var action Action
+	switch jaction.Kind {
+	case "push":
+		actual := ActionPush{}
+		if err := json.Unmarshal(jrule.Action, &actual); err != nil {
+			return err
+		}
+		action = actual
+	case "pop":
+		actual := ActionPop{}
+		if err := json.Unmarshal(jrule.Action, &actual); err != nil {
+			return err
+		}
+		action = actual
+	case "include":
+		actual := include{}
+		if err := json.Unmarshal(jrule.Action, &actual); err != nil {
+			return err
+		}
+		action = actual
+	case "":
+	default:
+		return fmt.Errorf("unknown action %q", jaction.Kind)
+	}
+	r.Action = action
+	return nil
+}
+
+func (r *Rule) MarshalJSON() ([]byte, error) {
+	jrule := jsonRule{
+		Name:    r.Name,
+		Pattern: r.Pattern,
+	}
+	if r.Action != nil {
+		actionData, err := json.Marshal(r.Action)
+		if err != nil {
+			return nil, fmt.Errorf("failed to map action: %w", err)
+		}
+		jaction := map[string]interface{}{}
+		err = json.Unmarshal(actionData, &jaction)
+		if err != nil {
+			return nil, fmt.Errorf("failed to map action: %w", err)
+		}
+		switch r.Action.(type) {
+		case nil:
+		case ActionPop:
+			jaction["kind"] = "pop"
+		case ActionPush:
+			jaction["kind"] = "push"
+		case include:
+			jaction["kind"] = "include"
+		default:
+			return nil, fmt.Errorf("unsupported action %T", r.Action)
+		}
+		actionJSON, err := json.Marshal(jaction)
+		if err != nil {
+			return nil, err
+		}
+		jrule.Action = actionJSON
+	}
+	return json.Marshal(&jrule)
 }
 
 // Rules grouped by name.
@@ -92,7 +183,9 @@ var ReturnRule = Rule{"returnToParent", "", nil}
 func Return() Rule { return ReturnRule }
 
 // ActionPush pushes the current state and switches to "State" when the Rule matches.
-type ActionPush struct{ State string }
+type ActionPush struct {
+	State string `json:"state"`
+}
 
 func (p ActionPush) applyAction(lexer *StatefulLexer, groups []string) error {
 	if groups[0] == "" {
@@ -110,16 +203,18 @@ func Push(state string) Action {
 	return ActionPush{state}
 }
 
-type include struct{ state string }
+type include struct {
+	State string `json:"state"`
+}
 
 func (i include) applyAction(lexer *StatefulLexer, groups []string) error {
 	panic("should not be called")
 }
 
 func (i include) applyRules(state string, rule int, rules compiledRules) error {
-	includedRules, ok := rules[i.state]
+	includedRules, ok := rules[i.State]
 	if !ok {
-		return fmt.Errorf("invalid include state %q", i.state)
+		return fmt.Errorf("invalid include state %q", i.State)
 	}
 	clone := make([]compiledRule, len(includedRules))
 	copy(clone, includedRules)
@@ -216,6 +311,10 @@ restart:
 		option(d)
 	}
 	return d, nil
+}
+
+func (d *StatefulDefinition) MarshalJSON() ([]byte, error) {
+	return json.Marshal(d.rules)
 }
 
 // Rules returns the user-provided Rules used to construct the lexer.

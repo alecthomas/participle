@@ -1,0 +1,32 @@
+{
+  "Root": [
+    {
+      "name": "String",
+      "pattern": "\"(\\\\\"|[^\"])*\""
+    },
+    {
+      "name": "Number",
+      "pattern": "[-+]?(\\d*\\.)?\\d+"
+    },
+    {
+      "name": "Ident",
+      "pattern": "[a-zA-Z_]\\w*"
+    },
+    {
+      "name": "Punct",
+      "pattern": "[!-/:-@[-`{-~]+"
+    },
+    {
+      "name": "EOL",
+      "pattern": "\\n"
+    },
+    {
+      "name": "Comment",
+      "pattern": "(?i)rem[^\\n]*\\n"
+    },
+    {
+      "name": "Whitespace",
+      "pattern": "[ \\t]+"
+    }
+  ]
+}

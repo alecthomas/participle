@@ -215,15 +215,6 @@ func main() {
 
 	ctx := kong.Parse(&cli)
 
-	if cli.Gen {
-		w, err := os.Create("lexer_gen.go")
-		ctx.FatalIfErrorf(err)
-		defer w.Close()
-		err = lexer.ExperimentalGenerateLexer(w, "main", def)
-		ctx.FatalIfErrorf(err)
-		return
-	}
-
 	for _, file := range cli.Files {
 		r, err := os.Open(file)
 		ctx.FatalIfErrorf(err, "")

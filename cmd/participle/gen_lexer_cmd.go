@@ -1,33 +1,81 @@
-package lexer
+package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"regexp"
 	"regexp/syntax"
 	"sort"
 	"text/template"
 	"unicode/utf8"
+
+	"github.com/alecthomas/participle/v2/lexer"
 )
+
+type genLexerCmd struct {
+	Name    string `help:"Name of the lexer."`
+	Output  string `short:"o" help:"Output file."`
+	Package string `arg:"" required:"" help:"Go package for generated code."`
+	Lexer   string `arg:"" required:"" default:"-" type:"existingfile" help:"JSON representation of a Participle lexer."`
+}
+
+func (c *genLexerCmd) Help() string {
+	return `
+Generates Go code implementing the given JSON representation of a lexer. The
+generated code should in general by around 10x faster and produce zero garbage
+per token.
+`
+}
+
+func (c *genLexerCmd) Run() error {
+	var r *os.File
+	if c.Lexer == "-" {
+		r = os.Stdin
+	} else {
+		var err error
+		r, err = os.Open(c.Lexer)
+		if err != nil {
+			return err
+		}
+		defer r.Close()
+	}
+
+	rules := lexer.Rules{}
+	err := json.NewDecoder(r).Decode(&rules)
+	if err != nil {
+		return err
+	}
+	def, err := lexer.New(rules)
+	if err != nil {
+		return err
+	}
+	err = generateLexer(os.Stdout, c.Package, def, c.Name)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
 var codegenBackrefRe = regexp.MustCompile(`(\\+)(\d)`)
 
 var codegenTemplate *template.Template = template.Must(template.New("lexgen").Funcs(template.FuncMap{
-	"IsPush": func(r Rule) string {
-		if p, ok := r.Action.(ActionPush); ok {
+	"IsPush": func(r lexer.Rule) string {
+		if p, ok := r.Action.(lexer.ActionPush); ok {
 			return p.State
 		}
 		return ""
 	},
-	"IsPop": func(r Rule) bool {
-		_, ok := r.Action.(ActionPop)
+	"IsPop": func(r lexer.Rule) bool {
+		_, ok := r.Action.(lexer.ActionPop)
 		return ok
 	},
-	"IsReturn": func(r Rule) bool {
-		return r == ReturnRule
+	"IsReturn": func(r lexer.Rule) bool {
+		return r == lexer.ReturnRule
 	},
 	"OrderRules": orderRules,
-	"HaveBackrefs": func(def *StatefulDefinition, state string) bool {
+	"HaveBackrefs": func(def *lexer.StatefulDefinition, state string) bool {
 		for _, rule := range def.Rules()[state] {
 			if codegenBackrefRe.MatchString(rule.Pattern) {
 				return true
@@ -51,11 +99,11 @@ import (
 
 var _ syntax.Op
 
-var Lexer lexer.Definition = definitionImpl{}
+var {{.Name}}Lexer lexer.Definition = lexer{{.Name}}DefinitionImpl{}
 
-type definitionImpl struct {}
+type lexer{{.Name}}DefinitionImpl struct {}
 
-func (definitionImpl) Symbols() map[string]lexer.TokenType {
+func (lexer{{.Name}}DefinitionImpl) Symbols() map[string]lexer.TokenType {
 	return map[string]lexer.TokenType{
 {{- range $sym, $rn := .Def.Symbols}}
       "{{$sym}}": {{$rn}},
@@ -63,23 +111,23 @@ func (definitionImpl) Symbols() map[string]lexer.TokenType {
 	}
 }
 
-func (definitionImpl) LexString(filename string, s string) (lexer.Lexer, error) {
-	return &lexerImpl{
+func (lexer{{.Name}}DefinitionImpl) LexString(filename string, s string) (lexer.Lexer, error) {
+	return &lexer{{.Name}}Impl{
 		s: s,
 		pos: lexer.Position{
 			Filename: filename,
 			Line:     1,
 			Column:   1,
 		},
-		states: []lexerState{lexerState{name: "Root"}},
+		states: []lexer{{.Name}}State{lexer{{.Name}}State{name: "Root"}},
 	}, nil
 }
 
-func (d definitionImpl) LexBytes(filename string, b []byte) (lexer.Lexer, error) {
+func (d lexer{{.Name}}DefinitionImpl) LexBytes(filename string, b []byte) (lexer.Lexer, error) {
 	return d.LexString(filename, string(b))
 }
 
-func (d definitionImpl) Lex(filename string, r io.Reader) (lexer.Lexer, error) {
+func (d lexer{{.Name}}DefinitionImpl) Lex(filename string, r io.Reader) (lexer.Lexer, error) {
 	s := &strings.Builder{}
 	_, err := io.Copy(s, r)
 	if err != nil {
@@ -88,19 +136,19 @@ func (d definitionImpl) Lex(filename string, r io.Reader) (lexer.Lexer, error) {
 	return d.LexString(filename, s.String())
 }
 
-type lexerState struct {
+type lexer{{.Name}}State struct {
 	name    string
 	groups  []string
 }
 
-type lexerImpl struct {
+type lexer{{.Name}}Impl struct {
 	s       string
 	p       int
 	pos     lexer.Position
-	states  []lexerState
+	states  []lexer{{.Name}}State
 }
 
-func (l *lexerImpl) Next() (lexer.Token, error) {
+func (l *lexer{{.Name}}Impl) Next() (lexer.Token, error) {
 	if l.p == len(l.s) {
 		return lexer.EOFToken(l.pos), nil
 	}
@@ -122,7 +170,7 @@ func (l *lexerImpl) Next() (lexer.Token, error) {
 		if true {
 {{- end}}
 {{- if .|IsPush}}
-			l.states = append(l.states, lexerState{name: "{{.|IsPush}}"{{if HaveBackrefs $.Def $state.Name}}, groups: l.sgroups(groups){{end}}})
+			l.states = append(l.states, lexer{{.Name}}State{name: "{{.|IsPush}}"{{if HaveBackrefs $.Def $state.Name}}, groups: l.sgroups(groups){{end}}})
 {{- else if (or (.|IsPop) (.|IsReturn))}}
 			l.states = l.states[:len(l.states)-1]
 {{- if .|IsReturn}}
@@ -154,7 +202,7 @@ func (l *lexerImpl) Next() (lexer.Token, error) {
 	}, nil
 }
 
-func (l *lexerImpl) sgroups(match []int) []string {
+func (l *lexer{{.Name}}Impl) sgroups(match []int) []string {
 	sgroups := make([]string, len(match)/2)
 	for i := 0; i < len(match)-1; i += 2 {
 		sgroups[i/2] = l.s[l.p+match[i]:l.p+match[i+1]]
@@ -164,18 +212,14 @@ func (l *lexerImpl) sgroups(match []int) []string {
 
 `))
 
-// ExperimentalGenerateLexer generates Go code implementing the given stateful lexer.
-//
-// The generated code should in general by around 10x faster and produce zero garbage per token.
-//
-// NOTE: This is an experimental interface and subject to change.
-func ExperimentalGenerateLexer(w io.Writer, pkg string, def *StatefulDefinition) error {
+func generateLexer(w io.Writer, pkg string, def *lexer.StatefulDefinition, name string) error {
 	type ctx struct {
 		Package string
-		Def     *StatefulDefinition
+		Name    string
+		Def     *lexer.StatefulDefinition
 	}
 	rules := def.Rules()
-	err := codegenTemplate.Execute(w, ctx{pkg, def})
+	err := codegenTemplate.Execute(w, ctx{pkg, name, def})
 	if err != nil {
 		return err
 	}
@@ -201,10 +245,10 @@ func ExperimentalGenerateLexer(w io.Writer, pkg string, def *StatefulDefinition)
 
 type orderedRule struct {
 	Name  string
-	Rules []Rule
+	Rules []lexer.Rule
 }
 
-func orderRules(rules Rules) []orderedRule {
+func orderRules(rules lexer.Rules) []orderedRule {
 	orderedRules := []orderedRule{}
 	for name, rules := range rules {
 		orderedRules = append(orderedRules, orderedRule{

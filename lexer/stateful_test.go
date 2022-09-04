@@ -1,15 +1,15 @@
 package lexer_test
 
 import (
-	"flag"
+	"encoding/json"
 	"log"
-	"os"
 	"strings"
 	"testing"
 
 	require "github.com/alecthomas/assert/v2"
 	"github.com/alecthomas/participle/v2"
 	"github.com/alecthomas/participle/v2/lexer"
+	"github.com/alecthomas/participle/v2/lexer/internal"
 	"github.com/alecthomas/repr"
 )
 
@@ -30,6 +30,15 @@ var interpolatedRules = lexer.Rules{
 		{"Ident", `\w+`, nil},
 		{"ExprEnd", `}`, lexer.Pop()},
 	},
+}
+
+func TestMarshalUnmarshal(t *testing.T) {
+	data, err := json.MarshalIndent(interpolatedRules, "", "  ")
+	require.NoError(t, err)
+	unmarshalledRules := lexer.Rules{}
+	err = json.Unmarshal(data, &unmarshalledRules)
+	require.NoError(t, err)
+	require.Equal(t, interpolatedRules, unmarshalledRules)
 }
 
 func TestStatefulLexer(t *testing.T) {
@@ -408,30 +417,6 @@ func BenchmarkStatefulBackrefs(b *testing.B) {
 	}
 }
 
-var generateLexer = flag.Bool("generate", false, "generate lexer")
-
-func TestGenerate(t *testing.T) {
-	if !*generateLexer {
-		return
-	}
-	def, err := lexer.New(lexer.Rules{"Root": []lexer.Rule{
-		{"String", `"(\\"|[^"])*"`, nil},
-		{"Number", `[-+]?(\d*\.)?\d+`, nil},
-		{"Ident", `[a-zA-Z_]\w*`, nil},
-		{"Punct", `[!-/:-@[-` + "`" + `{-~]+`, nil},
-		{"EOL", `\n`, nil},
-		{"Comment", `(?i)rem[^\n]*\n`, nil},
-		{"Whitespace", `[ \t]+`, nil},
-	}})
-	require.NoError(t, err)
-	w, err := os.Create("stateful_codegen_test.go~")
-	require.NoError(t, err)
-	err = lexer.ExperimentalGenerateLexer(w, "lexer_test", def)
-	require.NoError(t, err)
-	err = os.Rename("stateful_codegen_test.go~", "stateful_codegen_test.go")
-	require.NoError(t, err)
-}
-
 func basicBenchmark(b *testing.B, def lexer.Definition) {
 	b.Helper()
 	source := strings.Repeat(`
@@ -485,5 +470,5 @@ func BenchmarkStatefulBASIC(b *testing.B) {
 }
 
 func BenchmarkStatefulGeneratedBASIC(b *testing.B) {
-	basicBenchmark(b, Lexer)
+	basicBenchmark(b, internal.GeneratedBasicLexer)
 }
