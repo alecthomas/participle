@@ -163,14 +163,14 @@ func (l *lexer{{.Name}}Impl) Next() (lexer.Token, error) {
 {{- range $i, $rule := $state.Rules}}
 		{{- if $i}} else {{end -}}
 {{- if .Pattern -}}
-		if match := match{{.Name}}(l.s, l.p); match[1] != 0 {
+		if match := match{{$.Name}}{{.Name}}(l.s, l.p); match[1] != 0 {
 			sym = {{index $.Def.Symbols .Name}}
 			groups = match[:]
 {{- else if .|IsReturn -}}
 		if true {
 {{- end}}
 {{- if .|IsPush}}
-			l.states = append(l.states, lexer{{.Name}}State{name: "{{.|IsPush}}"{{if HaveBackrefs $.Def $state.Name}}, groups: l.sgroups(groups){{end}}})
+			l.states = append(l.states, lexer{{$.Name}}State{name: "{{.|IsPush}}"{{if HaveBackrefs $.Def $state.Name}}, groups: l.sgroups(groups){{end}}})
 {{- else if (or (.|IsPop) (.|IsReturn))}}
 			l.states = l.states[:len(l.states)-1]
 {{- if .|IsReturn}}
@@ -234,7 +234,7 @@ func generateLexer(w io.Writer, pkg string, def *lexer.StatefulDefinition, name 
 			}
 			seen[rule.Name] = true
 			fmt.Fprintf(w, "\n")
-			err := generateRegexMatch(w, rule.Name, rule.Pattern)
+			err := generateRegexMatch(w, name, rule.Name, rule.Pattern)
 			if err != nil {
 				return err
 			}
@@ -262,7 +262,7 @@ func orderRules(rules lexer.Rules) []orderedRule {
 	return orderedRules
 }
 
-func generateRegexMatch(w io.Writer, name, pattern string) error {
+func generateRegexMatch(w io.Writer, lexerName, name, pattern string) error {
 	re, err := syntax.Parse(pattern, syntax.Perl)
 	if err != nil {
 		return err
@@ -287,7 +287,7 @@ func generateRegexMatch(w io.Writer, name, pattern string) error {
 	}
 	re = re.Simplify()
 	fmt.Fprintf(w, "// %s\n", re)
-	fmt.Fprintf(w, "func match%s(s string, p int) (groups [%d]int) {\n", name, 2*re.MaxCap()+2)
+	fmt.Fprintf(w, "func match%s%s(s string, p int) (groups [%d]int) {\n", lexerName, name, 2*re.MaxCap()+2)
 	flattened := flatten(re)
 
 	// Fast-path a single literal.
