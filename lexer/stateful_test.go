@@ -13,38 +13,55 @@ import (
 	"github.com/alecthomas/repr"
 )
 
-var interpolatedRules = lexer.Rules{
-	"Root": {
-		{`String`, `"`, lexer.Push("String")},
-	},
-	"String": {
-		{"Escaped", `\\.`, nil},
-		{"StringEnd", `"`, lexer.Pop()},
-		{"Expr", `\${`, lexer.Push("Expr")},
-		{"Char", `[^$"\\]+`, nil},
-	},
-	"Expr": {
-		lexer.Include("Root"),
-		{`whitespace`, `\s+`, nil},
-		{`Oper`, `[-+/*%]`, nil},
-		{"Ident", `\w+`, nil},
-		{"ExprEnd", `}`, lexer.Pop()},
-	},
+type lexerTestCase struct {
+	name string
+	def  lexer.Definition
+}
+
+func lexerTestCases(reflectionDef lexer.Definition, generatedDef lexer.Definition) []lexerTestCase {
+	var cases []lexerTestCase
+	if reflectionDef != nil {
+		cases = append(cases, lexerTestCase{name: "Reflection", def: reflectionDef})
+	}
+	if generatedDef != nil {
+		cases = append(cases, lexerTestCase{name: "Generated", def: generatedDef})
+	}
+	return cases
+}
+
+func runLexerTestCases(cases []lexerTestCase, t *testing.T, f func(t *testing.T, def lexer.Definition)) {
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			f(t, test.def)
+		})
+	}
+}
+
+func runLexerBenchmarkCases(cases []lexerTestCase, b *testing.B, f func(b *testing.B, def lexer.Definition)) {
+	b.Helper()
+	for _, test := range cases {
+		b.Run(test.name, func(b *testing.B) {
+			b.Helper()
+			b.ResetTimer()
+			f(b, test.def)
+		})
+	}
 }
 
 func TestMarshalUnmarshal(t *testing.T) {
-	data, err := json.MarshalIndent(interpolatedRules, "", "  ")
+	data, err := json.MarshalIndent(internal.InterpolatedRules, "", "  ")
 	require.NoError(t, err)
 	unmarshalledRules := lexer.Rules{}
 	err = json.Unmarshal(data, &unmarshalledRules)
 	require.NoError(t, err)
-	require.Equal(t, interpolatedRules, unmarshalledRules)
+	require.Equal(t, internal.InterpolatedRules, unmarshalledRules)
 }
 
 func TestStatefulLexer(t *testing.T) {
 	tests := []struct {
 		name   string
 		rules  lexer.Rules
+		gendef lexer.Definition
 		lngst  bool
 		input  string
 		tokens []string
@@ -68,20 +85,9 @@ func TestStatefulLexer(t *testing.T) {
 			},
 		},
 		{name: "Heredoc",
-			rules: lexer.Rules{
-				"Root": {
-					{"Heredoc", `<<(\w+\b)`, lexer.Push("Heredoc")},
-					lexer.Include("Common"),
-				},
-				"Heredoc": {
-					{"End", `\b\1\b`, lexer.Pop()},
-					lexer.Include("Common"),
-				},
-				"Common": {
-					{"Whitespace", `\s+`, nil},
-					{"Ident", `\w+`, nil},
-				},
-			},
+			rules: internal.HeredocWithWhitespaceRules,
+			// TODO: support backreferences in generated lexer
+			//gendef: internal.GeneratedHeredocWithWhitespaceLexer,
 			input: `
 				<<END
 				hello world
@@ -90,6 +96,8 @@ func TestStatefulLexer(t *testing.T) {
 			tokens: []string{"\n\t\t\t\t", "<<END", "\n\t\t\t\t", "hello", " ", "world", "\n\t\t\t\t", "END", "\n\t\t\t"},
 		},
 		{name: "BackslashIsntABackRef",
+			// TODO: support backreferences in generated lexer
+			//gendef: internal.GeneratedHeredocWithWhitespaceLexer,
 			rules: lexer.Rules{
 				"Root": {
 					{"JustOne", `(\\\\1)`, lexer.Push("Convoluted")},
@@ -102,66 +110,31 @@ func TestStatefulLexer(t *testing.T) {
 			tokens: []string{`\\1`, `\\\1`},
 		},
 		{name: "Recursive",
-			rules: lexer.Rules{
-				"Root": {
-					{`String`, `"`, lexer.Push("String")},
-				},
-				"String": {
-					{"Escaped", `\\.`, nil},
-					{"StringEnd", `"`, lexer.Pop()},
-					{"Expr", `\${`, lexer.Push("Expr")},
-					{"Char", `[^$"\\]+`, nil},
-				},
-				"Expr": {
-					lexer.Include("Root"),
-					{`Whitespace`, `\s+`, nil},
-					{`Oper`, `[-+/*%]`, nil},
-					{"Ident", `\w+`, nil},
-					{"ExprEnd", `}`, lexer.Pop()},
-				},
-			},
+			rules:  internal.InterpolatedWithWhitespaceRules,
+			gendef: internal.GeneratedInterpolatedWithWhitespaceLexer,
 			input:  `"hello ${user + "??" + "${nested}"}"`,
 			tokens: []string{"\"", "hello ", "${", "user", " ", "+", " ", "\"", "??", "\"", " ", "+", " ", "\"", "${", "nested", "}", "\"", "}", "\""},
 		},
 		{name: "Return",
-			rules: lexer.Rules{
-				"Root": {
-					{"Ident", `\w+`, lexer.Push("Reference")},
-					{"whitespace", `\s+`, nil},
-				},
-				"Reference": {
-					{"Dot", `\.`, nil},
-					{"Ident", `\w+`, nil},
-					lexer.Return(),
-				},
-			},
+			rules:  internal.ReferenceRules,
+			gendef: internal.GeneratedReferenceLexer,
 			input:  `hello.world `,
 			tokens: []string{"hello", ".", "world"},
 		},
 		{name: "NoMatchLongest",
-			rules: lexer.Rules{
-				"Root": {
-					{"A", `a`, nil},
-					{"Ident", `\w+`, nil},
-					{"whitespace", `\s+`, nil},
-				},
-			},
+			rules:  internal.ARules,
+			gendef: internal.GeneratedALexer,
 			input:  `a apple`,
 			tokens: []string{"a", "a", "pple"},
 		},
 		{name: "MatchLongest",
-			rules: lexer.Rules{
-				"Root": {
-					{"A", `a`, nil},
-					{"Ident", `\w+`, nil},
-					{"whitespace", `\s+`, nil},
-				},
-			},
+			rules:  internal.ARules,
 			lngst:  true,
 			input:  `a apple`,
 			tokens: []string{"a", "apple"},
 		},
 		{name: "NoMatchNoMutatorError",
+			// TODO: support error handling in generated lexer
 			rules: lexer.Rules{
 				"Root": {
 					{"NoMatch", "", nil},
@@ -171,6 +144,7 @@ func TestStatefulLexer(t *testing.T) {
 			err:   "1:1: rule \"NoMatch\" did not match any input",
 		},
 		{name: "NoMatchPushError",
+			// TODO: support error handling in generated lexer
 			rules: lexer.Rules{
 				"Root": {
 					{"NoMatch", "", lexer.Push("Sub")},
@@ -192,22 +166,25 @@ func TestStatefulLexer(t *testing.T) {
 			}
 			def, err := lexer.New(test.rules, opts...)
 			require.NoError(t, err)
-			lex, err := def.Lex("", strings.NewReader(test.input))
-			require.NoError(t, err)
-			tokens, err := lexer.ConsumeAll(lex)
-			if test.err != "" {
-				require.EqualError(t, err, test.err)
-			} else {
+			cases := lexerTestCases(def, test.gendef)
+			runLexerTestCases(cases, t, func(t *testing.T, def lexer.Definition) {
+				lex, err := def.Lex("", strings.NewReader(test.input))
 				require.NoError(t, err)
-				actual := []string{}
-				for _, token := range tokens {
-					if token.EOF() {
-						break
+				tokens, err := lexer.ConsumeAll(lex)
+				if test.err != "" {
+					require.EqualError(t, err, test.err)
+				} else {
+					require.NoError(t, err)
+					actual := []string{}
+					for _, token := range tokens {
+						if token.EOF() {
+							break
+						}
+						actual = append(actual, token.Value)
 					}
-					actual = append(actual, token.Value)
+					require.Equal(t, test.tokens, actual)
 				}
-				require.Equal(t, test.tokens, actual)
-			}
+			})
 		})
 	}
 }
@@ -235,7 +212,7 @@ func ExampleNew() {
 		Fragments []*Fragment `"\"" @@* "\""`
 	}
 
-	def, err := lexer.New(interpolatedRules)
+	def, err := lexer.New(internal.InterpolatedRules)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -273,49 +250,33 @@ type Terminal struct {
 }
 
 func TestStateful(t *testing.T) {
-	def, err := lexer.New(lexer.Rules{
-		"Root": {
-			{`String`, `"`, lexer.Push("String")},
-		},
-		"String": {
-			{"Escaped", `\\.`, nil},
-			{"StringEnd", `"`, lexer.Pop()},
-			{"Expr", `\${`, lexer.Push("Expr")},
-			{"Char", `[^$"\\]+`, nil},
-		},
-		"Expr": {
-			lexer.Include("Root"),
-			{`whitespace`, `\s+`, nil},
-			{`Oper`, `[-+/*%]`, nil},
-			{"Ident", `\w+`, nil},
-			{"ExprEnd", `}`, lexer.Pop()},
-		},
-	})
-	require.NoError(t, err)
-	parser, err := participle.Build[String](participle.Lexer(def))
-	require.NoError(t, err)
+	cases := lexerTestCases(lexer.MustStateful(internal.InterpolatedRules), internal.GeneratedInterpolatedLexer)
+	runLexerTestCases(cases, t, func(t *testing.T, def lexer.Definition) {
+		parser, err := participle.Build[String](participle.Lexer(def))
+		require.NoError(t, err)
 
-	actual, err := parser.ParseString("", `"hello ${user + "${last}"}"`)
-	require.NoError(t, err)
-	expected := &String{
-		Fragments: []*Fragment{
-			{Text: "hello "},
-			{Expr: &Expr{
-				Left: &Terminal{Ident: "user"},
-				Op:   "+",
-				Right: &Terminal{
-					String: &String{
-						Fragments: []*Fragment{{
-							Expr: &Expr{
-								Left: &Terminal{Ident: "last"},
-							},
-						}},
+		actual, err := parser.ParseString("", `"hello ${user + "${last}"}"`)
+		require.NoError(t, err)
+		expected := &String{
+			Fragments: []*Fragment{
+				{Text: "hello "},
+				{Expr: &Expr{
+					Left: &Terminal{Ident: "user"},
+					Op:   "+",
+					Right: &Terminal{
+						String: &String{
+							Fragments: []*Fragment{{
+								Expr: &Expr{
+									Left: &Terminal{Ident: "last"},
+								},
+							}},
+						},
 					},
-				},
-			}},
-		},
-	}
-	require.Equal(t, expected, actual)
+				}},
+			},
+		}
+		require.Equal(t, expected, actual)
+	})
 }
 
 func TestHereDoc(t *testing.T) {
@@ -327,56 +288,48 @@ func TestHereDoc(t *testing.T) {
 		Doc *Heredoc `@@`
 	}
 
-	def, err := lexer.New(lexer.Rules{
-		"Root": {
-			{"Heredoc", `<<(\w+\b)`, lexer.Push("Heredoc")},
-			lexer.Include("Common"),
-		},
-		"Heredoc": {
-			{"End", `\b\1\b`, lexer.Pop()},
-			lexer.Include("Common"),
-		},
-		"Common": {
-			{"whitespace", `\s+`, nil},
-			{"Ident", `\w+`, nil},
-		},
-	})
-	require.NoError(t, err)
-	parser, err := participle.Build[AST](participle.Lexer(def))
-	require.NoError(t, err)
+	// TODO: add support for backreferences to generated lexer
+	//cases := lexerTestCases(lexer.MustStateful(internal.HeredocRules), internal.GeneratedHeredocLexer)
+	cases := lexerTestCases(lexer.MustStateful(internal.HeredocRules), nil)
+	runLexerTestCases(cases, t, func(t *testing.T, def lexer.Definition) {
+		parser, err := participle.Build[AST](participle.Lexer(def))
+		require.NoError(t, err)
 
-	expected := &AST{
-		Doc: &Heredoc{
-			Idents: []string{"hello", "world"},
-		},
-	}
-	actual, err := parser.ParseString("", `
-		<<END
-		hello world
-		END
-	`)
-	require.NoError(t, err)
-	require.Equal(t, expected, actual)
+		expected := &AST{
+			Doc: &Heredoc{
+				Idents: []string{"hello", "world"},
+			},
+		}
+		actual, err := parser.ParseString("", `
+			<<END
+			hello world
+			END
+		`)
+		require.NoError(t, err)
+		require.Equal(t, expected, actual)
+	})
 }
 
 func BenchmarkStateful(b *testing.B) {
 	source := strings.Repeat(`"hello ${user + "${last}"}"`, 100)
-	def := lexer.Must(lexer.New(interpolatedRules))
-	b.ReportMetric(float64(len(source)), "B")
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		lex, err := def.Lex("", strings.NewReader(source))
-		if err != nil {
-			b.Fatal(err)
+	cases := lexerTestCases(lexer.MustStateful(internal.InterpolatedRules), internal.GeneratedInterpolatedLexer)
+	runLexerBenchmarkCases(cases, b, func(b *testing.B, def lexer.Definition) {
+		b.ReportMetric(float64(len(source)), "B")
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			lex, err := def.Lex("", strings.NewReader(source))
+			if err != nil {
+				b.Fatal(err)
+			}
+			tokens, err := lexer.ConsumeAll(lex)
+			if err != nil {
+				b.Fatal(err)
+			}
+			if len(tokens) != 1201 {
+				b.Fatalf("%d != 1201", len(tokens))
+			}
 		}
-		tokens, err := lexer.ConsumeAll(lex)
-		if err != nil {
-			b.Fatal(err)
-		}
-		if len(tokens) != 1201 {
-			b.Fatalf("%d != 1201", len(tokens))
-		}
-	}
+	})
 }
 
 func BenchmarkStatefulBackrefs(b *testing.B) {
@@ -385,40 +338,29 @@ func BenchmarkStatefulBackrefs(b *testing.B) {
 	hello world
 	END
 `, 100)
-	def, err := lexer.New(lexer.Rules{
-		"Root": {
-			{"Heredoc", `<<(\w+\b)`, lexer.Push("Heredoc")},
-			lexer.Include("Common"),
-		},
-		"Heredoc": {
-			{"End", `\b\1\b`, lexer.Pop()},
-			lexer.Include("Common"),
-		},
-		"Common": {
-			{"whitespace", `\s+`, nil},
-			{"Ident", `\w+`, nil},
-		},
+	// TODO: add support for backreferences to generated lexer
+	//cases := lexerTestCases(lexer.MustStateful(internal.HeredocRules), internal.GeneratedHeredocLexer)
+	cases := lexerTestCases(lexer.MustStateful(internal.HeredocRules), nil)
+	runLexerBenchmarkCases(cases, b, func(b *testing.B, def lexer.Definition) {
+		b.ReportMetric(float64(len(source)), "B")
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			lex, err := def.Lex("", strings.NewReader(source))
+			if err != nil {
+				b.Fatal(err)
+			}
+			tokens, err := lexer.ConsumeAll(lex)
+			if err != nil {
+				b.Fatal(err)
+			}
+			if len(tokens) != 401 {
+				b.Fatalf("%d != 401", len(tokens))
+			}
+		}
 	})
-	require.NoError(b, err)
-	b.ReportMetric(float64(len(source)), "B")
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		lex, err := def.Lex("", strings.NewReader(source))
-		if err != nil {
-			b.Fatal(err)
-		}
-		tokens, err := lexer.ConsumeAll(lex)
-		if err != nil {
-			b.Fatal(err)
-		}
-		if len(tokens) != 401 {
-			b.Fatalf("%d != 401", len(tokens))
-		}
-	}
 }
 
-func basicBenchmark(b *testing.B, def lexer.Definition) {
-	b.Helper()
+func BenchmarkStatefulBASIC(b *testing.B) {
 	source := strings.Repeat(`
  5  REM inputting the argument
 10  PRINT "Factorial of:"
@@ -432,43 +374,28 @@ func basicBenchmark(b *testing.B, def lexer.Definition) {
 75  REM prints the result
 80  PRINT B
        `, 100)
-	b.ReportMetric(float64(len(source)), "B")
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		lex, err := def.(lexer.StringDefinition).LexString("", source)
-		if err != nil {
-			b.Fatal(err)
-		}
-		count := 0
-		var token lexer.Token
-		for !token.EOF() {
-			token, err = lex.Next()
+	cases := lexerTestCases(lexer.MustStateful(internal.BasicRules), internal.GeneratedBasicLexer)
+	runLexerBenchmarkCases(cases, b, func(b *testing.B, def lexer.Definition) {
+		b.ReportMetric(float64(len(source)), "B")
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			lex, err := def.(lexer.StringDefinition).LexString("", source)
 			if err != nil {
 				b.Fatal(err)
 			}
-			count++
+			count := 0
+			var token lexer.Token
+			for !token.EOF() {
+				token, err = lex.Next()
+				if err != nil {
+					b.Fatal(err)
+				}
+				count++
+			}
+			if count != 11101 {
+				b.Fatalf("%d != 6601", count)
+			}
 		}
-		if count != 11101 {
-			b.Fatalf("%d != 6601", count)
-		}
-	}
-}
-
-func BenchmarkStatefulBASIC(b *testing.B) {
-	def, err := lexer.New(lexer.Rules{"Root": []lexer.Rule{
-		{"String", `"(\\"|[^"])*"`, nil},
-		{"Number", `[-+]?(\d*\.)?\d+`, nil},
-		{"Ident", `[a-zA-Z_]\w*`, nil},
-		{"Punct", `[!-/:-@[-` + "`" + `{-~]+`, nil},
-		{"EOL", `\n`, nil},
-		{"Comment", `(?i)rem[^\n]*\n`, nil},
-		{"Whitespace", `[ \t]+`, nil},
-	}})
-	require.NoError(b, err)
-	basicBenchmark(b, def)
-}
-
-func BenchmarkStatefulGeneratedBASIC(b *testing.B) {
-	basicBenchmark(b, internal.GeneratedBasicLexer)
+	})
 }

@@ -1,0 +1,66 @@
+{
+  "Expr": [
+    {
+      "name": "String",
+      "pattern": "\"",
+      "action": {
+        "kind": "push",
+        "state": "String"
+      }
+    },
+    {
+      "name": "Whitespace",
+      "pattern": "\\s+"
+    },
+    {
+      "name": "Oper",
+      "pattern": "[-+/*%]"
+    },
+    {
+      "name": "Ident",
+      "pattern": "\\w+"
+    },
+    {
+      "name": "ExprEnd",
+      "pattern": "}",
+      "action": {
+        "kind": "pop"
+      }
+    }
+  ],
+  "Root": [
+    {
+      "name": "String",
+      "pattern": "\"",
+      "action": {
+        "kind": "push",
+        "state": "String"
+      }
+    }
+  ],
+  "String": [
+    {
+      "name": "Escaped",
+      "pattern": "\\\\."
+    },
+    {
+      "name": "StringEnd",
+      "pattern": "\"",
+      "action": {
+        "kind": "pop"
+      }
+    },
+    {
+      "name": "Expr",
+      "pattern": "\\${",
+      "action": {
+        "kind": "push",
+        "state": "Expr"
+      }
+    },
+    {
+      "name": "Char",
+      "pattern": "[^$\"\\\\]+"
+    }
+  ]
+}

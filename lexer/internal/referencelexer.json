@@ -1,0 +1,29 @@
+{
+  "Reference": [
+    {
+      "name": "Dot",
+      "pattern": "\\."
+    },
+    {
+      "name": "Ident",
+      "pattern": "\\w+"
+    },
+    {
+      "name": "returnToParent"
+    }
+  ],
+  "Root": [
+    {
+      "name": "Ident",
+      "pattern": "\\w+",
+      "action": {
+        "kind": "push",
+        "state": "Reference"
+      }
+    },
+    {
+      "name": "whitespace",
+      "pattern": "\\s+"
+    }
+  ]
+}

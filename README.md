@@ -419,6 +419,8 @@ lexing. Use `participle/experimental/codegen.GenerateLexer()` to compile a
 This will generally provide around a 10x improvement in lexing performance
 while producing O(1) garbage.
 
+See Makefile for an example how to do lexer codegen.
+
 ## Options
 
 The Parser's behaviour can be configured via [Options](https://pkg.go.dev/github.com/alecthomas/participle/v2#Option).

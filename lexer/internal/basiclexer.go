@@ -12,6 +12,7 @@ import (
 )
 
 var _ syntax.Op
+var _ = utf8.DecodeRune
 
 var GeneratedBasicLexer lexer.Definition = lexerGeneratedBasicDefinitionImpl{}
 

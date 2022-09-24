@@ -1,0 +1,47 @@
+{
+  "Common": [
+    {
+      "name": "whitespace",
+      "pattern": "\\s+"
+    },
+    {
+      "name": "Ident",
+      "pattern": "\\w+"
+    }
+  ],
+  "Heredoc": [
+    {
+      "name": "End",
+      "pattern": "\\b\\1\\b",
+      "action": {
+        "kind": "pop"
+      }
+    },
+    {
+      "name": "whitespace",
+      "pattern": "\\s+"
+    },
+    {
+      "name": "Ident",
+      "pattern": "\\w+"
+    }
+  ],
+  "Root": [
+    {
+      "name": "Heredoc",
+      "pattern": "\u003c\u003c(\\w+\\b)",
+      "action": {
+        "kind": "push",
+        "state": "Heredoc"
+      }
+    },
+    {
+      "name": "whitespace",
+      "pattern": "\\s+"
+    },
+    {
+      "name": "Ident",
+      "pattern": "\\w+"
+    }
+  ]
+}

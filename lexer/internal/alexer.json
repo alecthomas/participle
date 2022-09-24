@@ -1,0 +1,16 @@
+{
+  "Root": [
+    {
+      "name": "A",
+      "pattern": "a"
+    },
+    {
+      "name": "Ident",
+      "pattern": "\\w+"
+    },
+    {
+      "name": "whitespace",
+      "pattern": "\\s+"
+    }
+  ]
+}
