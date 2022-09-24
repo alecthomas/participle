@@ -170,7 +170,7 @@ func (l *lexer{{.Name}}Impl) Next() (lexer.Token, error) {
 		if true {
 {{- end}}
 {{- if .|IsPush}}
-			l.states = append(l.states, lexer{{.Name}}State{name: "{{.|IsPush}}"{{if HaveBackrefs $.Def $state.Name}}, groups: l.sgroups(groups){{end}}})
+			l.states = append(l.states, lexer{{$.Name}}State{name: "{{.|IsPush}}"{{if HaveBackrefs $.Def $state.Name}}, groups: l.sgroups(groups){{end}}})
 {{- else if (or (.|IsPop) (.|IsReturn))}}
 			l.states = l.states[:len(l.states)-1]
 {{- if .|IsReturn}}
