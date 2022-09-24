@@ -98,6 +98,7 @@ import (
 )
 
 var _ syntax.Op
+var _ = utf8.DecodeRune
 
 var {{.Name}}Lexer lexer.Definition = lexer{{.Name}}DefinitionImpl{}
 
