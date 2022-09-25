@@ -38,7 +38,7 @@ func (lexerGeneratedBasicDefinitionImpl) LexString(filename string, s string) (l
 			Line:     1,
 			Column:   1,
 		},
-		states: []lexerGeneratedBasicState{lexerGeneratedBasicState{name: "Root"}},
+		states: []lexerGeneratedBasicState{{name: "Root"}},
 	}, nil
 }
 

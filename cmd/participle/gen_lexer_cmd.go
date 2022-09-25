@@ -119,7 +119,7 @@ func (lexer{{.Name}}DefinitionImpl) LexString(filename string, s string) (lexer.
 			Line:     1,
 			Column:   1,
 		},
-		states: []lexer{{.Name}}State{lexer{{.Name}}State{name: "Root"}},
+		states: []lexer{{.Name}}State{ {name: "Root"} },
 	}, nil
 }
 
