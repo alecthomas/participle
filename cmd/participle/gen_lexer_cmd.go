@@ -18,8 +18,9 @@ import (
 type genLexerCmd struct {
 	Name    string `help:"Name of the lexer."`
 	Output  string `short:"o" help:"Output file."`
+	Tags    string `help:"Build tags to include in the generated file."`
 	Package string `arg:"" required:"" help:"Go package for generated code."`
-	Lexer   string `arg:"" required:"" default:"-" type:"existingfile" help:"JSON representation of a Participle lexer."`
+	Lexer   string `arg:"" default:"-" type:"existingfile" help:"JSON representation of a Participle lexer (read from stdin if omitted)."`
 }
 
 func (c *genLexerCmd) Help() string {
@@ -52,7 +53,15 @@ func (c *genLexerCmd) Run() error {
 	if err != nil {
 		return err
 	}
-	err = generateLexer(os.Stdout, c.Package, def, c.Name)
+	out := os.Stdout
+	if c.Output != "" {
+		out, err = os.Create(c.Output)
+		if err != nil {
+			return err
+		}
+		defer out.Close()
+	}
+	err = generateLexer(out, c.Package, def, c.Name, c.Tags)
 	if err != nil {
 		return err
 	}
@@ -60,10 +69,10 @@ func (c *genLexerCmd) Run() error {
 }
 
 var (
-	//go:embed files/codegen.go.tmpl
+	//go:embed codegen.go.tmpl
 	codegenTemplateSource string
-	codegenBackrefRe                         = regexp.MustCompile(`(\\+)(\d)`)
-	codegenTemplate       *template.Template = template.Must(template.New("lexgen").Funcs(template.FuncMap{
+	codegenBackrefRe      = regexp.MustCompile(`(\\+)(\d)`)
+	codegenTemplate       = template.Must(template.New("lexgen").Funcs(template.FuncMap{
 		"IsPush": func(r lexer.Rule) string {
 			if p, ok := r.Action.(lexer.ActionPush); ok {
 				return p.State
@@ -89,14 +98,15 @@ var (
 	}).Parse(codegenTemplateSource))
 )
 
-func generateLexer(w io.Writer, pkg string, def *lexer.StatefulDefinition, name string) error {
+func generateLexer(w io.Writer, pkg string, def *lexer.StatefulDefinition, name, tags string) error {
 	type ctx struct {
 		Package string
 		Name    string
+		Tags    string
 		Def     *lexer.StatefulDefinition
 	}
 	rules := def.Rules()
-	err := codegenTemplate.Execute(w, ctx{pkg, name, def})
+	err := codegenTemplate.Execute(w, ctx{pkg, name, tags, def})
 	if err != nil {
 		return err
 	}
@@ -140,6 +150,14 @@ func orderRules(rules lexer.Rules) []orderedRule {
 }
 
 func generateRegexMatch(w io.Writer, lexerName, name, pattern string) error {
+	if codegenBackrefRe.FindStringIndex(pattern) != nil {
+		fmt.Fprintf(w, "func match%s%s(s string, p int, backrefs []string) (groups []int) {\n", lexerName, name)
+		fmt.Fprintf(w, "  re, err := lexer.BackrefRegex(%sBackRefCache, %q, backrefs)\n", lexerName, pattern)
+		fmt.Fprintf(w, "  if err != nil { panic(fmt.Sprintf(\"%%s: %%s\", err, backrefs)) }\n")
+		fmt.Fprintf(w, "  return re.FindStringSubmatchIndex(s[p:])\n")
+		fmt.Fprintf(w, "}\n")
+		return nil
+	}
 	re, err := syntax.Parse(pattern, syntax.Perl)
 	if err != nil {
 		return err
@@ -164,7 +182,7 @@ func generateRegexMatch(w io.Writer, lexerName, name, pattern string) error {
 	}
 	re = re.Simplify()
 	fmt.Fprintf(w, "// %s\n", re)
-	fmt.Fprintf(w, "func match%s%s(s string, p int) (groups [%d]int) {\n", lexerName, name, 2*re.MaxCap()+2)
+	fmt.Fprintf(w, "func match%s%s(s string, p int, backrefs []string) (groups [%d]int) {\n", lexerName, name, 2*re.MaxCap()+2)
 	flattened := flatten(re)
 
 	// Fast-path a single literal.

@@ -5,7 +5,6 @@ import (
 	"embed"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	"github.com/alecthomas/repr"
@@ -26,6 +25,7 @@ type production struct {
 
 // Embed the railroad-diagrams css and js files for later output.
 // From here: https://github.com/tabatkins/railroad-diagrams
+//
 //go:embed assets/*
 var assets embed.FS
 
@@ -200,7 +200,7 @@ func main() {
 	str := generate(productions, ast)
 
 	if *outputFile != "" {
-		err := ioutil.WriteFile(*outputFile, []byte(str), 0644) // nolint
+		err := os.WriteFile(*outputFile, []byte(str), 0644) // nolint
 		if err != nil {
 			panic(err)
 		}
@@ -233,7 +233,7 @@ func writeAssetFiles() (err error) {
 		if err != nil {
 			return err
 		}
-		err = ioutil.WriteFile(fileName, data, 0644) // nolint
+		err = os.WriteFile(fileName, data, 0644) // nolint
 		if err != nil {
 			return err
 		}

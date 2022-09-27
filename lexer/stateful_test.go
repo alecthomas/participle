@@ -43,12 +43,17 @@ func TestMarshalUnmarshal(t *testing.T) {
 
 func TestStatefulLexer(t *testing.T) {
 	tests := []struct {
-		name   string
-		rules  lexer.Rules
-		input  string
-		tokens []string
-		err    string
+		name     string
+		rules    lexer.Rules
+		input    string
+		tokens   []string
+		err      string
+		buildErr string
 	}{
+		{name: "InvalidPushTarget",
+			buildErr: `invalid action for rule "foo": push to unknown state "Invalid"`,
+			rules:    lexer.Rules{"Root": {{`foo`, ``, lexer.Push("Invalid")}}},
+		},
 		{name: "BackrefNoGroups",
 			input: `hello`,
 			err:   `1:1: rule "Backref": invalid backref expansion: "\\1": invalid group 1 from parent with 0 groups`,
@@ -174,6 +179,12 @@ func TestStatefulLexer(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			def, err := lexer.New(test.rules)
+			if test.buildErr != "" {
+				require.EqualError(t, err, test.buildErr)
+				return
+			} else {
+				require.NoError(t, err)
+			}
 			require.NoError(t, err)
 			lex, err := def.Lex("", strings.NewReader(test.input))
 			require.NoError(t, err)
