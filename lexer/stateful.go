@@ -17,9 +17,6 @@ var (
 	backrefReplace = regexp.MustCompile(`(\\+)(\d)`)
 )
 
-// Option for modifying how the Lexer works.
-type Option func(d *StatefulDefinition)
-
 // A Rule matching input and possibly changing state.
 type Rule struct {
 	Name    string `json:"name"`
@@ -143,21 +140,6 @@ type RulesAction interface {
 	applyRules(state string, rule int, rules compiledRules) error
 }
 
-// InitialState overrides the default initial state of "Root".
-func InitialState(state string) Option {
-	return func(d *StatefulDefinition) {
-		d.initialState = state
-	}
-}
-
-// MatchLongest causes the Lexer to continue checking rules past the first match.
-// If any subsequent rule has a longer match, it will be used instead.
-func MatchLongest() Option {
-	return func(d *StatefulDefinition) {
-		d.matchLongest = true
-	}
-}
-
 // ActionPop pops to the previous state when the Rule matches.
 type ActionPop struct{}
 
@@ -233,13 +215,12 @@ type StatefulDefinition struct {
 	symbols map[string]TokenType
 	// Map of key->*regexp.Regexp
 	backrefCache sync.Map
-	initialState string
 	matchLongest bool
 }
 
 // MustStateful creates a new stateful lexer and panics if it is incorrect.
-func MustStateful(rules Rules, options ...Option) *StatefulDefinition {
-	def, err := New(rules, options...)
+func MustStateful(rules Rules) *StatefulDefinition {
+	def, err := New(rules)
 	if err != nil {
 		panic(err)
 	}
@@ -247,7 +228,7 @@ func MustStateful(rules Rules, options ...Option) *StatefulDefinition {
 }
 
 // New constructs a new stateful lexer from rules.
-func New(rules Rules, options ...Option) (*StatefulDefinition, error) {
+func New(rules Rules) (*StatefulDefinition, error) {
 	compiled := compiledRules{}
 	for key, set := range rules {
 		for i, rule := range set {
@@ -303,12 +284,8 @@ restart:
 		}
 	}
 	d := &StatefulDefinition{
-		initialState: "Root",
-		rules:        compiled,
-		symbols:      symbols,
-	}
-	for _, option := range options {
-		option(d)
+		rules:   compiled,
+		symbols: symbols,
 	}
 	return d, nil
 }
@@ -333,7 +310,7 @@ func (d *StatefulDefinition) LexString(filename string, s string) (Lexer, error)
 	return &StatefulLexer{
 		def:   d,
 		data:  s,
-		stack: []lexerState{{name: d.initialState}},
+		stack: []lexerState{{name: "Root"}},
 		pos: Position{
 			Filename: filename,
 			Line:     1,

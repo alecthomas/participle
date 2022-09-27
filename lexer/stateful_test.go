@@ -45,7 +45,6 @@ func TestStatefulLexer(t *testing.T) {
 	tests := []struct {
 		name   string
 		rules  lexer.Rules
-		lngst  bool
 		input  string
 		tokens []string
 		err    string
@@ -149,18 +148,6 @@ func TestStatefulLexer(t *testing.T) {
 			input:  `a apple`,
 			tokens: []string{"a", "a", "pple"},
 		},
-		{name: "MatchLongest",
-			rules: lexer.Rules{
-				"Root": {
-					{"A", `a`, nil},
-					{"Ident", `\w+`, nil},
-					{"whitespace", `\s+`, nil},
-				},
-			},
-			lngst:  true,
-			input:  `a apple`,
-			tokens: []string{"a", "apple"},
-		},
 		{name: "NoMatchNoMutatorError",
 			rules: lexer.Rules{
 				"Root": {
@@ -186,11 +173,7 @@ func TestStatefulLexer(t *testing.T) {
 	// nolint: scopelint
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			var opts []lexer.Option
-			if test.lngst {
-				opts = append(opts, lexer.MatchLongest())
-			}
-			def, err := lexer.New(test.rules, opts...)
+			def, err := lexer.New(test.rules)
 			require.NoError(t, err)
 			lex, err := def.Lex("", strings.NewReader(test.input))
 			require.NoError(t, err)
