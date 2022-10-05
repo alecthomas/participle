@@ -244,7 +244,7 @@ func (g *generatorContext) parseCapture(slexer *structLexer) (node, error) {
 	}
 	ft := indirectType(field.Type)
 	if ft.Kind() == reflect.Struct && ft != tokenType && ft != tokensType && !implements(ft, captureType) && !implements(ft, textUnmarshalerType) {
-		return nil, fmt.Errorf("structs can only be parsed with @@ or by implementing the Capture or encoding.TextUnmarshaler interfaces")
+		return nil, fmt.Errorf("%s: structs can only be parsed with @@ or by implementing the Capture or encoding.TextUnmarshaler interfaces", ft)
 	}
 	n, err := g.parseTermNoModifiers(slexer, false)
 	if err != nil {
