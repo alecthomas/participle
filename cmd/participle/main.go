@@ -4,10 +4,12 @@ import "github.com/alecthomas/kong"
 
 var (
 	version string = "dev"
-	cli     struct {
+
+	cli struct {
 		Version kong.VersionFlag
-		Gen     struct {
-			Lexer genLexerCmd `cmd:""`
+
+		Gen struct {
+			Lexer genLexerCmd `cmd:"" help:"Generate a lexer."`
 		} `cmd:"" help:"Generate code to accelerate Participle."`
 	}
 )

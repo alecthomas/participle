@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"regexp"
 	"sort"
 	"strconv"
@@ -140,6 +141,10 @@ type RulesAction interface {
 	applyRules(state string, rule int, rules compiledRules) error
 }
 
+type validatingRule interface {
+	validate(rules Rules) error
+}
+
 // ActionPop pops to the previous state when the Rule matches.
 type ActionPop struct{}
 
@@ -174,6 +179,13 @@ func (p ActionPush) applyAction(lexer *StatefulLexer, groups []string) error {
 		return errors.New("did not consume any input")
 	}
 	lexer.stack = append(lexer.stack, lexerState{name: p.State, groups: groups})
+	return nil
+}
+
+func (p ActionPush) validate(rules Rules) error {
+	if _, ok := rules[p.State]; !ok {
+		return fmt.Errorf("push to unknown state %q", p.State)
+	}
 	return nil
 }
 
@@ -232,6 +244,11 @@ func New(rules Rules) (*StatefulDefinition, error) {
 	compiled := compiledRules{}
 	for key, set := range rules {
 		for i, rule := range set {
+			if validate, ok := rule.Action.(validatingRule); ok {
+				if err := validate.validate(rules); err != nil {
+					return nil, fmt.Errorf("invalid action for rule %q: %w", rule.Name, err)
+				}
+			}
 			pattern := "^(?:" + rule.Pattern + ")"
 			var (
 				re  *regexp.Regexp
@@ -332,6 +349,7 @@ func (d *StatefulDefinition) Symbols() map[string]TokenType { // nolint: golint
 	return d.symbols
 }
 
+// lexerState stored when switching states in the lexer.
 type lexerState struct {
 	name   string
 	groups []string
@@ -421,12 +439,15 @@ func (l *StatefulLexer) getPattern(candidate compiledRule) (*regexp.Regexp, erro
 	if candidate.RE != nil {
 		return candidate.RE, nil
 	}
-
 	// We don't have a compiled RE. This means there are back-references
 	// that need to be substituted first.
-	parent := l.stack[len(l.stack)-1]
-	key := candidate.Pattern + "\000" + strings.Join(parent.groups, "\000")
-	cached, ok := l.def.backrefCache.Load(key)
+	return BackrefRegex(&l.def.backrefCache, candidate.Pattern, l.stack[len(l.stack)-1].groups)
+}
+
+// BackrefRegex returns a compiled regular expression with backreferences replaced by groups.
+func BackrefRegex(backrefCache *sync.Map, input string, groups []string) (*regexp.Regexp, error) {
+	key := input + "\000" + strings.Join(groups, "\000")
+	cached, ok := backrefCache.Load(key)
 	if ok {
 		return cached.(*regexp.Regexp), nil
 	}
@@ -435,26 +456,27 @@ func (l *StatefulLexer) getPattern(candidate compiledRule) (*regexp.Regexp, erro
 		re  *regexp.Regexp
 		err error
 	)
-	pattern := backrefReplace.ReplaceAllStringFunc(candidate.Pattern, func(s string) string {
+	pattern := backrefReplace.ReplaceAllStringFunc(input, func(s string) string {
 		var rematch = backrefReplace.FindStringSubmatch(s)
 		n, nerr := strconv.ParseInt(rematch[2], 10, 64)
 		if nerr != nil {
 			err = nerr
 			return s
 		}
-		if len(parent.groups) == 0 || int(n) >= len(parent.groups) {
-			err = fmt.Errorf("invalid group %d from parent with %d groups", n, len(parent.groups))
+		if len(groups) == 0 || int(n) >= len(groups) {
+			err = fmt.Errorf("invalid group %d from parent with %d groups", n, len(groups))
 			return s
 		}
 		// concatenate the leading \\\\ which are already escaped to the quoted match.
-		return rematch[1][:len(rematch[1])-1] + regexp.QuoteMeta(parent.groups[n])
+		return rematch[1][:len(rematch[1])-1] + regexp.QuoteMeta(groups[n])
 	})
+	fmt.Fprintln(os.Stderr, pattern)
 	if err == nil {
 		re, err = regexp.Compile("^(?:" + pattern + ")")
 	}
 	if err != nil {
 		return nil, fmt.Errorf("invalid backref expansion: %q: %s", pattern, err)
 	}
-	l.def.backrefCache.Store(key, re)
+	backrefCache.Store(key, re)
 	return re, nil
 }
