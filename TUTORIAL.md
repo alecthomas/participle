@@ -275,7 +275,10 @@ To parse with this grammar we first construct the parser (we'll use the
 default lexer for now):
 
 ```go
-parser, err := participle.Build[INI]()
+parser, err := participle.Build[INI](
+  participle.Unquote("String"),
+  participle.Union[Value](String{}, Number{}),
+)
 ```
 
 Then parse a new INI file with `parser.Parse{,String,Bytes}()`:
