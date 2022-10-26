@@ -117,7 +117,7 @@ func TestLexerConformanceGenerated(t *testing.T) {
 	args := []string{"test", "-run", "TestLexerConformanceGeneratedInternal", "-tags", "generated"}
 	// Propagate test flags.
 	flag.CommandLine.VisitAll(func(f *flag.Flag) {
-		if f.Value.String() != f.DefValue {
+		if f.Value.String() != f.DefValue && f.Name != "test.run" {
 			args = append(args, fmt.Sprintf("-%s=%s", f.Name, f.Value.String()))
 		}
 	})
