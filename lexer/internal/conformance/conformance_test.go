@@ -18,6 +18,7 @@ var conformanceLexer = lexer.MustStateful(lexer.Rules{
 	"Root": {
 		{"String", `"`, lexer.Push("String")},
 		// {"Heredoc", `<<(\w+)`, lexer.Push("Heredoc")},
+		{"WordBoundaryTest", `WBTEST:`, lexer.Push("WordBoundaryTest")},
 	},
 	"String": {
 		{"Escaped", `\\.`, nil},
@@ -41,6 +42,12 @@ var conformanceLexer = lexer.MustStateful(lexer.Rules{
 	// 	{"End", `\1`, lexer.Pop()},
 	// 	lexer.Include("Expr"),
 	// },
+	"WordBoundaryTest": {
+		{Name: `ABCWord`, Pattern: `[aA][bB][cC]\b`, Action: nil},
+		{Name: "Slash", Pattern: `/`, Action: nil},
+		{Name: "Ident", Pattern: `\w+`, Action: nil},
+		{Name: "Whitespace", Pattern: `\s+`, Action: nil},
+	},
 })
 
 type token struct {
@@ -92,6 +99,22 @@ func testLexer(t *testing.T, lex lexer.Definition) {
 		// 			{"Whitespace", "\n"},
 		// 			{"End", "EOF"},
 		// 		}},
+		{"WordBoundarySlash", `WBTEST:aBC/hello world`, []token{
+			{"WordBoundaryTest", "WBTEST:"},
+			{"ABCWord", "aBC"},
+			{"Slash", "/"},
+			{"Ident", "hello"},
+			{"Whitespace", " "},
+			{"Ident", "world"},
+		}},
+		{"WordBoundaryWhitespace", `WBTEST:aBChello Abc world`, []token{
+			{"WordBoundaryTest", "WBTEST:"},
+			{"Ident", "aBChello"},
+			{"Whitespace", " "},
+			{"ABCWord", "Abc"},
+			{"Whitespace", " "},
+			{"Ident", "world"},
+		}},
 	}
 	symbols := lexer.SymbolsByRune(lex)
 	for _, test := range tests {
