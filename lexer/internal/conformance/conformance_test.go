@@ -18,6 +18,7 @@ var conformanceLexer = lexer.MustStateful(lexer.Rules{
 	"Root": {
 		{"String", `"`, lexer.Push("String")},
 		// {"Heredoc", `<<(\w+)`, lexer.Push("Heredoc")},
+		{"CaseInsensitiveTest", `CITEST:`, lexer.Push("CaseInsensitiveTest")},
 		{"WordBoundaryTest", `WBTEST:`, lexer.Push("WordBoundaryTest")},
 	},
 	"String": {
@@ -42,11 +43,17 @@ var conformanceLexer = lexer.MustStateful(lexer.Rules{
 	// 	{"End", `\1`, lexer.Pop()},
 	// 	lexer.Include("Expr"),
 	// },
+	"CaseInsensitiveTest": {
+		{`ABCWord`, `[aA][bB][cC]`, nil},
+		{`CIKeyword`, `(?i)(SELECT|from|WHERE|LIKE)`, nil},
+		{"Ident", `\w+`, nil},
+		{"Whitespace", `\s+`, nil},
+	},
 	"WordBoundaryTest": {
-		{Name: `ABCWord`, Pattern: `[aA][bB][cC]\b`, Action: nil},
-		{Name: "Slash", Pattern: `/`, Action: nil},
-		{Name: "Ident", Pattern: `\w+`, Action: nil},
-		{Name: "Whitespace", Pattern: `\s+`, Action: nil},
+		{`WBKeyword`, `\b(?:abc|xyz)\b`, nil},
+		{"Slash", `/`, nil},
+		{"Ident", `\w+`, nil},
+		{"Whitespace", `\s+`, nil},
 	},
 })
 
@@ -99,21 +106,47 @@ func testLexer(t *testing.T, lex lexer.Definition) {
 		// 			{"Whitespace", "\n"},
 		// 			{"End", "EOF"},
 		// 		}},
-		{"WordBoundarySlash", `WBTEST:aBC/hello world`, []token{
-			{"WordBoundaryTest", "WBTEST:"},
+		{"CaseInsensitiveSimple", `CITEST:hello aBC world`, []token{
+			{"CaseInsensitiveTest", "CITEST:"},
+			{"Ident", "hello"},
+			{"Whitespace", " "},
 			{"ABCWord", "aBC"},
+			{"Whitespace", " "},
+			{"Ident", "world"},
+		}},
+		{"CaseInsensitiveMixed", `CITEST:hello SeLeCt FROM world where END`, []token{
+			{"CaseInsensitiveTest", "CITEST:"},
+			{"Ident", "hello"},
+			{"Whitespace", " "},
+			{"CIKeyword", "SeLeCt"},
+			{"Whitespace", " "},
+			{"CIKeyword", "FROM"},
+			{"Whitespace", " "},
+			{"Ident", "world"},
+			{"Whitespace", " "},
+			{"CIKeyword", "where"},
+			{"Whitespace", " "},
+			{"Ident", "END"},
+		}},
+		{"WordBoundarySlash", `WBTEST:xyz/hello world`, []token{
+			{"WordBoundaryTest", "WBTEST:"},
+			{"WBKeyword", "xyz"},
 			{"Slash", "/"},
 			{"Ident", "hello"},
 			{"Whitespace", " "},
 			{"Ident", "world"},
 		}},
-		{"WordBoundaryWhitespace", `WBTEST:aBChello Abc world`, []token{
+		{"WordBoundaryWhitespace", `WBTEST:abchello xyz world`, []token{
 			{"WordBoundaryTest", "WBTEST:"},
-			{"Ident", "aBChello"},
+			{"Ident", "abchello"},
 			{"Whitespace", " "},
-			{"ABCWord", "Abc"},
+			{"WBKeyword", "xyz"},
 			{"Whitespace", " "},
 			{"Ident", "world"},
+		}},
+		{"WordBoundaryStartEnd", `WBTEST:xyz`, []token{
+			{"WordBoundaryTest", "WBTEST:"},
+			{"WBKeyword", "xyz"},
 		}},
 	}
 	symbols := lexer.SymbolsByRune(lex)
