@@ -18,6 +18,7 @@ var conformanceLexer = lexer.MustStateful(lexer.Rules{
 	"Root": {
 		{"String", `"`, lexer.Push("String")},
 		// {"Heredoc", `<<(\w+)`, lexer.Push("Heredoc")},
+		{"LiteralTest", `LITTEST:`, lexer.Push("LiteralTest")},
 		{"CaseInsensitiveTest", `CITEST:`, lexer.Push("CaseInsensitiveTest")},
 		{"WordBoundaryTest", `WBTEST:`, lexer.Push("WordBoundaryTest")},
 	},
@@ -43,6 +44,12 @@ var conformanceLexer = lexer.MustStateful(lexer.Rules{
 	// 	{"End", `\1`, lexer.Pop()},
 	// 	lexer.Include("Expr"),
 	// },
+	"LiteralTest": {
+		{`LITOne`, `ONE`, nil},
+		{`LITKeyword`, `SELECT|FROM|WHERE|LIKE`, nil},
+		{"Ident", `\w+`, nil},
+		{"Whitespace", `\s+`, nil},
+	},
 	"CaseInsensitiveTest": {
 		{`ABCWord`, `[aA][bB][cC]`, nil},
 		{`CIKeyword`, `(?i)(SELECT|from|WHERE|LIKE)`, nil},
@@ -127,6 +134,26 @@ func testLexer(t *testing.T, lex lexer.Definition) {
 			{"CIKeyword", "where"},
 			{"Whitespace", " "},
 			{"Ident", "END"},
+		}},
+		{"OneLiteralAtEnd", `LITTEST:ONE`, []token{
+			{"LiteralTest", "LITTEST:"},
+			{"LITOne", "ONE"},
+		}},
+		{"KeywordLiteralAtEnd", `LITTEST:SELECT`, []token{
+			{"LiteralTest", "LITTEST:"},
+			{"LITKeyword", "SELECT"},
+		}},
+		{"LiteralMixed", `LITTEST:hello ONE test LIKE world`, []token{
+			{"LiteralTest", "LITTEST:"},
+			{"Ident", "hello"},
+			{"Whitespace", " "},
+			{"LITOne", "ONE"},
+			{"Whitespace", " "},
+			{"Ident", "test"},
+			{"Whitespace", " "},
+			{"LITKeyword", "LIKE"},
+			{"Whitespace", " "},
+			{"Ident", "world"},
 		}},
 		{"WordBoundarySlash", `WBTEST:xyz/hello world`, []token{
 			{"WordBoundaryTest", "WBTEST:"},

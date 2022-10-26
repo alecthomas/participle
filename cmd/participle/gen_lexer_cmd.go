@@ -189,12 +189,12 @@ func generateRegexMatch(w io.Writer, lexerName, name, pattern string) error {
 	if len(flattened) == 1 && re.Op == syntax.OpLiteral {
 		n := utf8.RuneCountInString(string(re.Rune))
 		if re.Flags&syntax.FoldCase != 0 {
-			fmt.Fprintf(w, "if p+%d < len(s) && strings.EqualFold(s[p:p+%d], %q) {\n", n, n, string(re.Rune))
+			fmt.Fprintf(w, "if p+%d <= len(s) && strings.EqualFold(s[p:p+%d], %q) {\n", n, n, string(re.Rune))
 		} else {
 			if n == 1 {
 				fmt.Fprintf(w, "if p < len(s) && s[p] == %q {\n", re.Rune[0])
 			} else {
-				fmt.Fprintf(w, "if p+%d < len(s) && s[p:p+%d] == %q {\n", n, n, string(re.Rune))
+				fmt.Fprintf(w, "if p+%d <= len(s) && s[p:p+%d] == %q {\n", n, n, string(re.Rune))
 			}
 		}
 		fmt.Fprintf(w, "groups[0] = p\n")
@@ -224,12 +224,12 @@ func generateRegexMatch(w io.Writer, lexerName, name, pattern string) error {
 		case syntax.OpLiteral: // matches Runes sequence
 			n := utf8.RuneCountInString(string(re.Rune))
 			if re.Flags&syntax.FoldCase != 0 {
-				fmt.Fprintf(w, "if p+%d < len(s) && strings.EqualFold(s[p:p+%d], %q) { return p+%d }\n", n, n, string(re.Rune), n)
+				fmt.Fprintf(w, "if p+%d <= len(s) && strings.EqualFold(s[p:p+%d], %q) { return p+%d }\n", n, n, string(re.Rune), n)
 			} else {
 				if n == 1 {
 					fmt.Fprintf(w, "if p < len(s) && s[p] == %q { return p+1 }\n", re.Rune[0])
 				} else {
-					fmt.Fprintf(w, "if p+%d < len(s) && s[p:p+%d] == %q { return p+%d }\n", n, n, string(re.Rune), n)
+					fmt.Fprintf(w, "if p+%d <= len(s) && s[p:p+%d] == %q { return p+%d }\n", n, n, string(re.Rune), n)
 				}
 			}
 			fmt.Fprintf(w, "return -1\n")
