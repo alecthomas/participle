@@ -16,32 +16,35 @@ import (
 
 var conformanceLexer = lexer.MustStateful(lexer.Rules{
 	"Root": {
-		{"String", `"`, lexer.Push("String")},
-		// {"Heredoc", `<<(\w+)`, lexer.Push("Heredoc")},
+		{"ExprTest", `EXPRTEST:`, lexer.Push("ExprTest")},
 		{"LiteralTest", `LITTEST:`, lexer.Push("LiteralTest")},
 		{"CaseInsensitiveTest", `CITEST:`, lexer.Push("CaseInsensitiveTest")},
 		{"WordBoundaryTest", `WBTEST:`, lexer.Push("WordBoundaryTest")},
 	},
-	"String": {
-		{"Escaped", `\\.`, nil},
-		{"StringEnd", `"`, lexer.Pop()},
+	"ExprTest": {
+		{"ExprString", `"`, lexer.Push("ExprString")},
+		// {"ExprHeredoc", `<<(\w+)`, lexer.Push("ExprHeredoc")},
+	},
+	"ExprString": {
+		{"ExprEscaped", `\\.`, nil},
+		{"ExprStringEnd", `"`, lexer.Pop()},
 		{"Expr", `\${`, lexer.Push("Expr")},
-		{"Char", `[^$"\\]+`, nil},
+		{"ExprChar", `[^$"\\]+`, nil},
 	},
 	"Expr": {
-		lexer.Include("Root"),
+		lexer.Include("ExprTest"),
 		{`Whitespace`, `\s+`, nil},
-		{`Oper`, `[-+/*%]`, nil},
-		{"Ident", `\w+`, lexer.Push("Reference")},
+		{`ExprOper`, `[-+/*%]`, nil},
+		{"Ident", `\w+`, lexer.Push("ExprReference")},
 		{"ExprEnd", `}`, lexer.Pop()},
 	},
-	"Reference": {
-		{"Dot", `\.`, nil},
+	"ExprReference": {
+		{"ExprDot", `\.`, nil},
 		{"Ident", `\w+`, nil},
 		lexer.Return(),
 	},
-	// "Heredoc": {
-	// 	{"End", `\1`, lexer.Pop()},
+	// "ExprHeredoc": {
+	// 	{"ExprHeredocEnd", `\1`, lexer.Pop()},
 	// 	lexer.Include("Expr"),
 	// },
 	"LiteralTest": {
@@ -76,45 +79,44 @@ func testLexer(t *testing.T, lex lexer.Definition) {
 		input    string
 		expected []token
 	}{
-		{"Push", `"${"Hello ${name + "!"}"}"`, []token{
-			{"String", "\""},
+		{"ExprPush", `EXPRTEST:"${"Hello ${name + "!"}"}"`, []token{
+			{"ExprString", "\""},
 			{"Expr", "${"},
-			{"String", "\""},
-			{"Char", "Hello "},
+			{"ExprString", "\""},
+			{"ExprChar", "Hello "},
 			{"Expr", "${"},
 			{"Ident", "name"},
 			{"Whitespace", " "},
-			{"Oper", "+"},
+			{"ExprOper", "+"},
 			{"Whitespace", " "},
-			{"String", "\""},
-			{"Char", "!"},
-			{"StringEnd", "\""},
+			{"ExprString", "\""},
+			{"ExprChar", "!"},
+			{"ExprStringEnd", "\""},
 			{"ExprEnd", "}"},
-			{"StringEnd", "\""},
+			{"ExprStringEnd", "\""},
 			{"ExprEnd", "}"},
-			{"StringEnd", "\""},
+			{"ExprStringEnd", "\""},
 		}},
-		{"Reference", `"${user.name}"`, []token{
-			{"String", "\""},
+		{"ExprReference", `EXPRTEST:"${user.name}"`, []token{
+			{"ExprString", "\""},
 			{"Expr", "${"},
 			{"Ident", "user"},
-			{"Dot", "."},
+			{"ExprDot", "."},
 			{"Ident", "name"},
 			{"ExprEnd", "}"},
-			{"StringEnd", "\""},
+			{"ExprStringEnd", "\""},
 		}},
 		// TODO(alecthomas): Once backreferences are supported, this will work.
-		// 		{"Backref", `<<EOF
+		// 		{"Backref", `EXPRTEST:<<EOF
 		// heredoc
 		// EOF`, []token{
-		// 			{"Heredoc", "<<EOF"},
+		// 			{"ExprHeredoc", "<<EOF"},
 		// 			{"Whitespace", "\n"},
 		// 			{"Ident", "heredoc"},
 		// 			{"Whitespace", "\n"},
-		// 			{"End", "EOF"},
+		// 			{"ExprHeredocEnd", "EOF"},
 		// 		}},
 		{"CaseInsensitiveSimple", `CITEST:hello aBC world`, []token{
-			{"CaseInsensitiveTest", "CITEST:"},
 			{"Ident", "hello"},
 			{"Whitespace", " "},
 			{"ABCWord", "aBC"},
@@ -122,7 +124,6 @@ func testLexer(t *testing.T, lex lexer.Definition) {
 			{"Ident", "world"},
 		}},
 		{"CaseInsensitiveMixed", `CITEST:hello SeLeCt FROM world where END`, []token{
-			{"CaseInsensitiveTest", "CITEST:"},
 			{"Ident", "hello"},
 			{"Whitespace", " "},
 			{"CIKeyword", "SeLeCt"},
@@ -136,15 +137,12 @@ func testLexer(t *testing.T, lex lexer.Definition) {
 			{"Ident", "END"},
 		}},
 		{"OneLiteralAtEnd", `LITTEST:ONE`, []token{
-			{"LiteralTest", "LITTEST:"},
 			{"LITOne", "ONE"},
 		}},
 		{"KeywordLiteralAtEnd", `LITTEST:SELECT`, []token{
-			{"LiteralTest", "LITTEST:"},
 			{"LITKeyword", "SELECT"},
 		}},
 		{"LiteralMixed", `LITTEST:hello ONE test LIKE world`, []token{
-			{"LiteralTest", "LITTEST:"},
 			{"Ident", "hello"},
 			{"Whitespace", " "},
 			{"LITOne", "ONE"},
@@ -156,7 +154,6 @@ func testLexer(t *testing.T, lex lexer.Definition) {
 			{"Ident", "world"},
 		}},
 		{"WordBoundarySlash", `WBTEST:xyz/hello world`, []token{
-			{"WordBoundaryTest", "WBTEST:"},
 			{"WBKeyword", "xyz"},
 			{"Slash", "/"},
 			{"Ident", "hello"},
@@ -164,7 +161,6 @@ func testLexer(t *testing.T, lex lexer.Definition) {
 			{"Ident", "world"},
 		}},
 		{"WordBoundaryWhitespace", `WBTEST:abchello xyz world`, []token{
-			{"WordBoundaryTest", "WBTEST:"},
 			{"Ident", "abchello"},
 			{"Whitespace", " "},
 			{"WBKeyword", "xyz"},
@@ -172,7 +168,6 @@ func testLexer(t *testing.T, lex lexer.Definition) {
 			{"Ident", "world"},
 		}},
 		{"WordBoundaryStartEnd", `WBTEST:xyz`, []token{
-			{"WordBoundaryTest", "WBTEST:"},
 			{"WBKeyword", "xyz"},
 		}},
 	}
@@ -183,12 +178,12 @@ func testLexer(t *testing.T, lex lexer.Definition) {
 			assert.NoError(t, err)
 			tokens, err := lexer.ConsumeAll(l)
 			assert.NoError(t, err)
-			actual := make([]token, len(tokens)-1)
+			actual := make([]token, 0, len(tokens))
 			for i, t := range tokens {
-				if t.Type == lexer.EOF {
+				if (i == 0 && strings.HasSuffix(t.Value, "TEST:")) || t.Type == lexer.EOF {
 					continue
 				}
-				actual[i] = token{Type: symbols[t.Type], Value: t.Value}
+				actual = append(actual, token{Type: symbols[t.Type], Value: t.Value})
 			}
 			assert.Equal(t, test.expected, actual)
 		})
