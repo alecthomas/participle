@@ -188,10 +188,14 @@ func generateRegexMatch(w io.Writer, lexerName, name, pattern string) error {
 	// Fast-path a single literal.
 	if len(flattened) == 1 && re.Op == syntax.OpLiteral {
 		n := utf8.RuneCountInString(string(re.Rune))
-		if n == 1 {
-			fmt.Fprintf(w, "if p < len(s) && s[p] == %q {\n", re.Rune[0])
+		if re.Flags&syntax.FoldCase != 0 {
+			fmt.Fprintf(w, "if p+%d <= len(s) && strings.EqualFold(s[p:p+%d], %q) {\n", n, n, string(re.Rune))
 		} else {
-			fmt.Fprintf(w, "if p+%d < len(s) && s[p:p+%d] == %q {\n", n, n, string(re.Rune))
+			if n == 1 {
+				fmt.Fprintf(w, "if p < len(s) && s[p] == %q {\n", re.Rune[0])
+			} else {
+				fmt.Fprintf(w, "if p+%d <= len(s) && s[p:p+%d] == %q {\n", n, n, string(re.Rune))
+			}
 		}
 		fmt.Fprintf(w, "groups[0] = p\n")
 		fmt.Fprintf(w, "groups[1] = p + %d\n", n)
@@ -219,10 +223,14 @@ func generateRegexMatch(w io.Writer, lexerName, name, pattern string) error {
 
 		case syntax.OpLiteral: // matches Runes sequence
 			n := utf8.RuneCountInString(string(re.Rune))
-			if n == 1 {
-				fmt.Fprintf(w, "if p < len(s) && s[p] == %q { return p+1 }\n", re.Rune[0])
+			if re.Flags&syntax.FoldCase != 0 {
+				fmt.Fprintf(w, "if p+%d <= len(s) && strings.EqualFold(s[p:p+%d], %q) { return p+%d }\n", n, n, string(re.Rune), n)
 			} else {
-				fmt.Fprintf(w, "if p+%d < len(s) && s[p:p+%d] == %q { return p+%d }\n", n, n, string(re.Rune), n)
+				if n == 1 {
+					fmt.Fprintf(w, "if p < len(s) && s[p] == %q { return p+1 }\n", re.Rune[0])
+				} else {
+					fmt.Fprintf(w, "if p+%d <= len(s) && s[p:p+%d] == %q { return p+%d }\n", n, n, string(re.Rune), n)
+				}
 			}
 			fmt.Fprintf(w, "return -1\n")
 
@@ -284,11 +292,13 @@ func generateRegexMatch(w io.Writer, lexerName, name, pattern string) error {
 			syntax.OpBeginText, syntax.OpEndText,
 			syntax.OpBeginLine, syntax.OpEndLine:
 			fmt.Fprintf(w, "var l, u rune = -1, -1\n")
+			fmt.Fprintf(w, "var checkPrevChar = false\n")
 			fmt.Fprintf(w, "if p == 0 {\n")
 			decodeRune(w, "0", "u", "_")
 			fmt.Fprintf(w, "} else if p == len(s) {\n")
 			fmt.Fprintf(w, "  l, _ = utf8.DecodeLastRuneInString(s)\n")
 			fmt.Fprintf(w, "} else {\n")
+			fmt.Fprintf(w, "  checkPrevChar = true\n")
 			fmt.Fprintf(w, "  var ln int\n")
 			decodeRune(w, "p", "l", "ln")
 			fmt.Fprintf(w, "  if p+ln <= len(s) {\n")
@@ -305,6 +315,16 @@ func generateRegexMatch(w io.Writer, lexerName, name, pattern string) error {
 				syntax.OpEndLine:        "EmptyEndLine",
 			}
 			fmt.Fprintf(w, "if op & syntax.%s != 0 { return p }\n", lut[re.Op])
+			// If this isn't the start or end of the string, we also have to check if we match
+			// the preceding character (zero length op could have matched right before)
+			fmt.Fprintf(w, "if checkPrevChar {\n")
+			// decode the character immediately previous to this one (conditional logic above
+			// guarantees that p is > 0)
+			fmt.Fprintf(w, "  l, _ = utf8.DecodeLastRuneInString(s[0:p])\n")
+			decodeRune(w, "p", "u", "_")
+			fmt.Fprintf(w, "  op := syntax.EmptyOpContext(l, u)\n")
+			fmt.Fprintf(w, "  if op & syntax.%s != 0 { return p }\n", lut[re.Op])
+			fmt.Fprintf(w, "}\n")
 			fmt.Fprintf(w, "return -1\n")
 
 		case syntax.OpCapture: // capturing subexpression with index Cap, optional name Name
