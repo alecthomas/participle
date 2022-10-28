@@ -19,7 +19,8 @@ var conformanceLexer = lexer.MustStateful(lexer.Rules{
 		{"ExprTest", `EXPRTEST:`, lexer.Push("ExprTest")},
 		{"LiteralTest", `LITTEST:`, lexer.Push("LiteralTest")},
 		{"CaseInsensitiveTest", `CITEST:`, lexer.Push("CaseInsensitiveTest")},
-		{"WordBoundaryTest", `WBTEST:`, lexer.Push("WordBoundaryTest")},
+		// Use this to test \b at very start of the string!
+		{"WordBoundaryTest", `\bWBTEST:`, lexer.Push("WordBoundaryTest")},
 	},
 	"ExprTest": {
 		{"ExprString", `"`, lexer.Push("ExprString")},
@@ -61,6 +62,7 @@ var conformanceLexer = lexer.MustStateful(lexer.Rules{
 	},
 	"WordBoundaryTest": {
 		{`WBKeyword`, `\b(?:abc|xyz)\b`, nil},
+		{`WBGroupKeyword`, `(?:90|0)\b`, nil},
 		{"Slash", `/`, nil},
 		{"Ident", `\w+`, nil},
 		{"Whitespace", `\s+`, nil},
@@ -160,6 +162,11 @@ func testLexer(t *testing.T, lex lexer.Definition) {
 			{"Whitespace", " "},
 			{"Ident", "world"},
 		}},
+		{"WordBoundarySlash2", `WBTEST:abc/xyz`, []token{
+			{"WBKeyword", "abc"},
+			{"Slash", "/"},
+			{"WBKeyword", "xyz"},
+		}},
 		{"WordBoundaryWhitespace", `WBTEST:abchello xyz world`, []token{
 			{"Ident", "abchello"},
 			{"Whitespace", " "},
@@ -167,8 +174,35 @@ func testLexer(t *testing.T, lex lexer.Definition) {
 			{"Whitespace", " "},
 			{"Ident", "world"},
 		}},
+		// Case to ensure \b doesn't match even if only one character after token would match \b
+		{"WordBoundaryNoMatch1", `WBTEST:abc1 xyz1`, []token{
+			{"Ident", "abc1"},
+			{"Whitespace", " "},
+			{"Ident", "xyz1"},
+		}},
+		{"WordBoundaryNoMatch2", `WBTEST:abc12 xyz12`, []token{
+			{"Ident", "abc12"},
+			{"Whitespace", " "},
+			{"Ident", "xyz12"},
+		}},
 		{"WordBoundaryStartEnd", `WBTEST:xyz`, []token{
 			{"WBKeyword", "xyz"},
+		}},
+		{"WordBoundaryGroupMatch", `WBTEST:hello 90/0 world`, []token{
+			{"Ident", "hello"},
+			{"Whitespace", " "},
+			{"WBGroupKeyword", "90"},
+			{"Slash", "/"},
+			{"WBGroupKeyword", "0"},
+			{"Whitespace", " "},
+			{"Ident", "world"},
+		}},
+		{"WordBoundaryGroupNoMatch", `WBTEST:hello 900 world`, []token{
+			{"Ident", "hello"},
+			{"Whitespace", " "},
+			{"Ident", "900"},
+			{"Whitespace", " "},
+			{"Ident", "world"},
 		}},
 	}
 	symbols := lexer.SymbolsByRune(lex)
