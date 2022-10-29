@@ -2,9 +2,11 @@
 package internal
 
 import (
+	"fmt"
 	"io"
 	"regexp/syntax"
 	"strings"
+	"sync"
 	"unicode/utf8"
 
 	"github.com/alecthomas/participle/v2"
@@ -12,7 +14,11 @@ import (
 )
 
 var _ syntax.Op
+var _ fmt.State
 
+const _ = utf8.RuneError
+
+var GeneratedBasicBackRefCache sync.Map
 var GeneratedBasicLexer lexer.Definition = lexerGeneratedBasicDefinitionImpl{}
 
 type lexerGeneratedBasicDefinitionImpl struct{}
@@ -78,25 +84,25 @@ func (l *lexerGeneratedBasicImpl) Next() (lexer.Token, error) {
 	)
 	switch state.name {
 	case "Root":
-		if match := matchGeneratedBasicString(l.s, l.p); match[1] != 0 {
+		if match := matchGeneratedBasicString(l.s, l.p, l.states[len(l.states)-1].groups); match[1] != 0 {
 			sym = -2
 			groups = match[:]
-		} else if match := matchGeneratedBasicNumber(l.s, l.p); match[1] != 0 {
+		} else if match := matchGeneratedBasicNumber(l.s, l.p, l.states[len(l.states)-1].groups); match[1] != 0 {
 			sym = -3
 			groups = match[:]
-		} else if match := matchGeneratedBasicIdent(l.s, l.p); match[1] != 0 {
+		} else if match := matchGeneratedBasicIdent(l.s, l.p, l.states[len(l.states)-1].groups); match[1] != 0 {
 			sym = -4
 			groups = match[:]
-		} else if match := matchGeneratedBasicPunct(l.s, l.p); match[1] != 0 {
+		} else if match := matchGeneratedBasicPunct(l.s, l.p, l.states[len(l.states)-1].groups); match[1] != 0 {
 			sym = -5
 			groups = match[:]
-		} else if match := matchGeneratedBasicEOL(l.s, l.p); match[1] != 0 {
+		} else if match := matchGeneratedBasicEOL(l.s, l.p, l.states[len(l.states)-1].groups); match[1] != 0 {
 			sym = -6
 			groups = match[:]
-		} else if match := matchGeneratedBasicComment(l.s, l.p); match[1] != 0 {
+		} else if match := matchGeneratedBasicComment(l.s, l.p, l.states[len(l.states)-1].groups); match[1] != 0 {
 			sym = -7
 			groups = match[:]
-		} else if match := matchGeneratedBasicWhitespace(l.s, l.p); match[1] != 0 {
+		} else if match := matchGeneratedBasicWhitespace(l.s, l.p, l.states[len(l.states)-1].groups); match[1] != 0 {
 			sym = -8
 			groups = match[:]
 		}
@@ -106,7 +112,7 @@ func (l *lexerGeneratedBasicImpl) Next() (lexer.Token, error) {
 		if len(sample) > 16 {
 			sample = append(sample[:16], []rune("...")...)
 		}
-		return lexer.Token{}, participle.Errorf(l.pos, "invalid input text %q", sample)
+		return lexer.Token{}, participle.Errorf(l.pos, "invalid input text %q", string(sample))
 	}
 	pos := l.pos
 	span := l.s[groups[0]:groups[1]]
@@ -128,7 +134,7 @@ func (l *lexerGeneratedBasicImpl) sgroups(match []int) []string {
 }
 
 // "(\\"|[^"])*"
-func matchGeneratedBasicString(s string, p int) (groups [4]int) {
+func matchGeneratedBasicString(s string, p int, backrefs []string) (groups [4]int) {
 	// " (Literal)
 	l0 := func(s string, p int) int {
 		if p < len(s) && s[p] == '"' {
@@ -138,7 +144,7 @@ func matchGeneratedBasicString(s string, p int) (groups [4]int) {
 	}
 	// \\" (Literal)
 	l1 := func(s string, p int) int {
-		if p+2 < len(s) && s[p:p+2] == "\\\"" {
+		if p+2 <= len(s) && s[p:p+2] == "\\\"" {
 			return p + 2
 		}
 		return -1
@@ -218,17 +224,14 @@ func matchGeneratedBasicString(s string, p int) (groups [4]int) {
 }
 
 // [\+\-]?([0-9]*\.)?[0-9]+
-func matchGeneratedBasicNumber(s string, p int) (groups [4]int) {
+func matchGeneratedBasicNumber(s string, p int, backrefs []string) (groups [4]int) {
 	// [\+\-] (CharClass)
 	l0 := func(s string, p int) int {
 		if len(s) <= p {
 			return -1
 		}
 		rn := s[p]
-		switch {
-		case rn == '+':
-			return p + 1
-		case rn == '-':
+		if rn == '+' || rn == '-' {
 			return p + 1
 		}
 		return -1
@@ -333,7 +336,7 @@ func matchGeneratedBasicNumber(s string, p int) (groups [4]int) {
 }
 
 // [A-Z_a-z][0-9A-Z_a-z]*
-func matchGeneratedBasicIdent(s string, p int) (groups [2]int) {
+func matchGeneratedBasicIdent(s string, p int, backrefs []string) (groups [2]int) {
 	// [A-Z_a-z] (CharClass)
 	l0 := func(s string, p int) int {
 		if len(s) <= p {
@@ -399,7 +402,7 @@ func matchGeneratedBasicIdent(s string, p int) (groups [2]int) {
 }
 
 // [!-/:-@\[-`\{-~]+
-func matchGeneratedBasicPunct(s string, p int) (groups [2]int) {
+func matchGeneratedBasicPunct(s string, p int, backrefs []string) (groups [2]int) {
 	// [!-/:-@\[-`\{-~] (CharClass)
 	l0 := func(s string, p int) int {
 		if len(s) <= p {
@@ -442,7 +445,7 @@ func matchGeneratedBasicPunct(s string, p int) (groups [2]int) {
 }
 
 // \n
-func matchGeneratedBasicEOL(s string, p int) (groups [2]int) {
+func matchGeneratedBasicEOL(s string, p int, backrefs []string) (groups [2]int) {
 	if p < len(s) && s[p] == '\n' {
 		groups[0] = p
 		groups[1] = p + 1
@@ -451,10 +454,10 @@ func matchGeneratedBasicEOL(s string, p int) (groups [2]int) {
 }
 
 // (?i:REM)[^\n]*(?i:\n)
-func matchGeneratedBasicComment(s string, p int) (groups [2]int) {
+func matchGeneratedBasicComment(s string, p int, backrefs []string) (groups [2]int) {
 	// (?i:REM) (Literal)
 	l0 := func(s string, p int) int {
-		if p+3 < len(s) && s[p:p+3] == "REM" {
+		if p+3 <= len(s) && strings.EqualFold(s[p:p+3], "REM") {
 			return p + 3
 		}
 		return -1
@@ -522,17 +525,14 @@ func matchGeneratedBasicComment(s string, p int) (groups [2]int) {
 }
 
 // [\t ]+
-func matchGeneratedBasicWhitespace(s string, p int) (groups [2]int) {
+func matchGeneratedBasicWhitespace(s string, p int, backrefs []string) (groups [2]int) {
 	// [\t ] (CharClass)
 	l0 := func(s string, p int) int {
 		if len(s) <= p {
 			return -1
 		}
 		rn := s[p]
-		switch {
-		case rn == '\t':
-			return p + 1
-		case rn == ' ':
+		if rn == '\t' || rn == ' ' {
 			return p + 1
 		}
 		return -1

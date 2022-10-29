@@ -10,6 +10,7 @@ import (
 	"regexp/syntax"
 	"sort"
 	"text/template"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/alecthomas/participle/v2/lexer"
@@ -224,7 +225,11 @@ func generateRegexMatch(w io.Writer, lexerName, name, pattern string) error {
 		case syntax.OpLiteral: // matches Runes sequence
 			n := utf8.RuneCountInString(string(re.Rune))
 			if re.Flags&syntax.FoldCase != 0 {
-				fmt.Fprintf(w, "if p+%d <= len(s) && strings.EqualFold(s[p:p+%d], %q) { return p+%d }\n", n, n, string(re.Rune), n)
+				if n == 1 && !unicode.IsLetter(re.Rune[0]) {
+					fmt.Fprintf(w, "if p < len(s) && s[p] == %q { return p+1 }\n", re.Rune[0])
+				} else {
+					fmt.Fprintf(w, "if p+%d <= len(s) && strings.EqualFold(s[p:p+%d], %q) { return p+%d }\n", n, n, string(re.Rune), n)
+				}
 			} else {
 				if n == 1 {
 					fmt.Fprintf(w, "if p < len(s) && s[p] == %q { return p+1 }\n", re.Rune[0])
@@ -237,12 +242,15 @@ func generateRegexMatch(w io.Writer, lexerName, name, pattern string) error {
 		case syntax.OpCharClass: // matches Runes interpreted as range pair list
 			fmt.Fprintf(w, "if len(s) <= p { return -1 }\n")
 			needDecode := false
+			asciiSet := true
 			for i := 0; i < len(re.Rune); i += 2 {
 				l, r := re.Rune[i], re.Rune[i+1]
 				ln, rn := utf8.RuneLen(l), utf8.RuneLen(r)
 				if ln != 1 || rn != 1 {
 					needDecode = true
-					break
+				}
+				if l > 0x7f || r > 0x7f || l != r {
+					asciiSet = false
 				}
 			}
 			if needDecode {
@@ -251,25 +259,44 @@ func generateRegexMatch(w io.Writer, lexerName, name, pattern string) error {
 			} else {
 				fmt.Fprintf(w, "rn := s[p]\n")
 			}
-			fmt.Fprintf(w, "switch {\n")
-			for i := 0; i < len(re.Rune); i += 2 {
-				l, r := re.Rune[i], re.Rune[i+1]
-				ln, rn := utf8.RuneLen(l), utf8.RuneLen(r)
-				if ln == 1 && rn == 1 {
-					if l == r {
-						fmt.Fprintf(w, "case rn == %q: return p+1\n", l)
-					} else {
-						fmt.Fprintf(w, "case rn >= %q && rn <= %q: return p+1\n", l, r)
-					}
+			if asciiSet {
+				if len(re.Rune) == 2 {
+					fmt.Fprintf(w, "if rn == %q { return p+1 }\n", re.Rune[0])
+				} else if len(re.Rune) == 4 {
+					fmt.Fprintf(w, "if rn == %q || rn == %q { return p+1 }\n", re.Rune[0], re.Rune[2])
 				} else {
-					if l == r {
-						fmt.Fprintf(w, "case rn == %q: return p+n\n", l)
+					fmt.Fprintf(w, "switch rn {\n")
+					fmt.Fprintf(w, "case ")
+					for i := 0; i < len(re.Rune); i += 2 {
+						if i != 0 {
+							fmt.Fprintf(w, ",")
+						}
+						fmt.Fprintf(w, "%q", re.Rune[i])
+					}
+					fmt.Fprintf(w, ": return p+1\n")
+					fmt.Fprintf(w, "}\n")
+				}
+			} else {
+				fmt.Fprintf(w, "switch {\n")
+				for i := 0; i < len(re.Rune); i += 2 {
+					l, r := re.Rune[i], re.Rune[i+1]
+					ln, rn := utf8.RuneLen(l), utf8.RuneLen(r)
+					if ln == 1 && rn == 1 {
+						if l == r {
+							fmt.Fprintf(w, "case rn == %q: return p+1\n", l)
+						} else {
+							fmt.Fprintf(w, "case rn >= %q && rn <= %q: return p+1\n", l, r)
+						}
 					} else {
-						fmt.Fprintf(w, "case rn >= %q && rn <= %q: return p+n\n", l, r)
+						if l == r {
+							fmt.Fprintf(w, "case rn == %q: return p+n\n", l)
+						} else {
+							fmt.Fprintf(w, "case rn >= %q && rn <= %q: return p+n\n", l, r)
+						}
 					}
 				}
+				fmt.Fprintf(w, "}\n")
 			}
-			fmt.Fprintf(w, "}\n")
 			fmt.Fprintf(w, "return -1\n")
 
 		case syntax.OpAnyCharNotNL: // matches any character except newline
@@ -382,4 +409,13 @@ func flatten(re *syntax.Regexp) (out []*syntax.Regexp) {
 	}
 	out = append(out, re)
 	return
+}
+
+func isSimpleRuneRange(runes []rune) bool {
+	for i := 0; i < len(runes); i += 2 {
+		if runes[i] != runes[i+1] || utf8.RuneLen(runes[i]) != 1 {
+			return false
+		}
+	}
+	return true
 }
