@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"regexp"
 	"sort"
 	"strconv"
@@ -470,7 +469,6 @@ func BackrefRegex(backrefCache *sync.Map, input string, groups []string) (*regex
 		// concatenate the leading \\\\ which are already escaped to the quoted match.
 		return rematch[1][:len(rematch[1])-1] + regexp.QuoteMeta(groups[n])
 	})
-	fmt.Fprintln(os.Stderr, pattern)
 	if err == nil {
 		re, err = regexp.Compile("^(?:" + pattern + ")")
 	}
