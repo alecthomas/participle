@@ -413,11 +413,32 @@ var basicLexer = stateful.MustSimple([]stateful.SimpleRule{
 ### Experimental - code generation
 
 Participle v2 now has experimental support for generating code to perform
-lexing. Use `participle/experimental/codegen.GenerateLexer()` to compile a
-`stateful` lexer to Go code.
+lexing.
 
 This will generally provide around a 10x improvement in lexing performance
 while producing O(1) garbage.
+
+To use:
+1. Serialize the `stateful` lexer definition to a JSON file (pass to `json.Marshal`).
+2. Run the `participle` command (see `scripts/participle`) to generate go code from the lexer JSON definition. For example:
+```
+participle gen lexer <package name> [--name SomeCustomName] < mylexer.json | gofmt > mypackage/mylexer.go
+```
+(see `genLexer` in `conformance_test.go` for a more detailed example)
+
+3. When constructing your parser, use the generated lexer for your lexer definition, such as:
+```
+var ParserDef = participle.MustBuild[someGrammer](participle.Lexer(mylexer.SomeCustomnameLexer))
+```
+
+Consider contributing to the tests in `conformance_test.go` if they do not
+appear to cover the types of expressions you are using the generated
+lexer.
+
+**Known limitations of the code generated lexer:**
+
+* The lexer is always greedy. e.g., the regex `"[A-Z][A-Z][A-Z]?T"` will not match `"EST"` in the generated lexer because the quest operator is a greedy match and does not "give back" to try other possibilities; you can overcome by using `|` if you have a non-greedy match, e.g., `"[A-Z][A-Z]|(?:[A-Z]T|T)"` will produce correct results in both lexers (see [#276](https://github.com/alecthomas/participle/issues/276) for more detail); this limitation allows the generated lexer to be very fast and memory efficient
+* Backreferences in regular expressions are not currently supported
 
 ## Options
 
