@@ -40,10 +40,6 @@ func visit(n node, visitor func(n node, next func() error) error) error {
 			return visit(n.node, visitor)
 		case *reference:
 			return nil
-		case *optional:
-			return visit(n.node, visitor)
-		case *repetition:
-			return visit(n.node, visitor)
 		case *negation:
 			return visit(n.node, visitor)
 		case *literal:
