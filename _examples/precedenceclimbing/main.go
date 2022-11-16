@@ -103,7 +103,7 @@ func isOp(rn rune) bool {
 	return strings.ContainsRune("+-*/^", rn)
 }
 
-func peek(lex *lexer.PeekingLexer) lexer.Token {
+func peek(lex *lexer.PeekingLexer) *lexer.Token {
 	return lex.Peek()
 }
 

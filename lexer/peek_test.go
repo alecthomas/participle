@@ -27,8 +27,8 @@ func TestUpgrade(t *testing.T) {
 	tokens := []lexer.Token{t0, ts, t1}
 	l, err := lexer.Upgrade(&staticLexer{tokens: tokens}, 3)
 	require.NoError(t, err)
-	require.Equal(t, t0, l.Peek())
-	require.Equal(t, t0, l.Peek())
+	require.Equal(t, t0, *l.Peek())
+	require.Equal(t, t0, *l.Peek())
 	require.Equal(t, tokens, l.Range(0, 3))
 }
 
@@ -49,6 +49,6 @@ func TestPeekAndNextAny(t *testing.T) {
 		{Type: -2, Value: "last", Pos: lexer.Position{Line: 1, Column: 13, Offset: 12}},
 	}
 	tok := plex.Next()
-	require.Equal(t, expected[0], tok)
-	require.Equal(t, expected[2], plex.Peek(), "should have skipped whitespace")
+	require.Equal(t, expected[0], *tok)
+	require.Equal(t, expected[2], *plex.Peek(), "should have skipped whitespace")
 }

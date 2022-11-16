@@ -52,9 +52,9 @@ func (p *PeekingLexer) RawCursor() RawCursor {
 }
 
 // Next consumes and returns the next token.
-func (p *PeekingLexer) Next() Token {
+func (p *PeekingLexer) Next() *Token {
 	for int(p.rawCursor) < len(p.tokens) {
-		t := p.tokens[p.rawCursor]
+		t := &p.tokens[p.rawCursor]
 		p.rawCursor++
 		if p.elide[t.Type] {
 			continue
@@ -62,19 +62,19 @@ func (p *PeekingLexer) Next() Token {
 		p.cursor++
 		return t
 	}
-	return p.eof
+	return &p.eof
 }
 
 // Peek ahead at the next token.
-func (p *PeekingLexer) Peek() Token {
+func (p *PeekingLexer) Peek() *Token {
 	for i := int(p.rawCursor); i < len(p.tokens); i++ {
-		t := p.tokens[i]
+		t := &p.tokens[i]
 		if p.elide[t.Type] {
 			continue
 		}
 		return t
 	}
-	return p.eof
+	return &p.eof
 }
 
 // PeekAny peeks forward over elided and non-elided tokens.
@@ -110,11 +110,11 @@ func (p *PeekingLexer) FastForward(rawCursor RawCursor) {
 // RawPeek peeks ahead at the next raw token.
 //
 // Unlike Peek, this will include elided tokens.
-func (p *PeekingLexer) RawPeek() Token {
+func (p *PeekingLexer) RawPeek() *Token {
 	if int(p.rawCursor) < len(p.tokens) {
-		return p.tokens[p.rawCursor]
+		return &p.tokens[p.rawCursor]
 	}
-	return p.eof
+	return &p.eof
 }
 
 // Clone creates a clone of this PeekingLexer at its current token.
