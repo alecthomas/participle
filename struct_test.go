@@ -19,13 +19,13 @@ func TestStructLexerTokens(t *testing.T) {
 	require.NoError(t, err)
 	t12 := lexer.Token{Type: scanner.Int, Value: "12", Pos: lexer.Position{Filename: "testScanner", Line: 1, Column: 1}}
 	t34 := lexer.Token{Type: scanner.Int, Value: "34", Pos: lexer.Position{Filename: "B", Line: 2, Column: 1}}
-	require.Equal(t, t12, mustPeek(scan))
+	require.Equal(t, t12, *mustPeek(scan))
 	require.Equal(t, 0, scan.field)
-	require.Equal(t, t12, mustNext(scan))
+	require.Equal(t, t12, *mustNext(scan))
 
-	require.Equal(t, t34, mustPeek(scan))
+	require.Equal(t, t34, *mustPeek(scan))
 	require.Equal(t, 0, scan.field)
-	require.Equal(t, t34, mustNext(scan))
+	require.Equal(t, t34, *mustNext(scan))
 	require.Equal(t, 1, scan.field)
 
 	require.True(t, mustNext(scan).EOF())
@@ -75,7 +75,7 @@ func TestCollectFieldIndexes(t *testing.T) {
 	require.Equal(t, [][]int{{0, 0}, {0, 1}, {1}}, indexes)
 }
 
-func mustPeek(scan *structLexer) lexer.Token {
+func mustPeek(scan *structLexer) *lexer.Token {
 	token, err := scan.Peek()
 	if err != nil {
 		panic(err)
@@ -83,7 +83,7 @@ func mustPeek(scan *structLexer) lexer.Token {
 	return token
 }
 
-func mustNext(scan *structLexer) lexer.Token { // nolint: interfacer
+func mustNext(scan *structLexer) *lexer.Token { // nolint: interfacer
 	token, err := scan.Next()
 	if err != nil {
 		panic(err)

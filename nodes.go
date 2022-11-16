@@ -167,14 +167,14 @@ func (s *strct) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Va
 	return []reflect.Value{sv}, ctx.Apply()
 }
 
-func (s *strct) maybeInjectStartToken(token lexer.Token, v reflect.Value) {
+func (s *strct) maybeInjectStartToken(token *lexer.Token, v reflect.Value) {
 	if s.posFieldIndex == nil {
 		return
 	}
 	v.FieldByIndex(s.posFieldIndex).Set(reflect.ValueOf(token.Pos))
 }
 
-func (s *strct) maybeInjectEndToken(token lexer.Token, v reflect.Value) {
+func (s *strct) maybeInjectEndToken(token *lexer.Token, v reflect.Value) {
 	if s.endPosFieldIndex == nil {
 		return
 	}
@@ -382,7 +382,7 @@ func (s *sequence) Parse(ctx *parseContext, parent reflect.Value) (out []reflect
 				return nil, nil
 			}
 			token := ctx.Peek()
-			return out, &UnexpectedTokenError{Unexpected: token, at: n}
+			return out, &UnexpectedTokenError{Unexpected: *token, at: n}
 		}
 		// Special-case for when children return an empty match.
 		// Appending an empty, non-nil slice to a nil slice returns a nil slice.

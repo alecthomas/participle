@@ -7,7 +7,4 @@ require (
 	github.com/alecthomas/repr v0.1.0
 )
 
-require (
-	github.com/hexops/gotextdiff v1.0.3 // indirect
-	github.com/mitchellh/mapstructure v1.5.0
-)
+require github.com/hexops/gotextdiff v1.0.3 // indirect

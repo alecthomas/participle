@@ -244,8 +244,7 @@ func TestLexerConformance(t *testing.T) {
 	testLexer(t, conformanceLexer)
 }
 
-func genLexer(t *testing.T) {
-	t.Helper()
+func genLexer(t *testing.T) { //nolint: thelper
 	lexerJSON, err := json.Marshal(conformanceLexer)
 	assert.NoError(t, err)
 	cwd, err := os.Getwd()
@@ -260,7 +259,7 @@ func genLexer(t *testing.T) {
 		"--tags", "generated",
 		"--name", "GeneratedConformance",
 		"--output", generatedConformanceLexer)
-	cmd.Stdout = os.Stdout
+	cmd.Stdout = os.Stderr
 	cmd.Stderr = os.Stderr
 	w, err := cmd.StdinPipe()
 	assert.NoError(t, err)
