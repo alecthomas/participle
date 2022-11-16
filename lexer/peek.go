@@ -123,3 +123,11 @@ func (p *PeekingLexer) FastForward(rawCursor RawCursor) {
 	p.nextCursor = p.rawCursor
 	p.advanceToNonElided()
 }
+
+func (p *PeekingLexer) MakeCheckpoint() Checkpoint {
+	return p.Checkpoint
+}
+
+func (p *PeekingLexer) LoadCheckpoint(checkpoint Checkpoint) {
+	p.Checkpoint = checkpoint
+}
