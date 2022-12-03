@@ -18,7 +18,7 @@ type contextFieldSet struct {
 
 // Context for a single parse.
 type parseContext struct {
-	*lexer.PeekingLexer
+	lexer.PeekingLexer
 	depth             int
 	trace             io.Writer
 	deepestError      error
@@ -31,7 +31,7 @@ type parseContext struct {
 
 func newParseContext(lex *lexer.PeekingLexer, lookahead int, caseInsensitive map[lexer.TokenType]bool) *parseContext {
 	return &parseContext{
-		PeekingLexer:    lex,
+		PeekingLexer:    *lex,
 		caseInsensitive: caseInsensitive,
 		lookahead:       lookahead,
 	}
@@ -78,7 +78,6 @@ func (p *parseContext) Branch() *parseContext {
 	branch := &parseContext{}
 	*branch = *p
 	branch.apply = nil
-	branch.PeekingLexer = p.PeekingLexer.Clone()
 	return branch
 }
 

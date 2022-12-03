@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	require "github.com/alecthomas/assert/v2"
+
 	"github.com/alecthomas/participle/v2/lexer"
 )
 
@@ -32,7 +33,7 @@ func TestUpgrade(t *testing.T) {
 	require.Equal(t, tokens, l.Range(0, 3))
 }
 
-func TestPeekAndNextAny(t *testing.T) {
+func TestPeekingLexer_Peek_Next_Checkpoint(t *testing.T) {
 	slexdef := lexer.MustSimple([]lexer.SimpleRule{
 		{"Ident", `\w+`},
 		{"Whitespace", `\s+`},
@@ -48,7 +49,25 @@ func TestPeekAndNextAny(t *testing.T) {
 		{Type: -3, Value: " ", Pos: lexer.Position{Line: 1, Column: 12, Offset: 11}},
 		{Type: -2, Value: "last", Pos: lexer.Position{Line: 1, Column: 13, Offset: 12}},
 	}
-	tok := plex.Next()
-	require.Equal(t, expected[0], *tok)
+	checkpoint := plex.Checkpoint
+	require.Equal(t, expected[0], *plex.Next())
 	require.Equal(t, expected[2], *plex.Peek(), "should have skipped whitespace")
+	plex.Checkpoint = checkpoint
+	require.Equal(t, expected[0], *plex.Peek(), "should have reverted to pre-Next state")
+}
+
+func BenchmarkPeekingLexer_Peek(b *testing.B) {
+	tokens := []lexer.Token{{Type: 1, Value: "x"}, {Type: 3, Value: " "}, {Type: 2, Value: "y"}}
+	l, err := lexer.Upgrade(&staticLexer{tokens: tokens}, 3)
+	require.NoError(b, err)
+	l.Next()
+	t := l.Peek()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		t = l.Peek()
+		if t.EOF() {
+			return
+		}
+	}
+	require.Equal(b, lexer.Token{Type: 2, Value: "y"}, *t)
 }
