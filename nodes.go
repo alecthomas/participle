@@ -294,16 +294,16 @@ type lookaheadGroup struct {
 	negative bool
 }
 
-func (n *lookaheadGroup) String() string   { return ebnf(n) }
-func (n *lookaheadGroup) GoString() string { return "lookaheadGroup{}" }
+func (l *lookaheadGroup) String() string   { return ebnf(l) }
+func (l *lookaheadGroup) GoString() string { return "lookaheadGroup{}" }
 
-func (n *lookaheadGroup) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
-	defer ctx.printTrace(n)()
+func (l *lookaheadGroup) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
+	defer ctx.printTrace(l)()
 	// Create a branch to avoid advancing the parser as any match will be discarded
 	branch := ctx.Branch()
-	out, err = n.expr.Parse(branch, parent)
+	out, err = l.expr.Parse(branch, parent)
 	matchedLookahead := err == nil && out != nil
-	expectingMatch := !n.negative
+	expectingMatch := !l.negative
 	if matchedLookahead != expectingMatch {
 		return nil, &UnexpectedTokenError{Unexpected: *ctx.Peek()}
 	}
