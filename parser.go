@@ -167,13 +167,13 @@ func (p *Parser[G]) ParseFromLexer(lex *lexer.PeekingLexer, options ...ParseOpti
 	ctx := newParseContext(lex, p.useLookahead, p.caseInsensitiveTokens)
 	defer func() { *lex = ctx.PeekingLexer }()
 	for _, option := range options {
-		option(ctx)
+		option(&ctx)
 	}
 	// If the grammar implements Parseable, use it.
 	if parseable, ok := any(v).(Parseable); ok {
-		return v, p.rootParseable(ctx, parseable)
+		return v, p.rootParseable(&ctx, parseable)
 	}
-	return v, p.parseOne(ctx, parseNode, rv)
+	return v, p.parseOne(&ctx, parseNode, rv)
 }
 
 func (p *Parser[G]) setCaseInsensitiveTokens() {
