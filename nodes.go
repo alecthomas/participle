@@ -591,7 +591,7 @@ func conform(t reflect.Type, values []reflect.Value) (out []reflect.Value, err e
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 			n, err := strconv.ParseInt(v.String(), 0, sizeOfKind(kind))
 			if err != nil {
-				return nil, fmt.Errorf("invalid integer %q: %s", v.String(), err)
+				return nil, err
 			}
 			v = reflect.New(t).Elem()
 			v.SetInt(n)
@@ -599,7 +599,7 @@ func conform(t reflect.Type, values []reflect.Value) (out []reflect.Value, err e
 		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 			n, err := strconv.ParseUint(v.String(), 0, sizeOfKind(kind))
 			if err != nil {
-				return nil, fmt.Errorf("invalid integer %q: %s", v.String(), err)
+				return nil, err
 			}
 			v = reflect.New(t).Elem()
 			v.SetUint(n)
@@ -610,7 +610,7 @@ func conform(t reflect.Type, values []reflect.Value) (out []reflect.Value, err e
 		case reflect.Float32, reflect.Float64:
 			n, err := strconv.ParseFloat(v.String(), sizeOfKind(kind))
 			if err != nil {
-				return nil, fmt.Errorf("invalid float %q: %s", v.String(), err)
+				return nil, err
 			}
 			v = reflect.New(t).Elem()
 			v.SetFloat(n)
