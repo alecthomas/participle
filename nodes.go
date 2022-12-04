@@ -306,8 +306,7 @@ func (n *lookaheadGroup) Parse(ctx *parseContext, parent reflect.Value) (out []r
 	matchedLookahead := err == nil && out != nil
 	expectingMatch := !n.negative
 	if matchedLookahead != expectingMatch {
-		peek := ctx.Peek()
-		return nil, Errorf(peek.Pos, "unexpected '%s'", peek.Value)
+		return nil, &UnexpectedTokenError{Unexpected: *ctx.Peek()}
 	}
 	return []reflect.Value{}, nil // Empty match slice means a match, unlike nil
 }
@@ -556,7 +555,7 @@ func (n *negation) Parse(ctx *parseContext, parent reflect.Value) (out []reflect
 	out, err = n.node.Parse(branch, parent)
 	if out != nil && err == nil {
 		// out being non-nil means that what we don't want is actually here, so we report nomatch
-		return nil, Errorf(notEOF.Pos, "unexpected '%s'", notEOF.Value)
+		return nil, &UnexpectedTokenError{Unexpected: *notEOF}
 	}
 
 	// Just give the next token

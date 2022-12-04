@@ -1226,6 +1226,20 @@ func TestNegationWithDisjunction(t *testing.T) {
 	require.Equal(t, &[]string{"hello", "world", ","}, ast.EverythingMoreComplex)
 }
 
+func TestNegationLookaheadError(t *testing.T) {
+	type grammar struct {
+		Stuff []string `@Ident @!('.' | '#') @Ident`
+	}
+	p := mustTestParser[grammar](t)
+
+	ast, err := p.ParseString("", `hello, world`)
+	require.NoError(t, err)
+	require.Equal(t, []string{"hello", ",", "world"}, ast.Stuff)
+
+	_, err = p.ParseString("", `hello . world`)
+	require.EqualError(t, err, `1:7: unexpected token "."`)
+}
+
 func TestLookaheadGroup_Positive_SingleToken(t *testing.T) {
 	type val struct {
 		Str string `  @String`
@@ -1253,10 +1267,10 @@ func TestLookaheadGroup_Positive_SingleToken(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, &sum{Left: val{Int: 1}, Ops: []op{{"*", val{Int: 2}}, {"*", val{Int: 3}}}}, ast)
 
-	_, err = p.ParseString("", `"a" * "x" + "b"`)
-	require.EqualError(t, err, `1:7: unexpected '"x"'`)
+	_, err = p.ParseString("", `"a" * 'x' + "b"`)
+	require.EqualError(t, err, `1:7: unexpected token "'x'"`)
 	_, err = p.ParseString("", `4 * 2 + 0 * "b"`)
-	require.EqualError(t, err, `1:13: unexpected '"b"'`)
+	require.EqualError(t, err, `1:13: unexpected token "\"b\""`)
 }
 
 func TestLookaheadGroup_Negative_SingleToken(t *testing.T) {
