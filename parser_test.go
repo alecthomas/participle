@@ -742,13 +742,18 @@ func TestEmptyStructErrorsNotPanicsIssue21(t *testing.T) {
 
 func TestMultipleTokensIntoScalar(t *testing.T) {
 	type grammar struct {
-		Field int `@("-" Int)`
+		Field int `@("-"? Int)`
 	}
 	p, err := participle.Build[grammar]()
 	require.NoError(t, err)
 	actual, err := p.ParseString("", `- 10`)
 	require.NoError(t, err)
 	require.Equal(t, -10, actual.Field)
+
+	_, err = p.ParseString("", `x`)
+	require.EqualError(t, err, `1:1: unexpected token "x" (expected <int>)`)
+	_, err = p.ParseString("", ` `)
+	require.EqualError(t, err, `1:2: unexpected token "<EOF>" (expected <int>)`)
 }
 
 type posMixin struct {

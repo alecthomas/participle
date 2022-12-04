@@ -755,6 +755,9 @@ func setField(tokens []lexer.Token, strct reflect.Value, field structLexerField,
 	if err != nil {
 		return err
 	}
+	if len(fieldValue) == 0 {
+		return nil // Nothing to capture, can happen when trying to get a partial parse tree
+	}
 
 	fv := fieldValue[0]
 
