@@ -97,7 +97,7 @@ func (c *custom) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.V
 // @@ (for a union)
 type union struct {
 	unionDef
-	nodeMembers []node
+	disjunction disjunction
 }
 
 func (u *union) String() string   { return ebnf(u) }
@@ -105,8 +105,7 @@ func (u *union) GoString() string { return u.typ.Name() }
 
 func (u *union) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	defer ctx.printTrace(u)()
-	temp := disjunction{u.nodeMembers}
-	vals, err := temp.Parse(ctx, parent)
+	vals, err := u.disjunction.Parse(ctx, parent)
 	if err != nil {
 		return nil, err
 	}

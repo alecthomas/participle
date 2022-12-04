@@ -62,7 +62,7 @@ func buildEBNF(root bool, n node, seen map[node]bool, p *ebnfp, outp *[]*ebnfp) 
 		p = &ebnfp{name: name}
 		*outp = append(*outp, p)
 		seen[n] = true
-		for i, next := range n.nodeMembers {
+		for i, next := range n.disjunction.nodes {
 			if i > 0 {
 				p.out += " | "
 			}
