@@ -21,15 +21,16 @@ type customDef struct {
 }
 
 type parserOptions struct {
-	lex             lexer.Definition
-	rootType        reflect.Type
-	typeNodes       map[reflect.Type]node
-	useLookahead    int
-	caseInsensitive map[string]bool
-	mappers         []mapperByToken
-	unionDefs       []unionDef
-	customDefs      []customDef
-	elide           []string
+	lex                   lexer.Definition
+	rootType              reflect.Type
+	typeNodes             map[reflect.Type]node
+	useLookahead          int
+	caseInsensitive       map[string]bool
+	caseInsensitiveTokens map[lexer.TokenType]bool
+	mappers               []mapperByToken
+	unionDefs             []unionDef
+	customDefs            []customDef
+	elide                 []string
 }
 
 // A Parser for a particular grammar and lexer.
@@ -132,6 +133,7 @@ func Build[G any](options ...Option) (parser *Parser[G], err error) {
 	}
 	p.typeNodes = context.typeNodes
 	p.typeNodes[p.rootType] = rootNode
+	p.setCaseInsensitiveTokens()
 	return p, nil
 }
 
@@ -162,22 +164,25 @@ func (p *Parser[G]) ParseFromLexer(lex *lexer.PeekingLexer, options ...ParseOpti
 	if err != nil {
 		return nil, err
 	}
-	caseInsensitive := map[lexer.TokenType]bool{}
-	for sym, tt := range p.lex.Symbols() {
-		if p.caseInsensitive[sym] {
-			caseInsensitive[tt] = true
-		}
-	}
-	ctx := newParseContext(lex, p.useLookahead, caseInsensitive)
+	ctx := newParseContext(lex, p.useLookahead, p.caseInsensitiveTokens)
 	defer func() { *lex = ctx.PeekingLexer }()
 	for _, option := range options {
-		option(ctx)
+		option(&ctx)
 	}
 	// If the grammar implements Parseable, use it.
 	if parseable, ok := any(v).(Parseable); ok {
-		return v, p.rootParseable(ctx, parseable)
+		return v, p.rootParseable(&ctx, parseable)
 	}
-	return v, p.parseOne(ctx, parseNode, rv)
+	return v, p.parseOne(&ctx, parseNode, rv)
+}
+
+func (p *Parser[G]) setCaseInsensitiveTokens() {
+	p.caseInsensitiveTokens = map[lexer.TokenType]bool{}
+	for sym, tt := range p.lex.Symbols() {
+		if p.caseInsensitive[sym] {
+			p.caseInsensitiveTokens[tt] = true
+		}
+	}
 }
 
 func (p *Parser[G]) parse(lex lexer.Lexer, options ...ParseOption) (v *G, err error) {

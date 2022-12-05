@@ -12,6 +12,7 @@ import (
 	"text/scanner"
 
 	require "github.com/alecthomas/assert/v2"
+
 	"github.com/alecthomas/participle/v2"
 	"github.com/alecthomas/participle/v2/lexer"
 )
@@ -200,8 +201,9 @@ func TestRepetitionAcrossFields(t *testing.T) {
 }
 
 func TestAccumulateString(t *testing.T) {
+	type customString string
 	type testAccumulateString struct {
-		A string `@"."+`
+		A customString `@"."+`
 	}
 
 	parser := mustTestParser[testAccumulateString](t)
@@ -741,13 +743,18 @@ func TestEmptyStructErrorsNotPanicsIssue21(t *testing.T) {
 
 func TestMultipleTokensIntoScalar(t *testing.T) {
 	type grammar struct {
-		Field int `@("-" Int)`
+		Field int `@("-"? Int)`
 	}
 	p, err := participle.Build[grammar]()
 	require.NoError(t, err)
 	actual, err := p.ParseString("", `- 10`)
 	require.NoError(t, err)
 	require.Equal(t, -10, actual.Field)
+
+	_, err = p.ParseString("", `x`)
+	require.EqualError(t, err, `1:1: unexpected token "x" (expected <int>)`)
+	_, err = p.ParseString("", ` `)
+	require.EqualError(t, err, `1:2: unexpected token "<EOF>" (expected <int>)`)
 }
 
 type posMixin struct {
@@ -1220,6 +1227,20 @@ func TestNegationWithDisjunction(t *testing.T) {
 	require.Equal(t, &[]string{"hello", "world", ","}, ast.EverythingMoreComplex)
 }
 
+func TestNegationLookaheadError(t *testing.T) {
+	type grammar struct {
+		Stuff []string `@Ident @!('.' | '#') @Ident`
+	}
+	p := mustTestParser[grammar](t)
+
+	ast, err := p.ParseString("", `hello, world`)
+	require.NoError(t, err)
+	require.Equal(t, []string{"hello", ",", "world"}, ast.Stuff)
+
+	_, err = p.ParseString("", `hello . world`)
+	require.EqualError(t, err, `1:7: unexpected token "."`)
+}
+
 func TestLookaheadGroup_Positive_SingleToken(t *testing.T) {
 	type val struct {
 		Str string `  @String`
@@ -1247,10 +1268,10 @@ func TestLookaheadGroup_Positive_SingleToken(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, &sum{Left: val{Int: 1}, Ops: []op{{"*", val{Int: 2}}, {"*", val{Int: 3}}}}, ast)
 
-	_, err = p.ParseString("", `"a" * "x" + "b"`)
-	require.EqualError(t, err, `1:7: unexpected '"x"'`)
+	_, err = p.ParseString("", `"a" * 'x' + "b"`)
+	require.EqualError(t, err, `1:7: unexpected token "'x'"`)
 	_, err = p.ParseString("", `4 * 2 + 0 * "b"`)
-	require.EqualError(t, err, `1:13: unexpected '"b"'`)
+	require.EqualError(t, err, `1:13: unexpected token "\"b\""`)
 }
 
 func TestLookaheadGroup_Negative_SingleToken(t *testing.T) {
@@ -1863,4 +1884,22 @@ func TestIssue255(t *testing.T) {
 	g, err := parser.ParseString("", `"Hello, World!"`)
 	require.NoError(t, err)
 	require.Equal(t, &I255Grammar{Union: &I255String{Value: `"Hello, World!"`}}, g)
+}
+
+func TestParseNumbers(t *testing.T) {
+	type grammar struct {
+		Int   int8    `@('-'? Int)`
+		Uint  uint16  `@('-'? Int)`
+		Float float64 `@Ident`
+	}
+	parser := participle.MustBuild[grammar]()
+	_, err := parser.ParseString("", `300 0 x`)
+	require.EqualError(t, err, `grammar.Int: strconv.ParseInt: parsing "300": value out of range`)
+	_, err = parser.ParseString("", `-2 -2 x`)
+	require.EqualError(t, err, `grammar.Uint: strconv.ParseUint: parsing "-2": invalid syntax`)
+	_, err = parser.ParseString("", `0 0 nope`)
+	require.EqualError(t, err, `grammar.Float: strconv.ParseFloat: parsing "nope": invalid syntax`)
+	result, err := parser.ParseString("", `-30 3000 Inf`)
+	require.NoError(t, err)
+	require.Equal(t, grammar{Int: -30, Uint: 3000, Float: math.Inf(1)}, *result)
 }
