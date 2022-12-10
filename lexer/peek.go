@@ -1,5 +1,7 @@
 package lexer
 
+import "sync"
+
 // PeekingLexer supports arbitrary lookahead as well as cloning.
 type PeekingLexer struct {
 	Checkpoint
@@ -26,6 +28,10 @@ func Upgrade(lex Lexer, elide ...TokenType) (*PeekingLexer, error) {
 	r := &PeekingLexer{
 		elide: make(map[TokenType]bool, len(elide)),
 	}
+	return fillInPeekingLexer(lex, r, elide...)
+}
+
+func fillInPeekingLexer(lex Lexer, r *PeekingLexer, elide ...TokenType) (*PeekingLexer, error) {
 	for _, rn := range elide {
 		r.elide[rn] = true
 	}
@@ -41,6 +47,41 @@ func Upgrade(lex Lexer, elide ...TokenType) (*PeekingLexer, error) {
 	}
 	r.advanceToNonElided()
 	return r, nil
+}
+
+var peekingLexerPool = sync.Pool{
+	New: func() interface{} {
+		return &PeekingLexer{
+			elide: make(map[TokenType]bool, 4),
+		}
+	},
+}
+
+// Upgrade a Lexer to a PeekingLexer with arbitrary lookahead.
+// Faster if you need to lex thousands of similar documents.
+//
+// "elide" is a slice of token types to elide from processing.
+//
+// You must call `PutBackPooledPeekingLexer` once done with the
+// returned lexer in all cases (ok or error).
+func UpgradePooled(lex Lexer, elide ...TokenType) (*PeekingLexer, error) {
+	r := peekingLexerPool.Get().(*PeekingLexer)
+	// reset the state of the PeekingLexer to empty (preserving any allocated capacity)
+	r.Checkpoint.cursor = 0
+	r.Checkpoint.rawCursor = 0
+	r.Checkpoint.nextCursor = 0
+	// note: this preserves capacity
+	r.tokens = r.tokens[:0]
+	for k := range r.elide {
+		delete(r.elide, k)
+	}
+	return fillInPeekingLexer(lex, r, elide...)
+}
+
+func PutBackPooledPeekingLexer(r *PeekingLexer) {
+	if r != nil {
+		peekingLexerPool.Put(r)
+	}
 }
 
 // Range returns the slice of tokens between the two cursor points.
