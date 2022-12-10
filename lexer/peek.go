@@ -63,13 +63,15 @@ var peekingLexerPool = sync.Pool{
 // "elide" is a slice of token types to elide from processing.
 //
 // You must call `PutBackPooledPeekingLexer` once done with the
-// returned lexer in all cases (ok or error).
+// returned lexer in all cases (ok or error). If you use the lexer with
+// the parser (`Parser.ParseFromLexer`), note that the parsed results
+// might refer back to lexer tokens, in which case you should not call
+// PutBackPooledPeekingLexer until you have finished with the parser
+// results as well.
 func UpgradePooled(lex Lexer, elide ...TokenType) (*PeekingLexer, error) {
 	r := peekingLexerPool.Get().(*PeekingLexer)
 	// reset the state of the PeekingLexer to empty (preserving any allocated capacity)
-	r.Checkpoint.cursor = 0
-	r.Checkpoint.rawCursor = 0
-	r.Checkpoint.nextCursor = 0
+	r.Checkpoint = Checkpoint{}
 	// note: this preserves capacity
 	r.tokens = r.tokens[:0]
 	for k := range r.elide {
