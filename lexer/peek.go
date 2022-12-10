@@ -57,8 +57,8 @@ var peekingLexerPool = sync.Pool{
 	},
 }
 
-// Upgrade a Lexer to a PeekingLexer with arbitrary lookahead.
-// Faster if you need to lex thousands of similar documents.
+// UpgradePooled will upgrade a Lexer to a PeekingLexer with arbitrary
+// lookahead. Faster if you need to lex thousands of similar documents.
 //
 // "elide" is a slice of token types to elide from processing.
 //

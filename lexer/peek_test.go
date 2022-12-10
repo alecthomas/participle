@@ -89,8 +89,8 @@ func BenchmarkPeekingLexer_Peek(b *testing.B) {
 func generateTokenArray(sz int) []lexer.Token {
 	tokens := make([]lexer.Token, sz)
 	for i := range tokens {
-		tokens[i].Type = lexer.TokenType(rand.Int() % 3)
-		tokens[i].Value = string([]byte{byte('a' + (rand.Int() % 26))})
+		tokens[i].Type = lexer.TokenType(rand.Int() % 3)                /* #nosec */
+		tokens[i].Value = string([]byte{byte('a' + (rand.Int() % 26))}) /* #nosec */
 	}
 	return tokens
 }
