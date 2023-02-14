@@ -27,26 +27,26 @@ type Expression struct {
 
 type Equality struct {
 	Comparison *Comparison `@@`
-	Op         string      `[ @( "!" "=" | "=" "=" )`
-	Next       *Equality   `  @@ ]`
+	Op         string      `( @( "!" "=" | "=" "=" )`
+	Next       *Equality   `  @@ )*`
 }
 
 type Comparison struct {
 	Addition *Addition   `@@`
-	Op       string      `[ @( ">" | ">" "=" | "<" | "<" "=" )`
-	Next     *Comparison `  @@ ]`
+	Op       string      `( @( ">" | ">" "=" | "<" | "<" "=" )`
+	Next     *Comparison `  @@ )*`
 }
 
 type Addition struct {
 	Multiplication *Multiplication `@@`
-	Op             string          `[ @( "-" | "+" )`
-	Next           *Addition       `  @@ ]`
+	Op             string          `( @( "-" | "+" )`
+	Next           *Addition       `  @@ )*`
 }
 
 type Multiplication struct {
 	Unary *Unary          `@@`
-	Op    string          `[ @( "/" | "*" )`
-	Next  *Multiplication `  @@ ]`
+	Op    string          `( @( "/" | "*" )`
+	Next  *Multiplication `  @@ )*`
 }
 
 type Unary struct {
