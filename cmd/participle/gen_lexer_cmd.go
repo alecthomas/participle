@@ -17,11 +17,11 @@ import (
 )
 
 type genLexerCmd struct {
-	Name    string `help:"Name of the lexer."`
-	Output  string `short:"o" help:"Output file."`
-	Tags    string `help:"Build tags to include in the generated file."`
-	Package string `arg:"" required:"" help:"Go package for generated code."`
-	Lexer   string `arg:"" default:"-" type:"existingfile" help:"JSON representation of a Participle lexer (read from stdin if omitted)."`
+	Name    string   `help:"Name of the lexer."`
+	Output  string   `short:"o" help:"Output file."`
+	Tags    string   `help:"Build tags to include in the generated file."`
+	Package string   `arg:"" required:"" help:"Go package for generated code."`
+	Lexer   *os.File `arg:"" default:"-" help:"JSON representation of a Participle lexer (read from stdin if omitted)."`
 }
 
 func (c *genLexerCmd) Help() string {
@@ -33,20 +33,8 @@ per token.
 }
 
 func (c *genLexerCmd) Run() error {
-	var r *os.File
-	if c.Lexer == "-" {
-		r = os.Stdin
-	} else {
-		var err error
-		r, err = os.Open(c.Lexer)
-		if err != nil {
-			return err
-		}
-		defer r.Close()
-	}
-
 	rules := lexer.Rules{}
-	err := json.NewDecoder(r).Decode(&rules)
+	err := json.NewDecoder(c.Lexer).Decode(&rules)
 	if err != nil {
 		return err
 	}
