@@ -3,6 +3,7 @@
   "extends": [
     "config:base"
   ],
+  automerge: true,
   automergeType: 'branch',
   separateMinorPatch: false,
 }
