@@ -255,16 +255,16 @@ func TestIssue28(t *testing.T) {
 //
 // eg.
 //
-// 		0.	groups = [
-//   			{history: [">"] roots: [0, 1]},
-// 				{history: ["<"], roots: [2, 3]},
-//     		]
-//      1.	groups = [
-//      		{history: [">", "="], roots: [0]},
-//         		{history: [">"], roots: [1]},
-//         		{history: ["<", "="], roots: [2]},
-//         		{history: ["<"], roots: [3]},
-//           ]
+//  0. groups = [
+//     {history: [">"] roots: [0, 1]},
+//     {history: ["<"], roots: [2, 3]},
+//     ]
+//  1. groups = [
+//     {history: [">", "="], roots: [0]},
+//     {history: [">"], roots: [1]},
+//     {history: ["<", "="], roots: [2]},
+//     {history: ["<"], roots: [3]},
+//     ]
 func TestLookaheadWithConvergingTokens(t *testing.T) {
 	type grammar struct {
 		Left string   `@Ident`

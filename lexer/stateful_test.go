@@ -243,6 +243,30 @@ func ExampleNew() {
 		log.Fatal(err)
 	}
 	repr.Println(actual)
+	// Output: &lexer_test.String{
+	//   Fragments: []*lexer_test.Fragment{
+	//     {
+	//       Text: "hello ",
+	//     },
+	//     {
+	//       Expr: &lexer_test.Expr{
+	//         Left: &lexer_test.Terminal{
+	//           Ident: "user",
+	//         },
+	//         Op: "+",
+	//         Right: &lexer_test.Terminal{
+	//           String: &lexer_test.String{
+	//             Fragments: []*lexer_test.Fragment{
+	//               {
+	//                 Text: "??",
+	//               },
+	//             },
+	//           },
+	//         },
+	//       },
+	//     },
+	//   },
+	// }
 }
 
 type String struct {

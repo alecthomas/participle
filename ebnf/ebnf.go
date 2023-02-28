@@ -2,12 +2,12 @@
 //
 // The self-referential EBNF is:
 //
-//      EBNF = Production* .
-//      Production = <ident> "=" Expression "." .
-//      Expression = Sequence ("|" Sequence)* .
-//      SubExpression = "(" ("?!" | "?=")? Expression ")" .
-//      Sequence = Term+ .
-//      Term = "~"? (<ident> | <string> | ("<" <ident> ">") | SubExpression) ("*" | "+" | "?" | "!")? .
+//	EBNF = Production* .
+//	Production = <ident> "=" Expression "." .
+//	Expression = Sequence ("|" Sequence)* .
+//	SubExpression = "(" ("?!" | "?=")? Expression ")" .
+//	Sequence = Term+ .
+//	Term = "~"? (<ident> | <string> | ("<" <ident> ">") | SubExpression) ("*" | "+" | "?" | "!")? .
 package ebnf
 
 import (
