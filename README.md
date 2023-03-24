@@ -600,7 +600,7 @@ There are a few areas where Participle can provide useful feedback to users of y
    populated from the nearest matching token.
 4. Any node in the AST containing a field `EndPos lexer.Position` [^1] will be
    automatically populated from the token at the end of the node.
-5. Any node in the AST containing a field `Tokens []lexer.Token` [^1] will be automatically
+5. Any node in the AST containing a field `Tokens []lexer.Token` will be automatically
    populated with _all_ tokens captured by the node, _including_ elided tokens.
 
 [^1]: Either the concrete type or a type convertible to it, allowing user defined types to be used.
