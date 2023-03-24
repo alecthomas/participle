@@ -131,11 +131,11 @@ func newStrct(typ reflect.Type) *strct {
 		usages: 1,
 	}
 	field, ok := typ.FieldByName("Pos")
-	if ok && field.Type == positionType {
+	if ok && positionType.ConvertibleTo(field.Type) {
 		s.posFieldIndex = field.Index
 	}
 	field, ok = typ.FieldByName("EndPos")
-	if ok && field.Type == positionType {
+	if ok && positionType.ConvertibleTo(field.Type) {
 		s.endPosFieldIndex = field.Index
 	}
 	field, ok = typ.FieldByName("Tokens")
@@ -172,14 +172,16 @@ func (s *strct) maybeInjectStartToken(token *lexer.Token, v reflect.Value) {
 	if s.posFieldIndex == nil {
 		return
 	}
-	v.FieldByIndex(s.posFieldIndex).Set(reflect.ValueOf(token.Pos))
+	f := v.FieldByIndex(s.posFieldIndex)
+	f.Set(reflect.ValueOf(token.Pos).Convert(f.Type()))
 }
 
 func (s *strct) maybeInjectEndToken(token *lexer.Token, v reflect.Value) {
 	if s.endPosFieldIndex == nil {
 		return
 	}
-	v.FieldByIndex(s.endPosFieldIndex).Set(reflect.ValueOf(token.Pos))
+	f := v.FieldByIndex(s.endPosFieldIndex)
+	f.Set(reflect.ValueOf(token.Pos).Convert(f.Type()))
 }
 
 func (s *strct) maybeInjectTokens(tokens []lexer.Token, v reflect.Value) {

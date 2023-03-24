@@ -596,12 +596,14 @@ There are a few areas where Participle can provide useful feedback to users of y
 	1. Of type [Error](https://pkg.go.dev/github.com/alecthomas/participle/v2#Error). This will contain positional information where available.
 	2. May either be [ParseError](https://pkg.go.dev/github.com/alecthomas/participle/v2#ParseError) or [lexer.Error](https://pkg.go.dev/github.com/alecthomas/participle/v2/lexer#Error)
 2. Participle will make a best effort to return as much of the AST up to the error location as possible.
-3. Any node in the AST containing a field `Pos lexer.Position` will be automatically
+3. Any node in the AST containing a field `Pos lexer.Position` [^1] will be automatically
    populated from the nearest matching token.
-4. Any node in the AST containing a field `EndPos lexer.Position` will be
+4. Any node in the AST containing a field `EndPos lexer.Position` [^1] will be
    automatically populated from the token at the end of the node.
-5. Any node in the AST containing a field `Tokens []lexer.Token` will be automatically
+5. Any node in the AST containing a field `Tokens []lexer.Token` [^1] will be automatically
    populated with _all_ tokens captured by the node, _including_ elided tokens.
+
+[^1]: Either the concrete type or a type convertible to it, allowing user defined types to be used.
 
 These related pieces of information can be combined to provide fairly comprehensive error reporting.
 
