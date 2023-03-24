@@ -12,3 +12,40 @@ func TestExe(t *testing.T) {
 	repr.Println(expr)
 	require.NoError(t, err)
 }
+
+func toPtr[T any](x T) *T {
+	return &x
+}
+
+func TestExe_BoolFalse(t *testing.T) {
+	got, err := parser.ParseString("", `1 + false`)
+
+	expected := &Expression{
+		Equality: &Equality{
+			Comparison: &Comparison{
+				Addition: &Addition{
+					Multiplication: &Multiplication{
+						Unary: &Unary{
+							Primary: &Primary{
+								Number: toPtr(float64(1)),
+							},
+						},
+					},
+					Op: "+",
+					Next: &Addition{
+						Multiplication: &Multiplication{
+							Unary: &Unary{
+								Primary: &Primary{
+									Bool: toPtr(false),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	require.NoError(t, err)
+	require.Equal(t, expected, got)
+}
