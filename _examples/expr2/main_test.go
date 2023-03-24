@@ -36,7 +36,7 @@ func TestExe_BoolFalse(t *testing.T) {
 						Multiplication: &Multiplication{
 							Unary: &Unary{
 								Primary: &Primary{
-									Bool: toPtr(false),
+									Bool: toPtr(Boolean(false)),
 								},
 							},
 						},
