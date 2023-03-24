@@ -58,9 +58,16 @@ type Unary struct {
 type Primary struct {
 	Number        *float64    `  @Float | @Int`
 	String        *string     `| @String`
-	Bool          *bool       `| ( @"true" | "false" )`
+	Bool          *Boolean    `| @( "true" | "false" )`
 	Nil           bool        `| @"nil"`
 	SubExpression *Expression `| "(" @@ ")" `
+}
+
+type Boolean bool
+
+func (b *Boolean) Capture(values []string) error {
+	*b = values[0] == "true"
+	return nil
 }
 
 var parser = participle.MustBuild[Expression](participle.UseLookahead(2))
