@@ -35,11 +35,7 @@
 
 ## V2
 
-This is a beta version of version 2 of Participle. It is still subject to change but should be mostly stable at this point.
-
-See the [Change Log](CHANGES.md) for details.
-
-> **Note:** semantic versioning API guarantees do not apply to the [experimental](https://pkg.go.dev/github.com/alecthomas/participle/v2/experimental) packages - the API may break between minor point releases.
+This is version 2 of Participle.
 
 It can be installed with:
 
