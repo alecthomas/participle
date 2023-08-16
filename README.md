@@ -661,7 +661,7 @@ Enum = "enum" ident "{" ident* "}" .
 
 ## Syntax/Railroad Diagrams
 
-Participle includes a [command-line utility]() to take an EBNF representation of a Participle grammar
+Participle includes a [command-line utility](https://github.com/alecthomas/participle/tree/master/cmd/railroad) to take an EBNF representation of a Participle grammar
 (as returned by `Parser.String()`) and produce a Railroad Diagram using
 [tabatkins/railroad-diagrams](https://github.com/tabatkins/railroad-diagrams).
 
