@@ -114,6 +114,20 @@ func (p *Position) Advance(span string) {
 	}
 }
 
+// Add returns a new Position that is the sum of this position and "pos".
+//
+// This is useful when parsing values from a parent grammar.
+func (p Position) Add(pos Position) Position {
+	p.Line += pos.Line - 1
+	if pos.Line > 1 {
+		p.Column = pos.Column
+	} else {
+		p.Column += pos.Column - 1
+	}
+	p.Offset += pos.Offset
+	return p
+}
+
 func (p Position) GoString() string {
 	return fmt.Sprintf("Position{Filename: %q, Offset: %d, Line: %d, Column: %d}",
 		p.Filename, p.Offset, p.Line, p.Column)
