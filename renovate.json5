@@ -1,9 +1,11 @@
 {
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:base"
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  extends: [
+    "config:recommended",
+    ":semanticCommits",
+    ":semanticCommitTypeAll(chore)",
+    ":semanticCommitScope(deps)",
+    "group:allNonMajor",
+    "schedule:earlyMondays", // Run once a week.
   ],
-  automerge: true,
-  automergeType: 'branch',
-  separateMinorPatch: false,
 }
