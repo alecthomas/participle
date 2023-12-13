@@ -402,7 +402,7 @@ var basicLexer = stateful.MustSimple([]stateful.SimpleRule{
     {"Ident", `[a-zA-Z_]\w*`},
     {"Punct", `[-[!@#$%^&*()+_={}\|:;"'<,>.?/]|]`},
     {"EOL", `[\n\r]+`},
-    {"whitespace", `[ \t]+`},
+    {"Whitespace", `[ \t]+`},
 })
 ```
 
