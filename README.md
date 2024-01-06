@@ -395,7 +395,7 @@ own _stateless_ lexer using the `lexer.MustSimple()` and
 For example, the lexer for a form of BASIC:
 
 ```go
-var basicLexer = stateful.MustSimple([]stateful.SimpleRule{
+var basicLexer = lexer.MustSimple([]lexer.SimpleRule{
     {"Comment", `(?i)rem[^\n]*`},
     {"String", `"(\\"|[^"])*"`},
     {"Number", `[-+]?(\d*\.)?\d+`},
