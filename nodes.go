@@ -282,7 +282,8 @@ func (g *group) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Va
 	if matches >= MaxIterations {
 		return nil, Errorf(t.Pos, "too many iterations of %s (> %d)", g, MaxIterations)
 	}
-	if matches < min {
+	// avoid returning errors in parent nodes if the group is optional
+	if matches > 0 && matches < min {
 		return out, Errorf(t.Pos, "sub-expression %s must match at least once", g)
 	}
 	// The idea here is that something like "a"? is a successful match and that parsing should proceed.

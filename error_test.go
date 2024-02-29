@@ -45,6 +45,33 @@ func TestErrorReporting(t *testing.T) {
 	require.EqualError(t, err, `1:20: unexpected token ")" (expected <ident>)`)
 }
 
+func TestMoreThanOneErrors(t *testing.T) {
+	type unionMatchAtLeastOnce struct {
+		Ident  string  `( @Ident `
+		String string  `| @String+ `
+		Float  float64 `| @Float )`
+	}
+	type union struct {
+		Ident  string  `( @Ident `
+		String string  `| @String `
+		Float  float64 `| @Float )`
+	}
+
+	pAtLeastOnce := mustTestParser[unionMatchAtLeastOnce](t, participle.Unquote("String"))
+	p := mustTestParser[union](t, participle.Unquote("String"))
+
+	ast, err := pAtLeastOnce.ParseString("", `"a string" "two strings"`)
+	require.NoError(t, err)
+	require.Equal(t, &unionMatchAtLeastOnce{String: "a stringtwo strings"}, ast)
+
+	_, err = p.ParseString("", `102`)
+	require.EqualError(t, err, `1:1: unexpected token "102"`)
+
+	_, err = pAtLeastOnce.ParseString("", `102`)
+	// ensure we don't get a "+1:1: sub-expression <string>+ must match at least once" error
+	require.EqualError(t, err, `1:1: unexpected token "102"`)
+}
+
 func TestErrorWrap(t *testing.T) {
 	expected := errors.New("badbad")
 	err := participle.Wrapf(lexer.Position{Line: 1, Column: 1}, expected, "bad: %s", "thing")
