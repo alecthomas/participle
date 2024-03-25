@@ -270,6 +270,6 @@ func main() {
 		ctx.FatalIfErrorf(err, "")
 		proto, err := parser.Parse("", r)
 		ctx.FatalIfErrorf(err, "")
-		repr.Println(proto, repr.Hide(&lexer.Position{}))
+		repr.Println(proto, repr.Hide[lexer.Position]())
 	}
 }
