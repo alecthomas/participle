@@ -1,0 +1,11 @@
+{
+    "list": [1, 1.2, 1, -1, {"foo": "bar"}, true, false, null],
+    "object": {
+        "foo1": "bar2",
+        "foo2": true,
+        "foo3": false,
+        "foo4": null,
+        "foo5": 1,
+        "foo6": "ss"
+    }
+}
