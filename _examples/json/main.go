@@ -20,7 +20,7 @@ var (
 		{Name: "True", Pattern: "true"},
 		{Name: "False", Pattern: "false"},
 		{Name: "EOL", Pattern: `[\n\r]+`},
-		{Name: "Whitespace", Pattern: `[ \t\n\r]+`},
+		{Name: "Whitespace", Pattern: `[ \t]+`},
 	})
 
 	jsonParser = participle.MustBuild[Json](
