@@ -353,7 +353,7 @@ to always return to the previous state.
 As a special case, regexes containing backrefs in the form `\N` (where `N` is
 a digit) will match the corresponding capture group from the immediate parent
 group. This can be used to parse, among other things, heredocs. See the
-[tests](https://github.com/alecthomas/participle/blob/master/lexer/stateful/stateful_test.go#L59)
+[tests](https://github.com/alecthomas/participle/blob/master/lexer/stateful_test.go#L59)
 for an example of this, among others.
 
 ### Example stateful lexer
