@@ -526,12 +526,12 @@ type Value struct {
 }
 
 var (
-	graphQLLexer = lexer.MustSimple([]lexer.Rule{
-		{"Comment", `(?:#|//)[^\n]*\n?`, nil},
-		{"Ident", `[a-zA-Z]\w*`, nil},
-		{"Number", `(?:\d*\.)?\d+`, nil},
-		{"Punct", `[-[!@#$%^&*()+_={}\|:;"'<,>.?/]|]`, nil},
-		{"Whitespace", `[ \t\n\r]+`, nil},
+	graphQLLexer = lexer.MustSimple([]lexer.SimpleRule{
+		{"Comment", `(?:#|//)[^\n]*\n?`},
+		{"Ident", `[a-zA-Z]\w*`},
+		{"Number", `(?:\d*\.)?\d+`},
+		{"Punct", `[-[!@#$%^&*()+_={}\|:;"'<,>.?/]|]`},
+		{"Whitespace", `[ \t\n\r]+`},
 	})
 	parser = participle.MustBuild[File](
 		participle.Lexer(graphQLLexer),
