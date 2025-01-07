@@ -1831,7 +1831,7 @@ func TestParserWithUnion(t *testing.T) {
 		var trace strings.Builder
 		actual, err := parser.ParseString("", c.src, participle.Trace(&trace))
 		assert.NoError(t, err)
-		assert.Equal(t, &c.expected, actual)
+		assert.Equal(t, &c.expected, actual) //nolint:gosec
 		assert.NotEqual(t, "", trace.String())
 	}
 
