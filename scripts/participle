@@ -1,4 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-(cd "$(dirname "$0")/../cmd/participle" && go install github.com/alecthomas/participle/v2/cmd/participle)
-exec "$(go env GOBIN)/participle" "$@"
+GOBIN=$(go env GOBIN)
+[[ -d "${GOBIN}" ]] || GOBIN=$(go env GOPATH)/bin
+go install -C "$(dirname "$0")/../cmd/participle" 'github.com/alecthomas/participle/v2/cmd/participle'
+exec "${GOBIN}/participle" "$@"

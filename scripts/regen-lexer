@@ -1,3 +1,5 @@
 #!/bin/bash
 set -euo pipefail
-participle gen lexer --name GeneratedBasic internal < lexer/internal/basiclexer.json | gofmt > lexer/internal/basiclexer.go
+path=$(dirname "${0}")
+base="${path}/../lexer/internal/basiclexer"
+"${path}/participle" gen lexer --name GeneratedBasic internal < "${base}.json" | gofmt > "${base}.go"
