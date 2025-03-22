@@ -51,17 +51,17 @@ func TestStatefulLexer(t *testing.T) {
 		buildErr string
 	}{
 		{name: "InvalidPushTarget",
-			buildErr: `invalid action for rule "foo": push to unknown state "Invalid"`,
+			buildErr: `lexer: invalid action for rule "foo": lexer: push to unknown state "Invalid"`,
 			rules:    lexer.Rules{"Root": {{`foo`, ``, lexer.Push("Invalid")}}},
 		},
 		{name: "BackrefNoGroups",
 			input: `hello`,
-			err:   `1:1: rule "Backref": invalid backref expansion: "\\1": invalid group 1 from parent with 0 groups`,
+			err:   `1:1: lexer: rule "Backref": invalid backref expansion: "\\1": invalid group 1 from parent with 0 groups`,
 			rules: lexer.Rules{"Root": {{"Backref", `\1`, nil}}},
 		},
 		{name: "BackrefInvalidGroups",
 			input: `<<EOF EOF`,
-			err:   "1:6: rule \"End\": invalid backref expansion: \"\\\\b\\\\2\\\\b\": invalid group 2 from parent with 2 groups",
+			err:   "1:6: lexer: rule \"End\": invalid backref expansion: \"\\\\b\\\\2\\\\b\": invalid group 2 from parent with 2 groups",
 			rules: lexer.Rules{
 				"Root": {
 					{"Heredoc", `<<(\w+)\b`, lexer.Push("Heredoc")},
@@ -160,7 +160,7 @@ func TestStatefulLexer(t *testing.T) {
 				},
 			},
 			input: "hello",
-			err:   "1:1: rule \"NoMatch\" did not match any input",
+			err:   "1:1: lexer: rule \"NoMatch\" did not match any input",
 		},
 		{name: "NoMatchPushError",
 			rules: lexer.Rules{
@@ -172,7 +172,7 @@ func TestStatefulLexer(t *testing.T) {
 				},
 			},
 			input: "hello",
-			err:   "1:1: rule \"NoMatch\": did not consume any input",
+			err:   "1:1: lexer: rule \"NoMatch\": did not consume any input",
 		},
 	}
 	// nolint: scopelint
