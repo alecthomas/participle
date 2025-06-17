@@ -363,22 +363,22 @@ the [stateful example](https://github.com/alecthomas/participle/tree/master/_exa
 for the corresponding parser.
 
 ```go
-var lexer = lexer.Must(Rules{
+var def = lexer.Must(lexer.Rules{
 	"Root": {
-		{`String`, `"`, Push("String")},
+		{`String`, `"`, lexer.Push("String")},
 	},
 	"String": {
 		{"Escaped", `\\.`, nil},
-		{"StringEnd", `"`, Pop()},
-		{"Expr", `\${`, Push("Expr")},
+		{"StringEnd", `"`, lexer.Pop()},
+		{"Expr", `\${`, lexer.Push("Expr")},
 		{"Char", `[^$"\\]+`, nil},
 	},
 	"Expr": {
-		Include("Root"),
+		lexer.Include("Root"),
 		{`whitespace`, `\s+`, nil},
 		{`Oper`, `[-+/*%]`, nil},
 		{"Ident", `\w+`, nil},
-		{"ExprEnd", `}`, Pop()},
+		{"ExprEnd", `}`, lexer.Pop()},
 	},
 })
 ```
