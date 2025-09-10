@@ -308,7 +308,7 @@ Configure your parser with a lexer using the `participle.Lexer()` option.
 
 To use your own Lexer you will need to implement two interfaces:
 [Definition](https://pkg.go.dev/github.com/alecthomas/participle/v2/lexer#Definition)
-(and optionally [StringsDefinition](https://pkg.go.dev/github.com/alecthomas/participle/v2/lexer#StringDefinition) and [BytesDefinition](https://pkg.go.dev/github.com/alecthomas/participle/v2/lexer#BytesDefinition)) and [Lexer](https://pkg.go.dev/github.com/alecthomas/participle/v2/lexer#Lexer).
+(and optionally [StringDefinition](https://pkg.go.dev/github.com/alecthomas/participle/v2/lexer#StringDefinition) and [BytesDefinition](https://pkg.go.dev/github.com/alecthomas/participle/v2/lexer#BytesDefinition)) and [Lexer](https://pkg.go.dev/github.com/alecthomas/participle/v2/lexer#Lexer).
 
 ### Stateful lexer
 
