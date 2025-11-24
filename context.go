@@ -34,6 +34,10 @@ var contextFieldSetPool = sync.Pool{
 	New: func() any { return &contextFieldSet{} },
 }
 
+var parseContextPool = sync.Pool{
+	New: func() any { return &parseContext{} },
+}
+
 func newParseContext(lex *lexer.PeekingLexer, lookahead int, caseInsensitive map[lexer.TokenType]bool) parseContext {
 	return parseContext{
 		PeekingLexer:    *lex,
@@ -73,6 +77,21 @@ func (p *parseContext) Apply() error {
 	return err
 }
 
+func (p *parseContext) recycle(keep bool) {
+	if p == nil {
+		return
+	}
+	if !keep {
+		for _, apply := range p.apply {
+			*apply = contextFieldSet{}
+			contextFieldSetPool.Put(apply)
+		}
+	}
+	p.apply = nil
+	*p = parseContext{}
+	parseContextPool.Put(p)
+}
+
 // Branch accepts the branch as the correct branch.
 func (p *parseContext) Accept(branch *parseContext) {
 	p.apply = append(p.apply, branch.apply...)
@@ -81,11 +100,12 @@ func (p *parseContext) Accept(branch *parseContext) {
 		p.deepestErrorDepth = branch.deepestErrorDepth
 		p.deepestError = branch.deepestError
 	}
+	branch.recycle(true)
 }
 
 // Branch starts a new lookahead branch.
 func (p *parseContext) Branch() *parseContext {
-	branch := &parseContext{}
+	branch := parseContextPool.Get().(*parseContext)
 	*branch = *p
 	branch.apply = nil
 	return branch
