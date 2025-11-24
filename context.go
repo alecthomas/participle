@@ -65,16 +65,15 @@ func (p *parseContext) Defer(tokens []lexer.Token, strct reflect.Value, field st
 
 // Apply deferred functions.
 func (p *parseContext) Apply() error {
-	var err error
 	for _, apply := range p.apply {
-		if err == nil {
-			err = setField(apply.tokens, apply.strct, apply.field, apply.fieldValue)
+		if err := setField(apply.tokens, apply.strct, apply.field, apply.fieldValue); err != nil {
+			return err
 		}
 		*apply = contextFieldSet{}
 		contextFieldSetPool.Put(apply)
 	}
 	p.apply = nil
-	return err
+	return nil
 }
 
 func (p *parseContext) recycle(keep bool) {
