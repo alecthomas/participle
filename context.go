@@ -5,6 +5,7 @@ import (
 	"io"
 	"reflect"
 	"strings"
+	"sync"
 
 	"github.com/alecthomas/participle/v2/lexer"
 )
@@ -29,6 +30,10 @@ type parseContext struct {
 	allowTrailing     bool
 }
 
+var contextFieldSetPool = sync.Pool{
+	New: func() any { return &contextFieldSet{} },
+}
+
 func newParseContext(lex *lexer.PeekingLexer, lookahead int, caseInsensitive map[lexer.TokenType]bool) parseContext {
 	return parseContext{
 		PeekingLexer:    *lex,
@@ -49,18 +54,23 @@ func (p *parseContext) DeepestError(err error) error {
 
 // Defer adds a function to be applied once a branch has been picked.
 func (p *parseContext) Defer(tokens []lexer.Token, strct reflect.Value, field structLexerField, fieldValue []reflect.Value) {
-	p.apply = append(p.apply, &contextFieldSet{tokens, strct, field, fieldValue})
+	set := contextFieldSetPool.Get().(*contextFieldSet)
+	*set = contextFieldSet{tokens, strct, field, fieldValue}
+	p.apply = append(p.apply, set)
 }
 
 // Apply deferred functions.
 func (p *parseContext) Apply() error {
+	var err error
 	for _, apply := range p.apply {
-		if err := setField(apply.tokens, apply.strct, apply.field, apply.fieldValue); err != nil {
-			return err
+		if err == nil {
+			err = setField(apply.tokens, apply.strct, apply.field, apply.fieldValue)
 		}
+		*apply = contextFieldSet{}
+		contextFieldSetPool.Put(apply)
 	}
 	p.apply = nil
-	return nil
+	return err
 }
 
 // Branch accepts the branch as the correct branch.
