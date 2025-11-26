@@ -1,7 +1,10 @@
 package participle
 
 import (
+	"fmt"
 	"reflect"
+	"regexp"
+	"strings"
 
 	"github.com/alecthomas/participle/v2/lexer"
 )
@@ -359,4 +362,335 @@ func (p *parseContext) saveCheckpoint() lexer.Checkpoint {
 // restoreCheckpoint restores the lexer to a previously saved position.
 func (p *parseContext) restoreCheckpoint(cp lexer.Checkpoint) {
 	p.PeekingLexer.LoadCheckpoint(cp)
+}
+
+// =============================================================================
+// Per-Node Recovery Configuration
+// =============================================================================
+
+// nodeRecoveryConfig holds recovery configuration attached to a grammar node.
+// This enables Chumsky-style per-parser recovery strategies.
+type nodeRecoveryConfig struct {
+	// Strategies to try for this node (in order)
+	strategies []RecoveryStrategy
+	// Label for error messages (e.g., "expression", "statement")
+	label string
+}
+
+// recoverableNode is an optional interface that nodes can implement
+// to support per-node recovery configuration.
+type recoverableNode interface {
+	node
+	// SetRecovery sets the recovery configuration for this node.
+	SetRecovery(config *nodeRecoveryConfig)
+	// GetRecovery returns the recovery configuration, or nil if none.
+	GetRecovery() *nodeRecoveryConfig
+}
+
+// =============================================================================
+// Recovery Tag Parsing
+// =============================================================================
+
+// recoveryTagPattern matches recovery tag expressions like:
+// - skip_until(;)
+// - skip_past(;, })
+// - nested((, ))
+// - nested((, ), [(, )])  - with additional delimiters
+// - retry_until(;)
+var recoveryTagPattern = regexp.MustCompile(`^(\w+)\((.*)\)$`)
+
+// parseRecoveryTag parses a recovery struct tag into a RecoveryStrategy.
+// Supported formats:
+//   - skip_until(tok1, tok2, ...)     - skip until one of the tokens, don't consume
+//   - skip_past(tok1, tok2, ...)      - skip until and consume the sync token
+//   - nested(start, end)              - skip to balanced delimiter
+//   - nested(start, end, [s1, e1])    - with additional delimiter pairs
+//   - retry_until(tok1, tok2, ...)    - skip and retry until tokens
+//   - label:name                      - set a label for error messages
+//
+// Multiple strategies can be combined with |:
+//   - nested((, ))|skip_until(;)
+func parseRecoveryTag(tag string) (*nodeRecoveryConfig, error) {
+	if tag == "" {
+		return nil, nil
+	}
+
+	config := &nodeRecoveryConfig{}
+
+	// Check for label prefix: "label:name|strategies..."
+	if strings.HasPrefix(tag, "label:") {
+		parts := strings.SplitN(tag[6:], "|", 2)
+		config.label = strings.TrimSpace(parts[0])
+		if len(parts) > 1 {
+			tag = parts[1]
+		} else {
+			return config, nil
+		}
+	}
+
+	// Split by | for multiple strategies
+	strategyStrs := strings.Split(tag, "|")
+	for _, stratStr := range strategyStrs {
+		stratStr = strings.TrimSpace(stratStr)
+		if stratStr == "" {
+			continue
+		}
+
+		// Check for label anywhere
+		if strings.HasPrefix(stratStr, "label:") {
+			config.label = strings.TrimSpace(stratStr[6:])
+			continue
+		}
+
+		strategy, err := parseSingleRecoveryStrategy(stratStr)
+		if err != nil {
+			return nil, err
+		}
+		if strategy != nil {
+			config.strategies = append(config.strategies, strategy)
+		}
+	}
+
+	if len(config.strategies) == 0 && config.label == "" {
+		return nil, nil
+	}
+	return config, nil
+}
+
+// parseSingleRecoveryStrategy parses a single recovery strategy expression.
+func parseSingleRecoveryStrategy(expr string) (RecoveryStrategy, error) {
+	matches := recoveryTagPattern.FindStringSubmatch(expr)
+	if matches == nil {
+		return nil, fmt.Errorf("invalid recovery strategy syntax: %q", expr)
+	}
+
+	name := matches[1]
+	argsStr := matches[2]
+
+	switch name {
+	case "skip_until":
+		tokens := parseTokenList(argsStr)
+		if len(tokens) == 0 {
+			return nil, fmt.Errorf("skip_until requires at least one token")
+		}
+		return SkipUntil(tokens...), nil
+
+	case "skip_past":
+		tokens := parseTokenList(argsStr)
+		if len(tokens) == 0 {
+			return nil, fmt.Errorf("skip_past requires at least one token")
+		}
+		return SkipPast(tokens...), nil
+
+	case "retry_until":
+		tokens := parseTokenList(argsStr)
+		if len(tokens) == 0 {
+			return nil, fmt.Errorf("retry_until requires at least one token")
+		}
+		return SkipThenRetryUntil(tokens...), nil
+
+	case "nested":
+		return parseNestedStrategy(argsStr)
+
+	default:
+		return nil, fmt.Errorf("unknown recovery strategy: %q", name)
+	}
+}
+
+// parseTokenList parses a comma-separated list of tokens.
+// Handles both quoted and unquoted tokens.
+func parseTokenList(s string) []string {
+	var tokens []string
+	var current strings.Builder
+	inQuote := false
+	quoteChar := rune(0)
+
+	for _, r := range s {
+		switch {
+		case !inQuote && (r == '"' || r == '\''):
+			inQuote = true
+			quoteChar = r
+		case inQuote && r == quoteChar:
+			inQuote = false
+			quoteChar = 0
+		case !inQuote && r == ',':
+			if tok := strings.TrimSpace(current.String()); tok != "" {
+				tokens = append(tokens, tok)
+			}
+			current.Reset()
+		default:
+			current.WriteRune(r)
+		}
+	}
+
+	if tok := strings.TrimSpace(current.String()); tok != "" {
+		tokens = append(tokens, tok)
+	}
+
+	return tokens
+}
+
+// parseNestedStrategy parses a nested() strategy expression.
+// Formats:
+//   - nested(start, end)
+//   - nested(start, end, [s1, e1], [s2, e2], ...)
+func parseNestedStrategy(argsStr string) (RecoveryStrategy, error) {
+	// Simple parsing: split by commas, handling brackets
+	args := parseNestedArgs(argsStr)
+
+	if len(args) < 2 {
+		return nil, fmt.Errorf("nested requires at least start and end delimiters")
+	}
+
+	start := strings.TrimSpace(args[0])
+	end := strings.TrimSpace(args[1])
+
+	var others [][2]string
+	for i := 2; i < len(args); i++ {
+		// Parse [s, e] format
+		arg := strings.TrimSpace(args[i])
+		if strings.HasPrefix(arg, "[") && strings.HasSuffix(arg, "]") {
+			inner := arg[1 : len(arg)-1]
+			parts := strings.SplitN(inner, ",", 2)
+			if len(parts) == 2 {
+				others = append(others, [2]string{
+					strings.TrimSpace(parts[0]),
+					strings.TrimSpace(parts[1]),
+				})
+			}
+		}
+	}
+
+	return NestedDelimiters(start, end, others...), nil
+}
+
+// parseNestedArgs splits arguments while respecting bracket nesting.
+func parseNestedArgs(s string) []string {
+	var args []string
+	var current strings.Builder
+	depth := 0
+
+	for _, r := range s {
+		switch r {
+		case '[':
+			depth++
+			current.WriteRune(r)
+		case ']':
+			depth--
+			current.WriteRune(r)
+		case ',':
+			if depth == 0 {
+				args = append(args, current.String())
+				current.Reset()
+			} else {
+				current.WriteRune(r)
+			}
+		default:
+			current.WriteRune(r)
+		}
+	}
+
+	if current.Len() > 0 {
+		args = append(args, current.String())
+	}
+
+	return args
+}
+
+// =============================================================================
+// Field Recovery Tag Extraction
+// =============================================================================
+
+// fieldRecoveryTag extracts the recovery tag from a struct field.
+func fieldRecoveryTag(field reflect.StructField) string {
+	return field.Tag.Get("recover")
+}
+
+// =============================================================================
+// Recovery-Aware Wrapper Node
+// =============================================================================
+
+// recoveryNode wraps another node with recovery configuration.
+// This allows any node to have per-node recovery without modifying all node types.
+type recoveryNode struct {
+	inner    node
+	recovery *nodeRecoveryConfig
+}
+
+func (r *recoveryNode) String() string   { return r.inner.String() }
+func (r *recoveryNode) GoString() string { return fmt.Sprintf("recovery{%s}", r.inner.GoString()) }
+
+func (r *recoveryNode) Parse(ctx *parseContext, parent reflect.Value) ([]reflect.Value, error) {
+	// Save checkpoint for potential recovery
+	checkpoint := ctx.saveCheckpoint()
+
+	// Try parsing normally
+	values, err := r.inner.Parse(ctx, parent)
+	
+	// If parsing succeeded (values != nil, err == nil), return normally
+	if err == nil && values != nil {
+		return values, nil
+	}
+
+	// If no recovery strategies configured, just return the result
+	if r.recovery == nil || len(r.recovery.strategies) == 0 {
+		return values, err
+	}
+
+	// Check if we've exceeded max errors
+	if ctx.recovery != nil && ctx.recovery.maxErrors > 0 && len(ctx.recoveryErrors) >= ctx.recovery.maxErrors {
+		return values, err
+	}
+
+	// Determine the error to report
+	// If there was no explicit error but also no match (nil, nil), create an error
+	reportErr := err
+	if reportErr == nil {
+		// Get current token to create a meaningful error
+		tok := ctx.Peek()
+		reportErr = &UnexpectedTokenError{Unexpected: *tok, expectNode: r.inner}
+	}
+
+	// Try each recovery strategy
+	for _, strategy := range r.recovery.strategies {
+		ctx.restoreCheckpoint(checkpoint)
+		recovered, recoveredValues, newErr := strategy.Recover(ctx, reportErr, parent)
+		if recovered {
+			// Wrap error with label if present
+			if r.recovery.label != "" {
+				if perr, ok := newErr.(Error); ok {
+					newErr = Errorf(perr.Position(), "in %s: %s", r.recovery.label, perr.Message())
+				}
+			}
+			ctx.addRecoveryError(newErr)
+			if len(recoveredValues) > 0 {
+				return recoveredValues, nil
+			}
+			// Return empty slice to indicate recovery succeeded (matched but skipped)
+			// This is different from nil which means "no match"
+			return []reflect.Value{}, nil
+		}
+	}
+
+	// No strategy succeeded, restore and return original result
+	ctx.restoreCheckpoint(checkpoint)
+	return values, err
+}
+
+// SetRecovery implements recoverableNode.
+func (r *recoveryNode) SetRecovery(config *nodeRecoveryConfig) {
+	r.recovery = config
+}
+
+// GetRecovery implements recoverableNode.
+func (r *recoveryNode) GetRecovery() *nodeRecoveryConfig {
+	return r.recovery
+}
+
+// wrapWithRecovery wraps a node with recovery configuration if provided.
+func wrapWithRecovery(n node, config *nodeRecoveryConfig) node {
+	if config == nil || (len(config.strategies) == 0 && config.label == "") {
+		return n
+	}
+	return &recoveryNode{inner: n, recovery: config}
 }

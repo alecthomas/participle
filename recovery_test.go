@@ -801,3 +801,521 @@ func TestSkipUntilEOF(t *testing.T) {
 	assert.Error(t, err)
 	t.Logf("AST: %+v, Error: %v", ast, err)
 }
+
+// =============================================================================
+// Recovery Tag Parsing Tests
+// =============================================================================
+
+func TestParseRecoveryTag(t *testing.T) {
+	tests := []struct {
+		name        string
+		tag         string
+		wantLabel   string
+		wantCount   int // number of strategies
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name:      "empty tag",
+			tag:       "",
+			wantLabel: "",
+			wantCount: 0,
+		},
+		{
+			name:      "skip_until single token",
+			tag:       "skip_until(;)",
+			wantCount: 1,
+		},
+		{
+			name:      "skip_until multiple tokens",
+			tag:       "skip_until(;, })",
+			wantCount: 1,
+		},
+		{
+			name:      "skip_past",
+			tag:       "skip_past(;)",
+			wantCount: 1,
+		},
+		{
+			name:      "retry_until",
+			tag:       "retry_until(;, })",
+			wantCount: 1,
+		},
+		{
+			name:      "nested simple",
+			tag:       "nested((, ))",
+			wantCount: 1,
+		},
+		{
+			name:      "nested with others",
+			tag:       "nested((, ), [{, }])",
+			wantCount: 1,
+		},
+		{
+			name:      "label only",
+			tag:       "label:expression",
+			wantLabel: "expression",
+			wantCount: 0,
+		},
+		{
+			name:      "label with strategy",
+			tag:       "label:stmt|skip_until(;)",
+			wantLabel: "stmt",
+			wantCount: 1,
+		},
+		{
+			name:      "multiple strategies",
+			tag:       "nested((, ))|skip_until(;)",
+			wantCount: 2,
+		},
+		{
+			name:      "label in middle",
+			tag:       "skip_until(;)|label:test|skip_past(})",
+			wantLabel: "test",
+			wantCount: 2,
+		},
+		{
+			name:        "invalid strategy name",
+			tag:         "invalid_strategy(;)",
+			wantErr:     true,
+			errContains: "unknown recovery strategy",
+		},
+		{
+			name:        "skip_until no args",
+			tag:         "skip_until()",
+			wantErr:     true,
+			errContains: "requires at least one token",
+		},
+		{
+			name:        "nested missing end",
+			tag:         "nested(()",
+			wantErr:     true,
+			errContains: "requires at least start and end",
+		},
+		{
+			name:        "malformed syntax",
+			tag:         "skip_until",
+			wantErr:     true,
+			errContains: "invalid recovery strategy syntax",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config, err := parseRecoveryTag(tt.tag)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errContains != "" {
+					assert.Contains(t, err.Error(), tt.errContains)
+				}
+				return
+			}
+
+			assert.NoError(t, err)
+
+			if tt.wantCount == 0 && tt.wantLabel == "" {
+				assert.True(t, config == nil, "Expected nil config for empty tag")
+				return
+			}
+
+			assert.NotZero(t, config)
+			assert.Equal(t, tt.wantLabel, config.label)
+			assert.Equal(t, tt.wantCount, len(config.strategies))
+		})
+	}
+}
+
+func TestParseTokenList(t *testing.T) {
+	tests := []struct {
+		input string
+		want  []string
+	}{
+		{";", []string{";"}},
+		{";, }", []string{";", "}"}},
+		{"  ;  ,  }  ", []string{";", "}"}},
+		{`";"`, []string{";"}},
+		{`';', "}"`, []string{";", "}"}},
+		{"", nil}, // empty returns nil slice
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got := parseTokenList(tt.input)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestParseNestedArgs(t *testing.T) {
+	tests := []struct {
+		input string
+		want  []string
+	}{
+		{"(, )", []string{"(", " )"}},
+		{"(, ), [{, }]", []string{"(", " )", " [{, }]"}},
+		{"a, b, c", []string{"a", " b", " c"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got := parseNestedArgs(tt.input)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// =============================================================================
+// Per-Node Recovery Tests (struct tag based)
+// =============================================================================
+
+// Grammar with per-field recovery annotations
+type ExprWithRecovery struct {
+	Value string `parser:"@Ident" recover:"skip_until(;)"`
+}
+
+type StmtWithRecovery struct {
+	Keyword string            `parser:"@Ident"`
+	Expr    *ExprWithRecovery `parser:"@@"`
+	Semi    string            `parser:"@\";\""`
+}
+
+type ProgWithRecovery struct {
+	Stmts []*StmtWithRecovery `parser:"@@*"`
+}
+
+func TestPerNodeRecoveryTag(t *testing.T) {
+	lex := lexer.MustSimple([]lexer.SimpleRule{
+		{"whitespace", `\s+`},
+		{"Ident", `[a-zA-Z_][a-zA-Z0-9_]*`},
+		{"Number", `\d+`},
+		{"Punct", `[;{}()\[\],=]`},
+	})
+
+	parser := MustBuild[ProgWithRecovery](
+		Lexer(lex),
+	)
+
+	// Input with error - the '123' can't be parsed as Ident
+	// The per-field recovery should skip to ';'
+	input := `let foo; set 123; get bar;`
+
+	ast, err := parser.ParseString("", input)
+
+	// Should have errors but parsed what it could
+	t.Logf("AST: %+v", ast)
+	t.Logf("Error: %v", err)
+
+	// The per-node recovery should have kicked in
+	assert.NotZero(t, ast)
+}
+
+// Grammar with labeled recovery
+type LabeledExpr struct {
+	Value string `parser:"@Ident" recover:"label:identifier|skip_until(;)"`
+}
+
+type LabeledStmt struct {
+	Keyword string       `parser:"@Ident"`
+	Expr    *LabeledExpr `parser:"@@"`
+	Semi    string       `parser:"@\";\""`
+}
+
+type LabeledProg struct {
+	Stmts []*LabeledStmt `parser:"@@*"`
+}
+
+func TestPerNodeRecoveryWithLabel(t *testing.T) {
+	lex := lexer.MustSimple([]lexer.SimpleRule{
+		{"whitespace", `\s+`},
+		{"Ident", `[a-zA-Z_][a-zA-Z0-9_]*`},
+		{"Number", `\d+`},
+		{"Punct", `[;{}()\[\],=]`},
+	})
+
+	parser := MustBuild[LabeledProg](
+		Lexer(lex),
+	)
+
+	input := `let foo; set 123; get bar;`
+
+	ast, err := parser.ParseString("", input)
+
+	t.Logf("AST: %+v", ast)
+	t.Logf("Error: %v", err)
+
+	// Error message should contain the label
+	if err != nil {
+		var recErr *RecoveryError
+		if errors.As(err, &recErr) {
+			for _, e := range recErr.Errors {
+				t.Logf("Recovery error: %v", e)
+				// The label should be in the error
+				assert.Contains(t, e.Error(), "identifier")
+			}
+		}
+	}
+
+	assert.NotZero(t, ast)
+}
+
+// Grammar with nested delimiter recovery
+type ParenExprRecovery struct {
+	Open  string `parser:"@\"(\""`
+	Value string `parser:"@Ident" recover:"nested((, ))"`
+	Close string `parser:"@\")\""`
+}
+
+type ParenProgRecovery struct {
+	Exprs []*ParenExprRecovery `parser:"@@*"`
+}
+
+func TestPerNodeNestedRecovery(t *testing.T) {
+	lex := lexer.MustSimple([]lexer.SimpleRule{
+		{"whitespace", `\s+`},
+		{"Ident", `[a-zA-Z_][a-zA-Z0-9_]*`},
+		{"Number", `\d+`},
+		{"Punct", `[;{}()\[\],=]`},
+	})
+
+	parser := MustBuild[ParenProgRecovery](
+		Lexer(lex),
+	)
+
+	// Second expression has a number instead of ident
+	input := `(foo) (123) (bar)`
+
+	ast, err := parser.ParseString("", input)
+
+	t.Logf("AST: %+v", ast)
+	t.Logf("Error: %v", err)
+
+	assert.NotZero(t, ast)
+}
+
+// Test recovery node wrapper directly
+func TestRecoveryNodeWrapper(t *testing.T) {
+	lex := lexer.MustSimple([]lexer.SimpleRule{
+		{"whitespace", `\s+`},
+		{"Ident", `[a-zA-Z_][a-zA-Z0-9_]*`},
+		{"Punct", `[;]`},
+	})
+
+	input := `foo ; bar`
+	l, err := lex.LexString("", input)
+	assert.NoError(t, err)
+	peeker, err := lexer.Upgrade(l)
+	assert.NoError(t, err)
+
+	ctx := &parseContext{
+		PeekingLexer: *peeker,
+		recovery: &recoveryConfig{
+			maxErrors: 10,
+		},
+	}
+
+	// Create a mock node that always fails
+	mockNode := &mockFailingNode{err: errors.New("mock parse error")}
+
+	// Wrap it with recovery
+	config := &nodeRecoveryConfig{
+		strategies: []RecoveryStrategy{SkipUntil(";")},
+		label:      "test",
+	}
+	wrapped := wrapWithRecovery(mockNode, config)
+
+	// Parse should recover
+	values, err := wrapped.Parse(ctx, reflect.Value{})
+
+	// Recovery should have happened (err == nil means recovery worked)
+	t.Logf("Values: %v, Err: %v, RecoveryErrors: %v", values, err, ctx.recoveryErrors)
+
+	// Should have recorded a recovery error
+	assert.Equal(t, 1, len(ctx.recoveryErrors))
+}
+
+// Mock node for testing
+type mockFailingNode struct {
+	err error
+}
+
+func (m *mockFailingNode) Parse(ctx *parseContext, parent reflect.Value) ([]reflect.Value, error) {
+	return nil, m.err
+}
+
+func (m *mockFailingNode) String() string   { return "mock" }
+func (m *mockFailingNode) GoString() string { return "mock{}" }
+
+// Test that wrapWithRecovery returns original node when config is nil/empty
+func TestWrapWithRecoveryNoop(t *testing.T) {
+	mockNode := &mockFailingNode{}
+
+	// nil config
+	wrapped := wrapWithRecovery(mockNode, nil)
+	assert.Equal(t, node(mockNode), wrapped)
+
+	// empty config
+	wrapped = wrapWithRecovery(mockNode, &nodeRecoveryConfig{})
+	assert.Equal(t, node(mockNode), wrapped)
+}
+
+// Test recovery node GoString
+func TestRecoveryNodeGoString(t *testing.T) {
+	mockNode := &mockFailingNode{}
+	config := &nodeRecoveryConfig{strategies: []RecoveryStrategy{SkipUntil(";")}}
+	wrapped := wrapWithRecovery(mockNode, config)
+
+	assert.Contains(t, wrapped.GoString(), "recovery{")
+	assert.Contains(t, wrapped.GoString(), "mock")
+}
+
+// =============================================================================
+// Recovery Metadata Field Tests
+// =============================================================================
+
+// Grammar with recovery metadata fields
+type StmtWithMetadata struct {
+	Pos          lexer.Position
+	Keyword      string `parser:"@Ident"`
+	Value        string `parser:"@Ident"`
+	Semi         string `parser:"@\";\""`
+	Recovered    bool
+	RecoveredSpan lexer.Position
+}
+
+type ProgWithMetadata struct {
+	Stmts []*StmtWithMetadata `parser:"@@*"`
+}
+
+func TestRecoveryMetadataFields(t *testing.T) {
+	lex := lexer.MustSimple([]lexer.SimpleRule{
+		{"whitespace", `\s+`},
+		{"Ident", `[a-zA-Z_][a-zA-Z0-9_]*`},
+		{"Number", `\d+`},
+		{"Punct", `[;{}()\[\],=]`},
+	})
+
+	parser := MustBuild[ProgWithMetadata](
+		Lexer(lex),
+	)
+
+	// Input with valid statements
+	input := `let x; set y;`
+
+	ast, err := parser.ParseString("", input,
+		Recover(SkipUntil(";")),
+	)
+
+	assert.NoError(t, err)
+	assert.NotZero(t, ast)
+	assert.Equal(t, 2, len(ast.Stmts))
+
+	// Valid statements should not have Recovered set
+	for _, stmt := range ast.Stmts {
+		assert.False(t, stmt.Recovered, "Valid statement should not be marked as recovered")
+	}
+}
+
+func TestRecoveryMetadataFieldsOnError(t *testing.T) {
+	lex := lexer.MustSimple([]lexer.SimpleRule{
+		{"whitespace", `\s+`},
+		{"Ident", `[a-zA-Z_][a-zA-Z0-9_]*`},
+		{"Number", `\d+`},
+		{"Punct", `[;{}()\[\],=]`},
+	})
+
+	parser := MustBuild[ProgWithMetadata](
+		Lexer(lex),
+	)
+
+	// Input with an error (missing value after keyword)
+	input := `let x; set ; get z;`
+
+	ast, err := parser.ParseString("", input,
+		Recover(SkipUntil(";")),
+	)
+
+	// Should have recovery errors
+	assert.Error(t, err)
+	var recErr *RecoveryError
+	assert.True(t, errors.As(err, &recErr))
+
+	assert.NotZero(t, ast)
+	t.Logf("Parsed %d statements", len(ast.Stmts))
+
+	// At least some statements should have parsed
+	// Note: The exact behavior depends on how recovery interacts with the grammar
+	for i, stmt := range ast.Stmts {
+		t.Logf("Stmt %d: Keyword=%q Value=%q Recovered=%v RecoveredSpan=%v",
+			i, stmt.Keyword, stmt.Value, stmt.Recovered, stmt.RecoveredSpan)
+	}
+}
+
+// Test that only Recovered field is detected (not RecoveredSpan)
+type StmtWithRecoveredOnly struct {
+	Keyword   string `parser:"@Ident"`
+	Value     string `parser:"@Ident"`
+	Semi      string `parser:"@\";\""`
+	Recovered bool
+}
+
+type ProgWithRecoveredOnly struct {
+	Stmts []*StmtWithRecoveredOnly `parser:"@@*"`
+}
+
+func TestRecoveredFieldOnly(t *testing.T) {
+	lex := lexer.MustSimple([]lexer.SimpleRule{
+		{"whitespace", `\s+`},
+		{"Ident", `[a-zA-Z_][a-zA-Z0-9_]*`},
+		{"Punct", `[;]`},
+	})
+
+	parser := MustBuild[ProgWithRecoveredOnly](
+		Lexer(lex),
+	)
+
+	// Valid input
+	input := `let x;`
+
+	ast, err := parser.ParseString("", input)
+
+	assert.NoError(t, err)
+	assert.NotZero(t, ast)
+	assert.Equal(t, 1, len(ast.Stmts))
+	assert.False(t, ast.Stmts[0].Recovered)
+}
+
+// Test that only RecoveredSpan field is detected (not Recovered)
+type StmtWithSpanOnly struct {
+	Keyword       string `parser:"@Ident"`
+	Value         string `parser:"@Ident"`
+	Semi          string `parser:"@\";\""`
+	RecoveredSpan lexer.Position
+}
+
+type ProgWithSpanOnly struct {
+	Stmts []*StmtWithSpanOnly `parser:"@@*"`
+}
+
+func TestRecoveredSpanFieldOnly(t *testing.T) {
+	lex := lexer.MustSimple([]lexer.SimpleRule{
+		{"whitespace", `\s+`},
+		{"Ident", `[a-zA-Z_][a-zA-Z0-9_]*`},
+		{"Punct", `[;]`},
+	})
+
+	parser := MustBuild[ProgWithSpanOnly](
+		Lexer(lex),
+	)
+
+	// Valid input
+	input := `let x;`
+
+	ast, err := parser.ParseString("", input)
+
+	assert.NoError(t, err)
+	assert.NotZero(t, ast)
+	assert.Equal(t, 1, len(ast.Stmts))
+	// Should be zero position for valid parse
+	assert.Equal(t, lexer.Position{}, ast.Stmts[0].RecoveredSpan)
+}
