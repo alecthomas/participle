@@ -155,6 +155,16 @@ func (s *strct) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Va
 	t := ctx.Peek()
 	s.maybeInjectStartToken(t, sv)
 	if out, err = s.expr.Parse(ctx, sv); err != nil {
+		// Try to recover from the error
+		if recovered, _ := ctx.tryRecover(err, sv); recovered {
+			// Recovery succeeded - continue with partial result
+			_ = ctx.Apply()
+			end := ctx.RawCursor()
+			t = ctx.RawPeek()
+			s.maybeInjectEndToken(t, sv)
+			s.maybeInjectTokens(ctx.Range(start, end), sv)
+			return []reflect.Value{sv}, nil
+		}
 		_ = ctx.Apply() // Best effort to give partial AST.
 		ctx.MaybeUpdateError(err)
 		return []reflect.Value{sv}, err
@@ -264,6 +274,16 @@ func (g *group) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Va
 		v, err := g.expr.Parse(branch, parent)
 		if err != nil {
 			ctx.MaybeUpdateError(err)
+			// Try to recover from the error
+			if recovered, recoveredValues := ctx.tryRecover(err, parent); recovered {
+				// Recovery succeeded - accept what we have and continue
+				out = append(out, v...)
+				if len(recoveredValues) > 0 {
+					out = append(out, recoveredValues...)
+				}
+				ctx.Accept(branch)
+				continue // Try to parse more iterations after recovery
+			}
 			// Optional part failed to match.
 			if ctx.Stop(err, branch) {
 				out = append(out, v...) // Try to return as much of the parse tree as possible
