@@ -97,6 +97,8 @@ h1 {
 			s += "OneOrMore("
 		case "?":
 			s += "Optional("
+		case "!":
+			s += "("
 		}
 		switch {
 		case n.Name != "":
