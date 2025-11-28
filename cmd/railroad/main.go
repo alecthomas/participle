@@ -90,15 +90,17 @@ h1 {
 		s += ")"
 
 	case *ebnf.Term:
+		closeParen := false
 		switch n.Repetition {
 		case "*":
 			s += "ZeroOrMore("
+			closeParen = true
 		case "+":
 			s += "OneOrMore("
+			closeParen = true
 		case "?":
 			s += "Optional("
-		case "!":
-			s += "("
+			closeParen = true
 		}
 		switch {
 		case n.Name != "":
@@ -122,7 +124,7 @@ h1 {
 			panic(repr.String(n))
 
 		}
-		if n.Repetition != "" {
+		if closeParen {
 			s += ")"
 		}
 		if n.Negation {
