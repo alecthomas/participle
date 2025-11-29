@@ -237,13 +237,21 @@ func (g *generatorContext) parseCapture(slexer *structLexer) (node, error) {
 		return nil, err
 	}
 	field := slexer.Field()
+
+	// Parse recovery tag if present
+	recoveryConfig, err := parseRecoveryTag(field.RecoveryTag())
+	if err != nil {
+		return nil, fmt.Errorf("%s: invalid recover tag: %w", field.Name, err)
+	}
+
 	if token.Type == '@' {
 		_, _ = slexer.Next()
 		n, err := g.parseType(field.Type)
 		if err != nil {
 			return nil, err
 		}
-		return &capture{field, n}, nil
+		captureNode := &capture{field, n}
+		return wrapWithRecovery(captureNode, recoveryConfig), nil
 	}
 	ft := indirectType(field.Type)
 	if ft.Kind() == reflect.Struct && ft != tokenType && ft != tokensType && !implements(ft, captureType) && !implements(ft, textUnmarshalerType) {
@@ -253,7 +261,8 @@ func (g *generatorContext) parseCapture(slexer *structLexer) (node, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &capture{field, n}, nil
+	captureNode := &capture{field, n}
+	return wrapWithRecovery(captureNode, recoveryConfig), nil
 }
 
 // A reference in the form <identifier> refers to a named token from the lexer.

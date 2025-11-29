@@ -130,3 +130,42 @@ func AllowTrailing(ok bool) ParseOption {
 		p.allowTrailing = ok
 	}
 }
+
+// Recover enables error recovery during parsing using the given strategies.
+//
+// When parsing encounters an error, the parser will attempt each recovery
+// strategy in order. If a strategy succeeds, the error is recorded and parsing
+// continues. This allows the parser to report multiple errors and produce a
+// partial AST even when the input contains errors.
+//
+// Example usage:
+//
+//	ast, err := parser.ParseString("", input,
+//	    participle.Recover(
+//	        participle.SkipUntil(";", "}"),
+//	        participle.NestedDelimiters("(", ")", [2]string{"[", "]"}),
+//	    ))
+//
+// If parsing succeeds with recovered errors, the returned error will be a
+// *RecoveryError containing all accumulated errors.
+func Recover(strategies ...RecoveryStrategy) ParseOption {
+	return func(p *parseContext) {
+		if p.recovery == nil {
+			p.recovery = &recoveryConfig{
+				maxErrors: 100, // Default max errors
+			}
+		}
+		p.recovery.strategies = append(p.recovery.strategies, strategies...)
+	}
+}
+
+// MaxRecoveryErrors sets the maximum number of errors to collect during recovery.
+// Once this limit is reached, parsing will stop. Use 0 for unlimited errors.
+func MaxRecoveryErrors(max int) ParseOption {
+	return func(p *parseContext) {
+		if p.recovery == nil {
+			p.recovery = &recoveryConfig{}
+		}
+		p.recovery.maxErrors = max
+	}
+}

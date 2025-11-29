@@ -27,6 +27,10 @@ type parseContext struct {
 	caseInsensitive   map[lexer.TokenType]bool
 	apply             []*contextFieldSet
 	allowTrailing     bool
+
+	// Error recovery support
+	recovery       *recoveryConfig
+	recoveryErrors []error
 }
 
 func newParseContext(lex *lexer.PeekingLexer, lookahead int, caseInsensitive map[lexer.TokenType]bool) parseContext {
@@ -71,6 +75,8 @@ func (p *parseContext) Accept(branch *parseContext) {
 		p.deepestErrorDepth = branch.deepestErrorDepth
 		p.deepestError = branch.deepestError
 	}
+	// Merge recovery errors from the branch
+	p.recoveryErrors = append(p.recoveryErrors, branch.recoveryErrors...)
 }
 
 // Branch starts a new lookahead branch.
@@ -78,6 +84,7 @@ func (p *parseContext) Branch() *parseContext {
 	branch := &parseContext{}
 	*branch = *p
 	branch.apply = nil
+	branch.recoveryErrors = nil // Don't share slice with parent
 	return branch
 }
 
@@ -125,4 +132,43 @@ func maxInt(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// Recovery support methods
+
+// recoveryEnabled returns true if error recovery is enabled.
+func (p *parseContext) recoveryEnabled() bool {
+	return p.recovery != nil && len(p.recovery.strategies) > 0
+}
+
+// addRecoveryError records an error that occurred during recovery.
+func (p *parseContext) addRecoveryError(err error) {
+	p.recoveryErrors = append(p.recoveryErrors, err)
+}
+
+// tryRecover attempts to recover from a parse error using configured strategies.
+// Returns true if recovery was successful.
+func (p *parseContext) tryRecover(err error, parent reflect.Value) (bool, []reflect.Value) {
+	if !p.recoveryEnabled() {
+		return false, nil
+	}
+
+	// Check if we've exceeded max errors
+	if p.recovery.maxErrors > 0 && len(p.recoveryErrors) >= p.recovery.maxErrors {
+		return false, nil
+	}
+
+	// Try each strategy in order
+	for _, strategy := range p.recovery.strategies {
+		checkpoint := p.PeekingLexer.MakeCheckpoint()
+		recovered, values, newErr := strategy.Recover(p, err, parent)
+		if recovered {
+			p.addRecoveryError(newErr)
+			return true, values
+		}
+		// Restore checkpoint if strategy failed
+		p.PeekingLexer.LoadCheckpoint(checkpoint)
+	}
+
+	return false, nil
 }

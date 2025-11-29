@@ -245,11 +245,25 @@ func (p *Parser[G]) ParseBytes(filename string, b []byte, options ...ParseOption
 func (p *Parser[G]) parseOne(ctx *parseContext, parseNode node, rv reflect.Value) error {
 	err := p.parseInto(ctx, parseNode, rv)
 	if err != nil {
+		// If we had recovery errors but no final error, return the recovery errors
+		if len(ctx.recoveryErrors) > 0 {
+			ctx.recoveryErrors = append(ctx.recoveryErrors, err)
+			return &RecoveryError{Errors: ctx.recoveryErrors}
+		}
 		return err
 	}
 	token := ctx.Peek()
 	if !token.EOF() && !ctx.allowTrailing {
-		return ctx.DeepestError(&UnexpectedTokenError{Unexpected: *token})
+		err = ctx.DeepestError(&UnexpectedTokenError{Unexpected: *token})
+		if len(ctx.recoveryErrors) > 0 {
+			ctx.recoveryErrors = append(ctx.recoveryErrors, err)
+			return &RecoveryError{Errors: ctx.recoveryErrors}
+		}
+		return err
+	}
+	// Return accumulated recovery errors if any
+	if len(ctx.recoveryErrors) > 0 {
+		return &RecoveryError{Errors: ctx.recoveryErrors}
 	}
 	return nil
 }

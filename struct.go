@@ -48,6 +48,11 @@ type structLexerField struct {
 	Index []int
 }
 
+// RecoveryTag returns the recovery configuration tag for this field, if any.
+func (f structLexerField) RecoveryTag() string {
+	return f.Tag.Get("recover")
+}
+
 // Field returns the field associated with the current token.
 func (s *structLexer) Field() structLexerField {
 	return s.GetField(s.field)

@@ -48,6 +48,8 @@ func visit(n node, visitor func(n node, next func() error) error) error {
 			return visit(n.expr, visitor)
 		case *lookaheadGroup:
 			return visit(n.expr, visitor)
+		case *recoveryNode:
+			return visit(n.inner, visitor)
 		default:
 			panic(fmt.Sprintf("%T", n))
 		}

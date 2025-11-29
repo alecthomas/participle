@@ -117,12 +117,14 @@ func (u *union) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Va
 
 // @@
 type strct struct {
-	typ              reflect.Type
-	expr             node
-	tokensFieldIndex []int
-	posFieldIndex    []int
-	endPosFieldIndex []int
-	usages           int
+	typ                    reflect.Type
+	expr                   node
+	tokensFieldIndex       []int
+	posFieldIndex          []int
+	endPosFieldIndex       []int
+	recoveredFieldIndex    []int // For Recovered bool field
+	recoveredSpanFieldIndex []int // For RecoveredSpan lexer.Position field
+	usages                 int
 }
 
 func newStrct(typ reflect.Type) *strct {
@@ -142,6 +144,15 @@ func newStrct(typ reflect.Type) *strct {
 	if ok && field.Type == tokensType {
 		s.tokensFieldIndex = field.Index
 	}
+	// Recovery metadata fields
+	field, ok = typ.FieldByName("Recovered")
+	if ok && field.Type.Kind() == reflect.Bool {
+		s.recoveredFieldIndex = field.Index
+	}
+	field, ok = typ.FieldByName("RecoveredSpan")
+	if ok && positionType.ConvertibleTo(field.Type) {
+		s.recoveredSpanFieldIndex = field.Index
+	}
 	return s
 }
 
@@ -153,8 +164,22 @@ func (s *strct) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Va
 	sv := reflect.New(s.typ).Elem()
 	start := ctx.RawCursor()
 	t := ctx.Peek()
+	recoveryStartPos := t.Pos // Track position where recovery might start
 	s.maybeInjectStartToken(t, sv)
 	if out, err = s.expr.Parse(ctx, sv); err != nil {
+		// Try to recover from the error
+		if recovered, _ := ctx.tryRecover(err, sv); recovered {
+			// Recovery succeeded - continue with partial result
+			_ = ctx.Apply()
+			end := ctx.RawCursor()
+			t = ctx.RawPeek()
+			s.maybeInjectEndToken(t, sv)
+			s.maybeInjectTokens(ctx.Range(start, end), sv)
+			// Inject recovery metadata
+			s.maybeInjectRecovered(true, sv)
+			s.maybeInjectRecoveredSpan(recoveryStartPos, sv)
+			return []reflect.Value{sv}, nil
+		}
 		_ = ctx.Apply() // Best effort to give partial AST.
 		ctx.MaybeUpdateError(err)
 		return []reflect.Value{sv}, err
@@ -189,6 +214,21 @@ func (s *strct) maybeInjectTokens(tokens []lexer.Token, v reflect.Value) {
 		return
 	}
 	v.FieldByIndex(s.tokensFieldIndex).Set(reflect.ValueOf(tokens))
+}
+
+func (s *strct) maybeInjectRecovered(recovered bool, v reflect.Value) {
+	if s.recoveredFieldIndex == nil {
+		return
+	}
+	v.FieldByIndex(s.recoveredFieldIndex).SetBool(recovered)
+}
+
+func (s *strct) maybeInjectRecoveredSpan(pos lexer.Position, v reflect.Value) {
+	if s.recoveredSpanFieldIndex == nil {
+		return
+	}
+	f := v.FieldByIndex(s.recoveredSpanFieldIndex)
+	f.Set(reflect.ValueOf(pos).Convert(f.Type()))
 }
 
 type groupMatchMode int
@@ -264,6 +304,16 @@ func (g *group) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Va
 		v, err := g.expr.Parse(branch, parent)
 		if err != nil {
 			ctx.MaybeUpdateError(err)
+			// Try to recover from the error
+			if recovered, recoveredValues := ctx.tryRecover(err, parent); recovered {
+				// Recovery succeeded - accept what we have and continue
+				out = append(out, v...)
+				if len(recoveredValues) > 0 {
+					out = append(out, recoveredValues...)
+				}
+				ctx.Accept(branch)
+				continue // Try to parse more iterations after recovery
+			}
 			// Optional part failed to match.
 			if ctx.Stop(err, branch) {
 				out = append(out, v...) // Try to return as much of the parse tree as possible
