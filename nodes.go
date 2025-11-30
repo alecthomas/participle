@@ -269,6 +269,7 @@ func (g *group) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Va
 				out = append(out, v...) // Try to return as much of the parse tree as possible
 				return out, err
 			}
+			branch.recycle(false)
 			break
 		}
 		out = append(out, v...)
@@ -306,6 +307,7 @@ func (l *lookaheadGroup) Parse(ctx *parseContext, parent reflect.Value) (out []r
 	defer ctx.printTrace(l)()
 	// Create a branch to avoid advancing the parser as any match will be discarded
 	branch := ctx.Branch()
+	defer branch.recycle(false)
 	out, err = l.expr.Parse(branch, parent)
 	matchedLookahead := err == nil && out != nil
 	expectingMatch := !l.negative
@@ -337,12 +339,13 @@ func (d *disjunction) Parse(ctx *parseContext, parent reflect.Value) (out []refl
 			if ctx.Stop(err, branch) {
 				return value, err
 			}
+			cursor := branch.Cursor()
 			// Show the closest error returned. The idea here is that the further the parser progresses
 			// without error, the more difficult it is to trace the error back to its root.
-			if branch.Cursor() >= deepestError {
+			if cursor >= deepestError {
 				firstError = err
 				firstValues = value
-				deepestError = branch.Cursor()
+				deepestError = cursor
 			}
 		} else if value != nil {
 			bt := branch.RawPeek()
@@ -353,6 +356,7 @@ func (d *disjunction) Parse(ctx *parseContext, parent reflect.Value) (out []refl
 			ctx.Accept(branch)
 			return value, nil
 		}
+		branch.recycle(false)
 	}
 	if firstError != nil {
 		ctx.MaybeUpdateError(firstError)
@@ -481,14 +485,16 @@ func (n *negation) GoString() string { return "negation{}" }
 
 func (n *negation) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	defer ctx.printTrace(n)()
-	// Create a branch to avoid advancing the parser, but call neither Stop nor Accept on it
-	// since we will discard a match.
-	branch := ctx.Branch()
 	notEOF := ctx.Peek()
 	if notEOF.EOF() {
 		// EOF cannot match a negation, which expects something
 		return nil, nil
 	}
+
+	// Create a branch to avoid advancing the parser, but call neither Stop nor Accept on it
+	// since we will discard a match.
+	branch := ctx.Branch()
+	defer branch.recycle(false)
 
 	out, err = n.node.Parse(branch, parent)
 	if out != nil && err == nil {
