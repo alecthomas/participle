@@ -141,7 +141,7 @@ using the entire tag body.
 The grammar format is:
 
 - `@<expr>` Capture expression into the field.
-- `@@` Recursively capture using the fields own type.
+- `@@` Recursively capture using the field’s own type.
 - `<identifier>` Match named lexer token.
 - `( ... )` Group.
 - `"..."` or `'...'` Match the literal (note that the lexer must emit tokens matching this literal exactly).
