@@ -53,3 +53,16 @@ func TestUnquote(t *testing.T) {
 	}
 	require.Equal(t, expected, actual)
 }
+
+func TestUnquoteShortToken(t *testing.T) {
+	type grammar struct {
+		Text string `@String`
+	}
+	lex := lexer.MustSimple([]lexer.SimpleRule{
+		{"whitespace", `\s+`},
+		{"String", `.`},
+	})
+	parser := mustTestParser[grammar](t, participle.Lexer(lex), participle.Unquote("String"))
+	_, err := parser.Lex("", strings.NewReader(`"`))
+	require.Error(t, err)
+}

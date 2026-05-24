@@ -1,6 +1,7 @@
 package participle
 
 import (
+	"fmt"
 	"io"
 	"strconv"
 	"strings"
@@ -49,6 +50,9 @@ func Unquote(types ...string) Option {
 }
 
 func unquote(s string) (string, error) {
+	if len(s) < 2 {
+		return "", fmt.Errorf("string %q is too short to be quoted", s)
+	}
 	quote := s[0]
 	s = s[1 : len(s)-1]
 	out := ""
