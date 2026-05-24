@@ -51,7 +51,7 @@ func Unquote(types ...string) Option {
 
 func unquote(s string) (string, error) {
 	if len(s) < 2 {
-		return "", fmt.Errorf("string %q is too short to be quoted", s)
+		panic(fmt.Sprintf("participle: token %q is too short to be unquoted; only apply Unquote() to quoted-string token types", s))
 	}
 	quote := s[0]
 	s = s[1 : len(s)-1]

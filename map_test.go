@@ -63,6 +63,10 @@ func TestUnquoteShortToken(t *testing.T) {
 		{"String", `.`},
 	})
 	parser := mustTestParser[grammar](t, participle.Lexer(lex), participle.Unquote("String"))
-	_, err := parser.Lex("", strings.NewReader(`"`))
-	require.Error(t, err)
+	defer func() {
+		recovered := recover()
+		require.NotZero(t, recovered)
+	}()
+	_, _ = parser.Lex("", strings.NewReader(`"`))
+	t.Fatal("expected panic on token too short to be unquoted")
 }
