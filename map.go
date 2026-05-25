@@ -40,6 +40,9 @@ func Unquote(types ...string) Option {
 		types = []string{"String"}
 	}
 	return Map(func(t lexer.Token) (lexer.Token, error) {
+		if len(t.Value) < 2 {
+			panic(fmt.Sprintf("participle: Unquote() applied to token %q at %s but it is too short to be a quoted string; only apply Unquote() to quoted-string token types", t.Value, t.Pos))
+		}
 		value, err := unquote(t.Value)
 		if err != nil {
 			return t, Errorf(t.Pos, "invalid quoted string %q: %s", t.Value, err.Error())
@@ -50,9 +53,6 @@ func Unquote(types ...string) Option {
 }
 
 func unquote(s string) (string, error) {
-	if len(s) < 2 {
-		panic(fmt.Sprintf("participle: token %q is too short to be unquoted; only apply Unquote() to quoted-string token types", s))
-	}
 	quote := s[0]
 	s = s[1 : len(s)-1]
 	out := ""
