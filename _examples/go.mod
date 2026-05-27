@@ -1,6 +1,6 @@
 module github.com/alecthomas/participle/v2/_examples
 
-go 1.18
+go 1.24
 
 require (
 	github.com/alecthomas/assert/v2 v2.11.0
