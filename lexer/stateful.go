@@ -127,10 +127,20 @@ type compiledRule struct {
 // compiledRules grouped by name.
 type compiledRules map[string][]compiledRule
 
+// capture is the text matched by a single regex capture group.
+//
+// A group that did not participate in the match at all is distinct from one
+// that matched the empty string: a backreference to the former cannot match,
+// while a backreference to the latter matches the empty string.
+type capture struct {
+	text    string
+	present bool
+}
+
 // A Action is applied when a rule matches.
 type Action interface {
 	// Actions are responsible for validating the match. ie. if they consumed any input.
-	applyAction(lexer *StatefulLexer, groups []string) error
+	applyAction(lexer *StatefulLexer, groups []capture) error
 }
 
 // RulesAction is an optional interface that Actions can implement.
@@ -147,8 +157,8 @@ type validatingRule interface {
 // ActionPop pops to the previous state when the Rule matches.
 type ActionPop struct{}
 
-func (p ActionPop) applyAction(lexer *StatefulLexer, groups []string) error {
-	if groups[0] == "" {
+func (p ActionPop) applyAction(lexer *StatefulLexer, groups []capture) error {
+	if groups[0].text == "" {
 		return errors.New("did not consume any input")
 	}
 	lexer.stack = lexer.stack[:len(lexer.stack)-1]
@@ -173,8 +183,8 @@ type ActionPush struct {
 	State string `json:"state"`
 }
 
-func (p ActionPush) applyAction(lexer *StatefulLexer, groups []string) error {
-	if groups[0] == "" {
+func (p ActionPush) applyAction(lexer *StatefulLexer, groups []capture) error {
+	if groups[0].text == "" {
 		return errors.New("did not consume any input")
 	}
 	lexer.stack = append(lexer.stack, lexerState{name: p.State, groups: groups})
@@ -200,7 +210,7 @@ type include struct {
 	State string `json:"state"`
 }
 
-func (i include) applyAction(_ *StatefulLexer, _ []string) error {
+func (i include) applyAction(_ *StatefulLexer, _ []capture) error {
 	panic("should not be called")
 }
 
@@ -351,7 +361,7 @@ func (d *StatefulDefinition) Symbols() map[string]TokenType {
 // lexerState stored when switching states in the lexer.
 type lexerState struct {
 	name   string
-	groups []string
+	groups []capture
 }
 
 // StatefulLexer implementation.
@@ -402,9 +412,15 @@ next:
 		}
 
 		if rule.Action != nil {
-			groups := make([]string, 0, len(match)/2)
+			// A capture group that did not participate in the match has an
+			// offset of -1. Keep its slot, so that groups[n] is always group n
+			// for backreferences to resolve against, and record that it was
+			// absent so that a backreference to it cannot match.
+			groups := make([]capture, len(match)/2)
 			for i := 0; i < len(match); i += 2 {
-				groups = append(groups, l.data[match[i]:match[i+1]])
+				if match[i] >= 0 {
+					groups[i/2] = capture{text: l.data[match[i]:match[i+1]], present: true}
+				}
 			}
 			if err := rule.Action.applyAction(l, groups); err != nil {
 				return Token{}, errorf(l.pos, "lexer: rule %q: %s", rule.Name, err)
@@ -440,12 +456,29 @@ func (l *StatefulLexer) getPattern(candidate compiledRule) (*regexp.Regexp, erro
 	}
 	// We don't have a compiled RE. This means there are back-references
 	// that need to be substituted first.
-	return BackrefRegex(&l.def.backrefCache, candidate.Pattern, l.stack[len(l.stack)-1].groups)
+	return backrefRegex(&l.def.backrefCache, candidate.Pattern, l.stack[len(l.stack)-1].groups)
 }
 
 // BackrefRegex returns a compiled regular expression with backreferences replaced by groups.
 func BackrefRegex(backrefCache *sync.Map, input string, groups []string) (*regexp.Regexp, error) {
-	key := input + "\000" + strings.Join(groups, "\000")
+	captures := make([]capture, len(groups))
+	for i, group := range groups {
+		captures[i] = capture{text: group, present: true}
+	}
+	return backrefRegex(backrefCache, input, captures)
+}
+
+// neverMatch is a zero-width expression that can never match, because a
+// position cannot be both a word boundary and not a word boundary. It stands in
+// for a backreference to a capture group that did not participate in the match,
+// so that the expression around it still composes: "\1" cannot match, while
+// "\1?" remains optional.
+const neverMatch = `(?:\b\B)`
+
+// backrefRegex returns a compiled regular expression with backreferences
+// replaced by the parent's captures.
+func backrefRegex(backrefCache *sync.Map, input string, groups []capture) (*regexp.Regexp, error) {
+	key := backrefCacheKey(input, groups)
 	cached, ok := backrefCache.Load(key)
 	if ok {
 		return cached.(*regexp.Regexp), nil
@@ -467,7 +500,13 @@ func BackrefRegex(backrefCache *sync.Map, input string, groups []string) (*regex
 			return s
 		}
 		// concatenate the leading \\\\ which are already escaped to the quoted match.
-		return rematch[1][:len(rematch[1])-1] + regexp.QuoteMeta(groups[n])
+		// The expansion is always a single group, so that a quantified or
+		// alternated backreference still parses when the capture is empty.
+		prefix := rematch[1][:len(rematch[1])-1]
+		if !groups[n].present {
+			return prefix + neverMatch
+		}
+		return prefix + "(?:" + regexp.QuoteMeta(groups[n].text) + ")"
 	})
 	if err == nil {
 		re, err = regexp.Compile("^(?:" + pattern + ")")
@@ -477,4 +516,29 @@ func BackrefRegex(backrefCache *sync.Map, input string, groups []string) (*regex
 	}
 	backrefCache.Store(key, re)
 	return re, nil
+}
+
+// backrefCacheKey builds a key identifying a pattern together with the parent
+// captures it is expanded against. Lengths are included because the captures
+// themselves may contain the separator.
+func backrefCacheKey(input string, groups []capture) string {
+	size := len(input) + 8
+	for _, group := range groups {
+		size += len(group.text) + 8
+	}
+	key := strings.Builder{}
+	key.Grow(size)
+	key.WriteString(strconv.Itoa(len(input)))
+	key.WriteString(":")
+	key.WriteString(input)
+	for _, group := range groups {
+		key.WriteString("\000")
+		if !group.present {
+			continue
+		}
+		key.WriteString(strconv.Itoa(len(group.text)))
+		key.WriteString(":")
+		key.WriteString(group.text)
+	}
+	return key.String()
 }

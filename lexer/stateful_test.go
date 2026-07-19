@@ -41,6 +41,24 @@ func TestMarshalUnmarshal(t *testing.T) {
 	require.Equal(t, interpolatedRules, unmarshalledRules)
 }
 
+// A capture group that did not participate in the match ("Opt" with no "a") is
+// distinct from one that matched the empty string ("Star" with no "a"): "\1>"
+// cannot match at all in the former, and matches ">" in the latter.
+var backrefParticipationRules = lexer.Rules{
+	"Root": {
+		{"Opt", `OPT`, lexer.Push("Opt")},
+		{"Star", `STAR`, lexer.Push("Star")},
+	},
+	"Opt":  {{"OptOpen", `<(a)?`, lexer.Push("Body")}, lexer.Return()},
+	"Star": {{"StarOpen", `<(a*)`, lexer.Push("Body")}, lexer.Return()},
+	"Body": {
+		{"Close", `\1>`, lexer.Pop()},
+		{"Text", `[a-z]+`, nil},
+		{"Abort", `>!`, lexer.Pop()},
+		{"Loose", `\1?#`, lexer.Pop()},
+	},
+}
+
 func TestStatefulLexer(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -173,6 +191,63 @@ func TestStatefulLexer(t *testing.T) {
 			},
 			input: "hello",
 			err:   "1:1: lexer: rule \"NoMatch\": did not consume any input",
+		},
+		{name: "NonParticipatingGroup",
+			rules: lexer.Rules{
+				"Root": {
+					{"Percent", `%`, lexer.Push("Percent")},
+					{"whitespace", ` +`, nil},
+				},
+				"Percent": {
+					{"Ident", `[[:alpha:]]([[:alnum:]])*`, lexer.Pop()},
+				},
+			},
+			input:  `%x %ab`,
+			tokens: []string{"%", "x", "%", "ab"},
+		},
+		{name: "BackrefToNonParticipatingGroup",
+			rules:  backrefParticipationRules,
+			input:  `OPT<zz>!`,
+			tokens: []string{"OPT", "<", "zz", ">!"},
+		},
+		{name: "BackrefToEmptyParticipatingGroup",
+			rules:  backrefParticipationRules,
+			input:  `STAR<>`,
+			tokens: []string{"STAR", "<", ">"},
+		},
+		{name: "OptionalBackrefToNonParticipatingGroup",
+			rules:  backrefParticipationRules,
+			input:  `OPT<zz#`,
+			tokens: []string{"OPT", "<", "zz", "#"},
+		},
+		{name: "OptionalBackrefToEmptyParticipatingGroup",
+			rules:  backrefParticipationRules,
+			input:  `STAR<#`,
+			tokens: []string{"STAR", "<", "#"},
+		},
+		{name: "BackrefCachedPerParticipation",
+			rules:  backrefParticipationRules,
+			input:  `OPT<zz>!STAR<>`,
+			tokens: []string{"OPT", "<", "zz", ">!", "STAR", "<", ">"},
+		},
+		{name: "BackrefAfterNonParticipatingGroup",
+			rules: lexer.Rules{
+				"Root": {
+					{"Heredoc", `<<(-)?(\w+)@(\w+)\b`, lexer.Push("Heredoc")},
+					lexer.Include("Common"),
+				},
+				"Heredoc": {
+					{"End", `\b\2\b`, lexer.Pop()},
+					{"Line", `[^\n]+`, nil},
+					lexer.Include("Common"),
+				},
+				"Common": {
+					{"Whitespace", `\s+`, nil},
+					{"Ident", `\w+`, nil},
+				},
+			},
+			input:  "<<END@HOST\nHOST is not the terminator\nEND\ntail",
+			tokens: []string{"<<END@HOST", "\n", "HOST is not the terminator", "\n", "END", "\n", "tail"},
 		},
 	}
 	for _, test := range tests {
