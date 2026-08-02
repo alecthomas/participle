@@ -1622,6 +1622,39 @@ func (b *Box) Capture(values []string) error {
 	return nil
 }
 
+// Types for TestBoxedCaptureWithDoubleAt (issue #140)
+type innerCapture140 struct {
+	Val string `@Ident`
+}
+
+func (i *innerCapture140) Capture(values []string) error {
+	i.Val = values[0]
+	return nil
+}
+
+type outerCapture140 struct {
+	Inner innerCapture140 `@@`
+}
+
+// Types for TestCaptureCalledWithEmptySlice
+type emptyCapturableField struct {
+	Called bool
+	Val    string
+}
+
+func (e *emptyCapturableField) Capture(values []string) error {
+	e.Called = true
+	if len(values) > 0 {
+		e.Val = values[0]
+	}
+	return nil
+}
+
+type emptyCaptureGrammar struct {
+	Field emptyCapturableField `@Int?`
+	End   string               `@Ident`
+}
+
 func TestBoxedCapture(t *testing.T) {
 	lex := lexer.MustSimple([]lexer.SimpleRule{
 		{"Ident", `[a-zA-Z](\w|\.|/|:|-)*`},
@@ -1636,6 +1669,34 @@ func TestBoxedCapture(t *testing.T) {
 	if _, err := parser.ParseString("test", "abc::cdef.abc"); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// TestBoxedCaptureWithDoubleAt tests that a struct implementing Capture does not
+// panic when used with @@ (struct capture). Fixes #140.
+func TestBoxedCaptureWithDoubleAt(t *testing.T) {
+	parser := mustTestParser[outerCapture140](t, participle.UseLookahead(2))
+	ast, err := parser.ParseString("", "hello")
+	assert.NoError(t, err)
+	assert.Equal(t, "hello", ast.Inner.Val)
+}
+
+// TestCaptureCalledWithEmptySlice verifies that when an optional capture doesn't
+// match, Capture is not invoked (consistent with old behavior: Defer is only
+// called when the inner node matches).
+func TestCaptureCalledWithEmptySlice(t *testing.T) {
+	parser := mustTestParser[emptyCaptureGrammar](t)
+	// No Int token before Ident → optional @Int? doesn't match → Capture not called.
+	ast, err := parser.ParseString("", "hello")
+	assert.NoError(t, err)
+	assert.False(t, ast.Field.Called, "Capture should not be called when optional doesn't match")
+	assert.Equal(t, "hello", ast.End)
+
+	// With Int token → Capture IS called.
+	ast, err = parser.ParseString("", "42 hello")
+	assert.NoError(t, err)
+	assert.True(t, ast.Field.Called, "Capture should be called when optional matches")
+	assert.Equal(t, "42", ast.Field.Val)
+	assert.Equal(t, "hello", ast.End)
 }
 
 func TestMatchEOF(t *testing.T) {

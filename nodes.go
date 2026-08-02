@@ -627,15 +627,19 @@ func setField(tokens []lexer.Token, strct reflect.Value, field structLexerField,
 
 	if f.CanAddr() {
 		if d, ok := f.Addr().Interface().(Capture); ok {
-			ifv := make([]string, 0, len(fieldValue))
-			for _, v := range fieldValue {
-				ifv = append(ifv, v.Interface().(string))
+			// Route through Capture unless fieldValue positively contains non-string
+			// values (from @@ struct captures), which Capture cannot accept.
+			isStructCapture := len(fieldValue) > 0 && fieldValue[0].Kind() != reflect.String
+			if !isStructCapture {
+				ifv := make([]string, 0, len(fieldValue))
+				for _, v := range fieldValue {
+					ifv = append(ifv, v.Interface().(string))
+				}
+				if err := d.Capture(ifv); err != nil {
+					return Wrapf(pos, err, "failed to capture")
+				}
+				return nil
 			}
-			err = d.Capture(ifv)
-			if err != nil {
-				return Wrapf(pos, err, "failed to capture")
-			}
-			return nil
 		} else if d, ok := f.Addr().Interface().(encoding.TextUnmarshaler); ok {
 			for _, v := range fieldValue {
 				if err := d.UnmarshalText([]byte(v.Interface().(string))); err != nil {
