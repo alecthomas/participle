@@ -174,6 +174,32 @@ func TestStatefulLexer(t *testing.T) {
 			input: "hello",
 			err:   "1:1: lexer: rule \"NoMatch\": did not consume any input",
 		},
+		{name: "UnmatchedOptionalCaptureGroup",
+			// An optional capture group that does not match must not cause a
+			// panic (issue #324); it is passed to actions as an empty string.
+			rules: lexer.Rules{
+				"Root": {
+					{"Ident", `[a-z]([a-z])?`, lexer.Push("Inner")},
+				},
+				"Inner": {
+					{"Ident", `[a-z]([a-z])?`, lexer.Pop()},
+				},
+			},
+			input:  `a`,
+			tokens: []string{"a"},
+		},
+		{name: "BackrefMatchesEmptyCaptureGroup",
+			rules: lexer.Rules{
+				"Root": {
+					{"A", `(a)?b`, lexer.Push("Next")},
+				},
+				"Next": {
+					{"C", `\1c`, nil},
+				},
+			},
+			input:  `bc`,
+			tokens: []string{"b", "c"},
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
