@@ -627,9 +627,12 @@ func setField(tokens []lexer.Token, strct reflect.Value, field structLexerField,
 
 	if f.CanAddr() {
 		if d, ok := f.Addr().Interface().(Capture); ok {
-			ifv := make([]string, 0, len(fieldValue))
-			for _, v := range fieldValue {
-				ifv = append(ifv, v.Interface().(string))
+			if len(fieldValue) > 0 && fieldValue[0].Type().AssignableTo(f.Type()) {
+				f.Set(fieldValue[0])
+			}
+			ifv := make([]string, 0, len(tokens))
+			for _, t := range tokens {
+				ifv = append(ifv, t.Value)
 			}
 			err = d.Capture(ifv)
 			if err != nil {
@@ -637,10 +640,18 @@ func setField(tokens []lexer.Token, strct reflect.Value, field structLexerField,
 			}
 			return nil
 		} else if d, ok := f.Addr().Interface().(encoding.TextUnmarshaler); ok {
-			for _, v := range fieldValue {
-				if err := d.UnmarshalText([]byte(v.Interface().(string))); err != nil {
-					return Wrapf(pos, err, "failed to unmarshal text")
+			if len(fieldValue) > 0 && fieldValue[0].Type().AssignableTo(f.Type()) {
+				f.Set(fieldValue[0])
+			}
+			text := make([]byte, 0, 64)
+			for i, t := range tokens {
+				if i > 0 {
+					text = append(text, ' ')
 				}
+				text = append(text, t.Value...)
+			}
+			if err := d.UnmarshalText(text); err != nil {
+				return Wrapf(pos, err, "failed to unmarshal text")
 			}
 			return nil
 		}
@@ -652,9 +663,15 @@ func setField(tokens []lexer.Token, strct reflect.Value, field structLexerField,
 			if sliceElemType.Kind() == reflect.Pointer {
 				sliceElemType = sliceElemType.Elem()
 			}
-			for _, v := range fieldValue {
+			for i, v := range fieldValue {
 				d := reflect.New(sliceElemType).Interface().(Capture)
-				if err := d.Capture([]string{v.Interface().(string)}); err != nil {
+				t := ""
+				if v.Kind() == reflect.String {
+					t = v.String()
+				} else if i < len(tokens) {
+					t = tokens[i].Value
+				}
+				if err := d.Capture([]string{t}); err != nil {
 					return Wrapf(pos, err, "failed to capture")
 				}
 				eltValue := reflect.ValueOf(d)
