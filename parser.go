@@ -21,6 +21,11 @@ type customDef struct {
 	parseFn reflect.Value
 }
 
+type aliasDef struct {
+	name    string
+	grammar string
+}
+
 type parserOptions struct {
 	lex                   lexer.Definition
 	rootType              reflect.Type
@@ -31,6 +36,7 @@ type parserOptions struct {
 	mappers               []mapperByToken
 	unionDefs             []unionDef
 	customDefs            []customDef
+	aliasDefs             []aliasDef
 	elide                 []string
 }
 
@@ -113,6 +119,9 @@ func Build[G any](options ...Option) (parser *Parser[G], err error) {
 
 	context := newGeneratorContext(p.lex)
 	if err := context.addCustomDefs(p.customDefs); err != nil {
+		return nil, err
+	}
+	if err := context.addAliasDefs(p.aliasDefs); err != nil {
 		return nil, err
 	}
 	if err := context.addUnionDefs(p.unionDefs); err != nil {
