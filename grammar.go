@@ -66,10 +66,7 @@ func (g *generatorContext) parseType(t reflect.Type) (_ node, returnedError erro
 		}
 		return n, nil
 	}
-	if t.Implements(parseableType) {
-		return &parseable{t.Elem()}, nil
-	}
-	if reflect.PointerTo(t).Implements(parseableType) {
+	if t.Implements(parseableType) || reflect.PointerTo(t).Implements(parseableType) {
 		return &parseable{t}, nil
 	}
 	switch t.Kind() { //nolint:exhaustive // explicit kinds handled

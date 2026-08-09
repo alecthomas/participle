@@ -70,8 +70,8 @@ func buildEBNF(root bool, n node, seen map[node]bool, p *ebnfp, outp *[]*ebnfp) 
 		}
 
 	case *custom:
-		name := strings.ToUpper(n.typ.Name()[:1]) + n.typ.Name()[1:]
-		p.out += name
+		// Custom types have no parseable structure, so signal them as a token reference.
+		p.out += "<" + strings.ToLower(n.typ.Name()) + ">"
 
 	case *strct:
 		name := strings.ToUpper(n.typ.Name()[:1]) + n.typ.Name()[1:]
@@ -103,7 +103,9 @@ func buildEBNF(root bool, n node, seen map[node]bool, p *ebnfp, outp *[]*ebnfp) 
 		}
 
 	case *parseable:
-		p.out += n.t.Name()
+		// Parseable productions are handled externally, so a token reference to
+		// the production name is the best we can do.
+		p.out += "<" + strings.ToLower(n.t.Name()) + ">"
 
 	case *capture:
 		buildEBNF(false, n.node, seen, p, outp)

@@ -1775,7 +1775,7 @@ func TestParserWithCustomProduction(t *testing.T) {
 		assert.Equal(t, c.expected, actual.Custom)
 	}
 
-	assert.Equal(t, `Grammar = TestCustom .`, p.String())
+	assert.Equal(t, `Grammar = <testcustom> .`, p.String())
 }
 
 type (
