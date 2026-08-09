@@ -32,6 +32,9 @@ type parserOptions struct {
 	unionDefs             []unionDef
 	customDefs            []customDef
 	elide                 []string
+	recoveryDefs          []recoveryDef
+	recovery              []recoverNode
+	structuralLiterals    map[string]bool
 }
 
 // A Parser for a particular grammar and lexer.
@@ -135,6 +138,9 @@ func Build[G any](options ...Option) (parser *Parser[G], err error) {
 	p.typeNodes = context.typeNodes
 	p.typeNodes[p.rootType] = rootNode
 	p.setCaseInsensitiveTokens()
+	if err := p.resolveRecovery(rootNode); err != nil {
+		return nil, err
+	}
 	return p, nil
 }
 
@@ -166,6 +172,9 @@ func (p *Parser[G]) ParseFromLexer(lex *lexer.PeekingLexer, options ...ParseOpti
 		return nil, err
 	}
 	ctx := newParseContext(lex, p.useLookahead, p.caseInsensitiveTokens)
+	ctx.recovery = p.recovery
+	ctx.structural = p.structuralLiterals
+	ctx.lastRecovery = -1
 	defer func() { *lex = ctx.PeekingLexer }()
 	for _, option := range options {
 		option(&ctx)

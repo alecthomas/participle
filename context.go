@@ -27,6 +27,9 @@ type parseContext struct {
 	caseInsensitive   map[lexer.TokenType]bool
 	apply             []*contextFieldSet
 	allowTrailing     bool
+	recovery          []recoverNode
+	structural        map[string]bool
+	lastRecovery      lexer.RawCursor
 }
 
 func newParseContext(lex *lexer.PeekingLexer, lookahead int, caseInsensitive map[lexer.TokenType]bool) parseContext {

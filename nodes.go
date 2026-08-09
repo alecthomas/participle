@@ -264,6 +264,13 @@ func (g *group) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Va
 		v, err := g.expr.Parse(branch, parent)
 		if err != nil {
 			ctx.MaybeUpdateError(err)
+			// Fault-tolerant recovery in repetition loops: a malformed element
+			// is skipped forward to the next token that can begin a registered
+			// recovery production, and the loop continues from there.
+			if (g.mode == groupMatchZeroOrMore || g.mode == groupMatchOneOrMore) && ctx.maybeRecover(branch, branch.Peek(), false) {
+				ctx.Accept(branch)
+				continue
+			}
 			// Optional part failed to match.
 			if ctx.Stop(err, branch) {
 				out = append(out, v...) // Try to return as much of the parse tree as possible
@@ -274,6 +281,14 @@ func (g *group) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Va
 		out = append(out, v...)
 		ctx.Accept(branch)
 		if v == nil {
+			// Fault-tolerant recovery in repetition loops: the expression did
+			// not match, so skip forward to the next token that can begin a
+			// registered recovery production and try again. The failed token
+			// is always consumed, guaranteeing forward progress.
+			if (g.mode == groupMatchZeroOrMore || g.mode == groupMatchOneOrMore) && ctx.maybeRecover(branch, branch.Peek(), false) {
+				ctx.Accept(branch)
+				continue
+			}
 			break
 		}
 	}
