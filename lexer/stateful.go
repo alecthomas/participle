@@ -238,11 +238,23 @@ func MustStateful(rules Rules) *StatefulDefinition {
 	return def
 }
 
+func isValidIdent(name string) bool {
+	for i, r := range name {
+		if r != '_' && !unicode.IsLetter(r) && (i == 0 || !unicode.IsDigit(r)) {
+			return false
+		}
+	}
+	return true
+}
+
 // New constructs a new stateful lexer from rules.
 func New(rules Rules) (*StatefulDefinition, error) {
 	compiled := compiledRules{}
 	for key, set := range rules {
 		for i, rule := range set {
+			if rule.Name != "" && !isValidIdent(rule.Name) {
+				return nil, fmt.Errorf("lexer: %s.%d: invalid rule name %q: must be a valid Go identifier", key, i, rule.Name)
+			}
 			if validate, ok := rule.Action.(validatingRule); ok {
 				if err := validate.validate(rules); err != nil {
 					return nil, fmt.Errorf("lexer: invalid action for rule %q: %w", rule.Name, err)
