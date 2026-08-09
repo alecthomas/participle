@@ -454,6 +454,7 @@ Example | Description
 [GraphQL](https://github.com/alecthomas/participle/tree/master/_examples/graphql) | Lexer+parser for GraphQL schemas
 [HCL](https://github.com/alecthomas/participle/tree/master/_examples/hcl) | A parser for the [HashiCorp Configuration Language](https://github.com/hashicorp/hcl).
 [INI](https://github.com/alecthomas/participle/tree/master/_examples/ini) | An INI file parser.
+[Indentation](https://github.com/alecthomas/participle/tree/master/_examples/indentation) | Parsing indentation-based (Python-like) grammars with a custom INDENT/DEDENT lexer.
 [Protobuf](https://github.com/alecthomas/participle/tree/master/_examples/protobuf) | A full [Protobuf](https://developers.google.com/protocol-buffers/) version 2 and 3 parser.
 [SQL](https://github.com/alecthomas/participle/tree/master/_examples/sql) | A *very* rudimentary SQL SELECT parser.
 [Stateful](https://github.com/alecthomas/participle/tree/master/_examples/stateful) | A basic example of a stateful lexer and corresponding parser.
