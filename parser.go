@@ -165,7 +165,7 @@ func (p *Parser[G]) ParseFromLexer(lex *lexer.PeekingLexer, options ...ParseOpti
 	if err != nil {
 		return nil, err
 	}
-	ctx := newParseContext(lex, p.useLookahead, p.caseInsensitiveTokens)
+	ctx := newParseContext(lex, p.lex, p.useLookahead, p.caseInsensitiveTokens)
 	defer func() { *lex = ctx.PeekingLexer }()
 	for _, option := range options {
 		option(&ctx)
@@ -250,7 +250,7 @@ func (p *Parser[G]) parseOne(ctx *parseContext, parseNode node, rv reflect.Value
 	}
 	token := ctx.Peek()
 	if !token.EOF() && !ctx.allowTrailing {
-		return ctx.DeepestError(&UnexpectedTokenError{Unexpected: *token})
+		return ctx.DeepestError(&UnexpectedTokenError{Unexpected: *token, TokenType: ctx.tokenTypeName(token.Type)})
 	}
 	return nil
 }
@@ -268,7 +268,7 @@ func (p *Parser[G]) parseInto(ctx *parseContext, _ node, rv reflect.Value) error
 	}
 	if pv == nil {
 		token := ctx.Peek()
-		return ctx.DeepestError(&UnexpectedTokenError{Unexpected: *token})
+		return ctx.DeepestError(&UnexpectedTokenError{Unexpected: *token, TokenType: ctx.tokenTypeName(token.Type)})
 	}
 	return nil
 }
@@ -276,7 +276,8 @@ func (p *Parser[G]) parseInto(ctx *parseContext, _ node, rv reflect.Value) error
 func (p *Parser[G]) rootParseable(ctx *parseContext, parseable Parseable) error {
 	if err := parseable.Parse(&ctx.PeekingLexer); err != nil {
 		if errors.Is(err, NextMatch) {
-			err = &UnexpectedTokenError{Unexpected: *ctx.Peek()}
+			token := *ctx.Peek()
+			err = &UnexpectedTokenError{Unexpected: token, TokenType: ctx.tokenTypeName(token.Type)}
 		} else {
 			err = &ParseError{Msg: err.Error(), Pos: ctx.Peek().Pos}
 		}
@@ -284,7 +285,7 @@ func (p *Parser[G]) rootParseable(ctx *parseContext, parseable Parseable) error 
 	}
 	peek := ctx.Peek()
 	if !peek.EOF() && !ctx.allowTrailing {
-		return ctx.DeepestError(&UnexpectedTokenError{Unexpected: *peek})
+		return ctx.DeepestError(&UnexpectedTokenError{Unexpected: *peek, TokenType: ctx.tokenTypeName(peek.Type)})
 	}
 	return nil
 }
