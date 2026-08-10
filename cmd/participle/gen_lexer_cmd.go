@@ -153,6 +153,8 @@ func generateRegexMatch(w io.Writer, lexerName, name, pattern string) error {
 	}
 	ids := map[string]int{}
 	idn := 0
+	seq := 0
+	questSkips := map[*syntax.Regexp]bool{}
 	reid := func(re *syntax.Regexp) int {
 		key := re.Op.String() + ":" + re.String()
 		id, ok := ids[key]
@@ -173,6 +175,21 @@ func generateRegexMatch(w io.Writer, lexerName, name, pattern string) error {
 	fmt.Fprintf(w, "// %s\n", re)
 	fmt.Fprintf(w, "func match%s%s(s string, p int, backrefs []string) (groups [%d]int) {\n", lexerName, name, 2*re.MaxCap()+2)
 	flattened := flatten(re)
+
+	// Pre-mark quest closures that appear as direct sub-expressions of a
+	// concat: emitConcatWithQuest inlines their inner expression rather than
+	// calling the quest closure, so emitting the quest closure would be dead
+	// code. Done before the flatten loop because flatten is post-order and
+	// emits the quest before its enclosing concat.
+	for _, fr := range flattened {
+		if fr.Op == syntax.OpConcat {
+			for _, sub := range fr.Sub {
+				if sub.Op == syntax.OpQuest {
+					questSkips[sub] = true
+				}
+			}
+		}
+	}
 
 	// Fast-path a single literal.
 	if len(flattened) == 1 && re.Op == syntax.OpLiteral {
@@ -195,6 +212,14 @@ func generateRegexMatch(w io.Writer, lexerName, name, pattern string) error {
 	}
 	for _, re := range flattened {
 		if exists(re) {
+			continue
+		}
+		// Quest closures are not emitted when the quest appears as a direct
+		// sub-expression of a concat: concat backtracking (emitConcatWithQuest)
+		// inlines the quest's inner expression, so a standalone quest closure
+		// would be dead code. Concats are walked first because flatten is
+		// post-order and emits the quest before its enclosing concat.
+		if re.Op == syntax.OpQuest && questSkips[re] {
 			continue
 		}
 		fmt.Fprintf(w, "// %s (%s)\n", re, re.Op)
@@ -358,10 +383,15 @@ func generateRegexMatch(w io.Writer, lexerName, name, pattern string) error {
 			panic("??")
 
 		case syntax.OpConcat: // matches concatenation of Subs
+			// Pre-mark direct quest sub-expressions so their closures are
+			// skipped (emitConcatWithQuest inlines them), since this concat is
+			// emitted after its flatten-ordered quest children.
 			for _, sub := range re.Sub {
-				fmt.Fprintf(w, "if p = l%d(s, p); p == -1 { return -1 }\n", reid(sub))
+				if sub.Op == syntax.OpQuest {
+					questSkips[sub] = true
+				}
 			}
-			fmt.Fprintf(w, "return p\n")
+			emitConcatWithQuest(w, re, reid, &seq, questSkips)
 
 		case syntax.OpAlternate: // matches alternation of Subs
 			for _, sub := range re.Sub {
@@ -380,6 +410,77 @@ func generateRegexMatch(w io.Writer, lexerName, name, pattern string) error {
 	fmt.Fprintf(w, "return\n")
 	fmt.Fprintf(w, "}\n")
 	return nil
+}
+
+// emitConcatWithQuest emits the concatenation of re.Sub, adding backtracking
+// for OpQuest sub-expressions so a quest "gives back" if the remainder would
+// otherwise fail (issue #276).
+//
+// For "head (X)? tail" the generated code is:
+//
+//	<match head>                       // p advanced; on failure goto onFail
+//	altN := p
+//	if np := lX(s, p); np != -1 {      // greedy: take the quest
+//		p = np
+//		<match tail>                    // tail failure -> goto fallbackN
+//		return p
+//	}
+//
+// fallbackN:
+//
+//	// quest not taken
+//	p = altN
+//	<match tail from alt>
+//	return p
+//
+// Tails that themselves contain quests recurse into this function, nesting the
+// backtracking without allocations (closures keep returning a single int).
+// seq provides unique suffixes for labels and variables and must persist
+// across sibling concats in the same generated function.
+func emitConcatWithQuest(w io.Writer, re *syntax.Regexp, reid func(re *syntax.Regexp) int, seq *int, questSkips map[*syntax.Regexp]bool) {
+	var emit func(subs []*syntax.Regexp, onFail string)
+	emit = func(subs []*syntax.Regexp, onFail string) {
+		fail := func() {
+			if onFail == "" {
+				fmt.Fprintf(w, "return -1\n")
+			} else {
+				fmt.Fprintf(w, "goto %s\n", onFail)
+			}
+		}
+		for i, sub := range subs {
+			if sub.Op != syntax.OpQuest {
+				fmt.Fprintf(w, "if p = l%d(s, p); p == -1 { ", reid(sub))
+				fail()
+				fmt.Fprintf(w, " }\n")
+				continue
+			}
+			tail := subs[i+1:]
+			*seq++
+			n := *seq
+			questSkips[sub] = true
+			// The prefix subs[:i] has already been emitted by the loop above.
+			fmt.Fprintf(w, "alt%d := p\n", n)
+			fmt.Fprintf(w, "if np := l%d(s, p); np != -1 {\n", reid(sub.Sub0[0]))
+			w.Write([]byte("p = np\n"))
+			if len(tail) > 0 {
+				emit(tail, fmt.Sprintf("fallback%d", n))
+			} else {
+				fmt.Fprintf(w, "return p\n")
+			}
+			w.Write([]byte("}\n"))
+			fmt.Fprintf(w, "fallback%d:\n", n)
+			w.Write([]byte("// quest not taken\n"))
+			w.Write([]byte("p = alt" + fmt.Sprint(n) + "\n"))
+			if len(tail) > 0 {
+				emit(tail, onFail)
+			} else {
+				fmt.Fprintf(w, "return p\n")
+			}
+			return
+		}
+		fmt.Fprintf(w, "return p\n")
+	}
+	emit(re.Sub, "")
 }
 
 // This exists because of https://github.com/golang/go/issues/31666
