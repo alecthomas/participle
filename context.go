@@ -12,20 +12,20 @@ import (
 type contextFieldSet struct {
 	tokens     []lexer.Token
 	strct      reflect.Value
-	field      structLexerField
+	field      *structLexerField
 	fieldValue []reflect.Value
 }
 
 // Context for a single parse.
 type parseContext struct {
 	lexer.PeekingLexer
-	depth             int
 	trace             io.Writer
+	traceState        *traceState
 	deepestError      error
 	deepestErrorDepth int
 	lookahead         int
 	caseInsensitive   map[lexer.TokenType]bool
-	apply             []*contextFieldSet
+	apply             []contextFieldSet
 	allowTrailing     bool
 }
 
@@ -48,8 +48,8 @@ func (p *parseContext) DeepestError(err error) error {
 }
 
 // Defer adds a function to be applied once a branch has been picked.
-func (p *parseContext) Defer(tokens []lexer.Token, strct reflect.Value, field structLexerField, fieldValue []reflect.Value) {
-	p.apply = append(p.apply, &contextFieldSet{tokens, strct, field, fieldValue})
+func (p *parseContext) Defer(tokens []lexer.Token, strct reflect.Value, field *structLexerField, fieldValue []reflect.Value) {
+	p.apply = append(p.apply, contextFieldSet{tokens, strct, field, fieldValue})
 }
 
 // Apply deferred functions.
@@ -111,13 +111,27 @@ func (p *parseContext) Stop(err error, branch *parseContext) bool {
 func (p *parseContext) hasInfiniteLookahead() bool { return p.lookahead < 0 }
 
 func (p *parseContext) printTrace(n node) func() {
-	if p.trace != nil {
-		tok := p.PeekingLexer.Peek()
-		fmt.Fprintf(p.trace, "%s%q %s\n", strings.Repeat(" ", p.depth*2), tok, n.GoString())
-		p.depth++
-		return func() { p.depth-- }
+	if p.trace == nil {
+		// No tracing: return a static closure that captures nothing, so the
+		// parse context never escapes to the heap.
+		return func() {}
 	}
-	return func() {}
+	if p.traceState == nil {
+		p.traceState = &traceState{w: p.trace}
+	}
+	state := p.traceState
+	tok := p.PeekingLexer.Peek()
+	fmt.Fprintf(state.w, "%s%q %s\n", strings.Repeat(" ", state.depth*2), tok, n.GoString())
+	state.depth++
+	return func() { state.depth-- }
+}
+
+// traceState is the mutable state of the optional parse trace. It is only
+// allocated (and captured by the exit closure) when tracing is enabled, so
+// the common (non-tracing) path never captures the parse context.
+type traceState struct {
+	w     io.Writer
+	depth int
 }
 
 func maxInt(a, b int) int {

@@ -411,7 +411,7 @@ func (c *capture) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.
 	start := ctx.RawCursor()
 	v, err := c.node.Parse(ctx, parent)
 	if v != nil {
-		ctx.Defer(ctx.Range(start, ctx.RawCursor()), parent, c.field, v)
+		ctx.Defer(ctx.Range(start, ctx.RawCursor()), parent, &c.field, v)
 	}
 	if err != nil {
 		return []reflect.Value{parent}, err
@@ -596,7 +596,7 @@ func maybeRef(tmpl reflect.Type, strct reflect.Value) reflect.Value {
 //
 // For all other types, an attempt will be made to convert the string to the corresponding
 // type (int, float32, etc.).
-func setField(tokens []lexer.Token, strct reflect.Value, field structLexerField, fieldValue []reflect.Value) (err error) { //nolint:gocognit
+func setField(tokens []lexer.Token, strct reflect.Value, field *structLexerField, fieldValue []reflect.Value) (err error) { //nolint:gocognit
 	f := strct.FieldByIndex(field.Index)
 
 	// Any kind of pointer, hydrate it first.
