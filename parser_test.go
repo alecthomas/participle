@@ -773,9 +773,9 @@ func TestMultipleTokensIntoScalar(t *testing.T) {
 	assert.Equal(t, -10, actual.Field)
 
 	_, err = p.ParseString("", `x`)
-	assert.EqualError(t, err, `1:1: unexpected token "x" of type Ident (expected <int>)`)
+	assert.EqualError(t, err, `1:1: unexpected token "x" of type <ident> (expected <int>)`)
 	_, err = p.ParseString("", ` `)
-	assert.EqualError(t, err, `1:2: unexpected token "<EOF>" of type EOF (expected <int>)`)
+	assert.EqualError(t, err, `1:2: unexpected token "<EOF>" of type <eof> (expected <int>)`)
 }
 
 type posMixin struct {
@@ -1122,7 +1122,7 @@ func TestDisjunctionErrorReporting(t *testing.T) {
 	p := mustTestParser[grammar](t)
 	_, err := p.ParseString("", `{ add foo }`)
 	// TODO: This should produce a more useful error. This is returned by sequence.Parse().
-	assert.EqualError(t, err, `1:7: unexpected token "foo" of type Ident (expected "}")`)
+	assert.EqualError(t, err, `1:7: unexpected token "foo" of type <ident> (expected "}")`)
 }
 
 func TestCustomInt(t *testing.T) {
@@ -1288,9 +1288,9 @@ func TestLookaheadGroup_Positive_SingleToken(t *testing.T) {
 	assert.Equal(t, &sum{Left: val{Int: 1}, Ops: []op{{"*", val{Int: 2}}, {"*", val{Int: 3}}}}, ast)
 
 	_, err = p.ParseString("", `"a" * 'x' + "b"`)
-	assert.EqualError(t, err, `1:7: unexpected token "'x'" of type Char`)
+	assert.EqualError(t, err, `1:7: unexpected token "'x'" of type <char>`)
 	_, err = p.ParseString("", `4 * 2 + 0 * "b"`)
-	assert.EqualError(t, err, `1:13: unexpected token "\"b\"" of type String`)
+	assert.EqualError(t, err, `1:13: unexpected token "\"b\"" of type <string>`)
 }
 
 func TestLookaheadGroup_Negative_SingleToken(t *testing.T) {
@@ -1319,10 +1319,10 @@ func TestLookaheadGroup_Negative_SingleToken(t *testing.T) {
 	assert.Equal(t, &variable{"the"}, ast.Except)
 
 	_, err = p.ParseString("", `no ending`)
-	assert.EqualError(t, err, `1:10: unexpected token "<EOF>" of type EOF (expected "end")`)
+	assert.EqualError(t, err, `1:10: unexpected token "<EOF>" of type <eof> (expected "end")`)
 
 	_, err = p.ParseString("", `no end in sight`)
-	assert.EqualError(t, err, `1:8: unexpected token "in" of type Ident`)
+	assert.EqualError(t, err, `1:8: unexpected token "in" of type <ident>`)
 }
 
 func TestLookaheadGroup_Negative_MultipleTokens(t *testing.T) {

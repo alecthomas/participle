@@ -315,7 +315,7 @@ func TestShowNearestError(t *testing.T) {
 	}
 	p := mustTestParser[grammar](t, participle.UseLookahead(10))
 	_, err := p.ParseString("", `a b d`)
-	require.EqualError(t, err, `1:5: unexpected token "d" of type Ident (expected "c")`)
+	require.EqualError(t, err, `1:5: unexpected token "d" of type <ident> (expected "c")`)
 }
 
 func TestRewindDisjunction(t *testing.T) {

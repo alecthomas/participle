@@ -38,9 +38,9 @@ func TestErrorReporting(t *testing.T) {
 	}}, ast)
 
 	_, err = p.ParseString("", `public struct Bar;`)
-	require.EqualError(t, err, `1:8: unexpected token "struct" of type Ident (expected "union" <ident>)`)
+	require.EqualError(t, err, `1:8: unexpected token "struct" of type <ident> (expected "union" <ident>)`)
 	_, err = p.ParseString("", `public class 1;`)
-	require.EqualError(t, err, `1:14: unexpected token "1" of type Int (expected <ident> ("(" <ident> ("," <ident>)+ ")")?)`)
+	require.EqualError(t, err, `1:14: unexpected token "1" of type <int> (expected <ident> ("(" <ident> ("," <ident>)+ ")")?)`)
 	_, err = p.ParseString("", `public class A(B,C,);`)
 	require.EqualError(t, err, `1:20: unexpected token ")" (expected <ident>)`)
 }
@@ -65,11 +65,11 @@ func TestMoreThanOneErrors(t *testing.T) {
 	require.Equal(t, &unionMatchAtLeastOnce{String: "a stringtwo strings"}, ast)
 
 	_, err = p.ParseString("", `102`)
-	require.EqualError(t, err, `1:1: unexpected token "102" of type Int`)
+	require.EqualError(t, err, `1:1: unexpected token "102" of type <int>`)
 
 	_, err = pAtLeastOnce.ParseString("", `102`)
 	// ensure we don't get a "+1:1: sub-expression <string>+ must match at least once" error
-	require.EqualError(t, err, `1:1: unexpected token "102" of type Int`)
+	require.EqualError(t, err, `1:1: unexpected token "102" of type <int>`)
 }
 
 func TestErrorWrap(t *testing.T) {
@@ -99,10 +99,10 @@ func TestUnexpectedTokenErrorReportsTokenType(t *testing.T) {
 	p := mustTestParser[expression](t, participle.Lexer(lex), participle.Elide("whitespace"))
 
 	_, err := p.ParseString("", `group + two`)
-	require.EqualError(t, err, `1:1: unexpected token "group" of type Keyword`)
+	require.EqualError(t, err, `1:1: unexpected token "group" of type <keyword>`)
 
 	_, err = p.ParseString("", `two + group`)
-	require.EqualError(t, err, `1:7: unexpected token "group" of type Keyword (expected <ident>)`)
+	require.EqualError(t, err, `1:7: unexpected token "group" of type <keyword> (expected <ident>)`)
 }
 
 // TestUnexpectedTokenErrorWithoutSymbolicName verifies that tokens without a
@@ -123,7 +123,7 @@ func TestUnexpectedTokenErrorForParseable(t *testing.T) {
 	p := mustTestParser[parseableReject](t)
 
 	_, err := p.ParseString("", `hello`)
-	require.EqualError(t, err, `1:1: unexpected token "hello" of type Ident`)
+	require.EqualError(t, err, `1:1: unexpected token "hello" of type <ident>`)
 }
 
 // parseableReject always rejects input via NextMatch.
