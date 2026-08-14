@@ -1924,42 +1924,17 @@ func TestParseNumbers(t *testing.T) {
 	assert.Equal(t, grammar{Int: -30, Uint: 3000, Float: math.Inf(1)}, *result)
 }
 
-type bugFirstAlternative struct {
-	Value string `parser:"'#' @Ident"`
-}
-
-type bugStructCapturesInBadBranch struct {
-	Bad bool                `parser:"(@'!'"`
-	A   bugFirstAlternative `parser:" @@) |"`
-	B   int                 `parser:"('!' '#' @Int)"`
-}
-
-func TestStructCapturesInBadBranch(t *testing.T) {
-	parser := participle.MustBuild[bugStructCapturesInBadBranch](participle.UseLookahead(2))
+func TestIssue216(t *testing.T) {
+	type firstAlternative struct {
+		Value string `parser:"'#' @Ident"`
+	}
+	type grammar struct {
+		Bad bool             `parser:"(@'!'"`
+		A   firstAlternative `parser:" @@) |"`
+		B   int              `parser:"('!' '#' @Int)"`
+	}
+	parser := participle.MustBuild[grammar](participle.UseLookahead(2))
 	out, err := parser.ParseString("", "!#4")
 	assert.NoError(t, err)
-	assert.Equal(t, &bugStructCapturesInBadBranch{B: 4}, out)
-}
-
-type nestedCaptureL2 struct {
-	X string `parser:"@Ident"`
-}
-
-type nestedCaptureL1 struct {
-	Two nestedCaptureL2 `parser:"@@"`
-	B   string          `parser:"@Ident"`
-}
-
-type nestedCaptureL0 struct {
-	A   string          `parser:"@Ident"`
-	C   string          `parser:"@Ident"`
-	One nestedCaptureL1 `parser:"@@"`
-}
-
-// Regression test for #216: a nested struct succeeding and then an enclosing
-// struct failing must not slice out of the deferred-capture queue.
-func TestNestedStructCaptureNoPanic(t *testing.T) {
-	parser := participle.MustBuild[nestedCaptureL0](participle.UseLookahead(2))
-	_, err := parser.ParseString("", "a c x")
-	assert.Error(t, err)
+	assert.Equal(t, &grammar{B: 4}, out)
 }

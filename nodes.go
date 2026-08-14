@@ -156,13 +156,13 @@ func (s *strct) Parse(ctx *parseContext, _ reflect.Value) (out []reflect.Value, 
 	t := ctx.Peek()
 	s.maybeInjectStartToken(t, sv)
 	if out, err = s.expr.Parse(ctx, sv); err != nil {
-		// Best effort to give a partial AST, but only for this struct's own
-		// captures. Captures deferred by enclosing structs are left in place so
-		// a failed branch that gets discarded doesn't wrongly apply them.
+		// Best effort to give a partial AST, but only for this struct's own captures:
+		// an enclosing struct's captures may still belong to a branch that gets dropped.
 		_ = ctx.ApplyFrom(applyStart)
 		ctx.MaybeUpdateError(err)
 		return []reflect.Value{sv}, err
 	} else if out == nil {
+		// No match, so the queue is back at applyStart: nothing to apply.
 		return nil, nil
 	}
 	end := ctx.RawCursor()

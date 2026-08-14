@@ -52,12 +52,8 @@ func (p *parseContext) Defer(tokens []lexer.Token, strct reflect.Value, field st
 	p.apply = append(p.apply, &contextFieldSet{tokens, strct, field, fieldValue})
 }
 
-// ApplyFrom applies deferred functions added at or after the given offset into
-// the apply queue, leaving earlier deferred functions in place. Passing 0
-// applies every deferred function. A struct passes its own starting offset so
-// that, when it fails or completes, it applies only its own captures without
-// touching captures deferred by enclosing structs, which a discarded lookahead
-// branch may still need to drop.
+// ApplyFrom applies deferred functions from the given offset onwards, leaving
+// earlier ones queued for the enclosing struct.
 func (p *parseContext) ApplyFrom(start int) error {
 	for _, apply := range p.apply[start:] {
 		if err := setField(apply.tokens, apply.strct, apply.field, apply.fieldValue); err != nil {
