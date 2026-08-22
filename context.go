@@ -25,16 +25,29 @@ type parseContext struct {
 	deepestErrorDepth int
 	lookahead         int
 	caseInsensitive   map[lexer.TokenType]bool
+	symbols           map[lexer.TokenType]string
 	apply             []*contextFieldSet
 	allowTrailing     bool
 }
 
-func newParseContext(lex *lexer.PeekingLexer, lookahead int, caseInsensitive map[lexer.TokenType]bool) parseContext {
+func newParseContext(lex *lexer.PeekingLexer, def lexer.Definition, lookahead int, caseInsensitive map[lexer.TokenType]bool) parseContext {
 	return parseContext{
 		PeekingLexer:    *lex,
 		caseInsensitive: caseInsensitive,
+		symbols:         lexer.SymbolsByRune(def),
 		lookahead:       lookahead,
 	}
+}
+
+// tokenTypeName returns the symbolic name of the given token type - in the
+// same `<lower-symbol>` form used elsewhere for grammar references - or ""
+// if the token type has no symbolic name (eg. literal tokens).
+func (p *parseContext) tokenTypeName(t lexer.TokenType) string {
+	symbol := p.symbols[t]
+	if symbol == "" {
+		return ""
+	}
+	return "<" + strings.ToLower(symbol) + ">"
 }
 
 func (p *parseContext) DeepestError(err error) error {

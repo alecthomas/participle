@@ -43,19 +43,26 @@ func FormatError(err Error) string {
 type UnexpectedTokenError struct {
 	Unexpected lexer.Token
 	Expect     string
-	expectNode node // Usable instead of Expect, delays creating the string representation until necessary
+	// TokenType is the symbolic name of the unexpected token's type, or empty if
+	// the token type has no symbolic name (eg. literal token types).
+	TokenType  string
+	expectNode node // used instead of Expect, delays creating the string representation until necessary
 }
 
 func (u *UnexpectedTokenError) Error() string { return FormatError(u) }
 
 func (u *UnexpectedTokenError) Message() string {
-	var expected string
-	if u.expectNode != nil {
-		expected = fmt.Sprintf(" (expected %s)", u.expectNode)
-	} else if u.Expect != "" {
-		expected = fmt.Sprintf(" (expected %s)", u.Expect)
+	message := fmt.Sprintf("unexpected token %q", u.Unexpected)
+	if u.TokenType != "" {
+		message += " of type " + u.TokenType
 	}
-	return fmt.Sprintf("unexpected token %q%s", u.Unexpected, expected)
+	if u.expectNode != nil {
+		return message + fmt.Sprintf(" (expected %s)", u.expectNode)
+	}
+	if u.Expect != "" {
+		return message + fmt.Sprintf(" (expected %s)", u.Expect)
+	}
+	return message
 }
 func (u *UnexpectedTokenError) Position() lexer.Position { return u.Unexpected.Pos }
 
