@@ -1923,3 +1923,18 @@ func TestParseNumbers(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, grammar{Int: -30, Uint: 3000, Float: math.Inf(1)}, *result)
 }
+
+func TestIssue216(t *testing.T) {
+	type firstAlternative struct {
+		Value string `parser:"'#' @Ident"`
+	}
+	type grammar struct {
+		Bad bool             `parser:"(@'!'"`
+		A   firstAlternative `parser:" @@) |"`
+		B   int              `parser:"('!' '#' @Int)"`
+	}
+	parser := participle.MustBuild[grammar](participle.UseLookahead(2))
+	out, err := parser.ParseString("", "!#4")
+	assert.NoError(t, err)
+	assert.Equal(t, &grammar{B: 4}, out)
+}

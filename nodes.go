@@ -152,20 +152,24 @@ func (s *strct) Parse(ctx *parseContext, _ reflect.Value) (out []reflect.Value, 
 	defer ctx.printTrace(s)()
 	sv := reflect.New(s.typ).Elem()
 	start := ctx.RawCursor()
+	applyStart := len(ctx.apply)
 	t := ctx.Peek()
 	s.maybeInjectStartToken(t, sv)
 	if out, err = s.expr.Parse(ctx, sv); err != nil {
-		_ = ctx.Apply() // Best effort to give partial AST.
+		// Best effort to give a partial AST, but only for this struct's own captures:
+		// an enclosing struct's captures may still belong to a branch that gets dropped.
+		_ = ctx.ApplyFrom(applyStart)
 		ctx.MaybeUpdateError(err)
 		return []reflect.Value{sv}, err
 	} else if out == nil {
+		// No match, so the queue is back at applyStart: nothing to apply.
 		return nil, nil
 	}
 	end := ctx.RawCursor()
 	t = ctx.RawPeek()
 	s.maybeInjectEndToken(t, sv)
 	s.maybeInjectTokens(ctx.Range(start, end), sv)
-	return []reflect.Value{sv}, ctx.Apply()
+	return []reflect.Value{sv}, ctx.ApplyFrom(applyStart)
 }
 
 func (s *strct) maybeInjectStartToken(token *lexer.Token, v reflect.Value) {

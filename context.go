@@ -65,14 +65,15 @@ func (p *parseContext) Defer(tokens []lexer.Token, strct reflect.Value, field st
 	p.apply = append(p.apply, &contextFieldSet{tokens, strct, field, fieldValue})
 }
 
-// Apply deferred functions.
-func (p *parseContext) Apply() error {
-	for _, apply := range p.apply {
+// ApplyFrom applies deferred functions from the given offset onwards, leaving
+// earlier ones queued for the enclosing struct.
+func (p *parseContext) ApplyFrom(start int) error {
+	for _, apply := range p.apply[start:] {
 		if err := setField(apply.tokens, apply.strct, apply.field, apply.fieldValue); err != nil {
 			return err
 		}
 	}
-	p.apply = nil
+	p.apply = p.apply[:start]
 	return nil
 }
 
