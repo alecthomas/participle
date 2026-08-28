@@ -335,6 +335,21 @@ func TestStateful(t *testing.T) {
 	require.Equal(t, expected, actual)
 }
 
+func TestInvalidRuleName(t *testing.T) {
+	for _, name := range []string{"match:", "match;", "1two", "has space", "ünïcode-rune"} {
+		_, err := lexer.New(lexer.Rules{
+			"Root": {{Name: name, Pattern: `x`}},
+		})
+		require.Error(t, err, "rule name %q must be rejected", name)
+	}
+	for _, name := range []string{"Ident", "identifier", "_private", "ünïcode"} {
+		_, err := lexer.New(lexer.Rules{
+			"Root": {{Name: name, Pattern: `x`}},
+		})
+		require.NoError(t, err, "rule name %q must be accepted", name)
+	}
+}
+
 func TestHereDoc(t *testing.T) {
 	type Heredoc struct {
 		Idents []string `Heredoc @Ident* End`
