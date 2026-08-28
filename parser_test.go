@@ -1778,6 +1778,16 @@ func TestParserWithCustomProduction(t *testing.T) {
 	assert.Equal(t, `Grammar = TestCustom .`, p.String())
 }
 
+func TestEscapedCharLiteralInTag(t *testing.T) {
+	type grammar struct {
+		A string `'\n'`
+		B string `'\t'`
+		C string `'\\'`
+	}
+	parser := mustTestParser[grammar](t)
+	assert.Equal(t, `Grammar = "\n" "\t" "\\" .`, parser.String())
+}
+
 type (
 	TestUnionA interface{ isTestUnionA() }
 	TestUnionB interface{ isTestUnionB() }
