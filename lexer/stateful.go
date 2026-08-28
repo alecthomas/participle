@@ -404,7 +404,13 @@ next:
 		if rule.Action != nil {
 			groups := make([]string, 0, len(match)/2)
 			for i := 0; i < len(match); i += 2 {
-				groups = append(groups, l.data[match[i]:match[i+1]])
+				// Optional capture groups may not match; regexp returns -1 for
+				// those, so pass them to actions as an empty string.
+				if match[i] >= 0 {
+					groups = append(groups, l.data[match[i]:match[i+1]])
+				} else {
+					groups = append(groups, "")
+				}
 			}
 			if err := rule.Action.applyAction(l, groups); err != nil {
 				return Token{}, errorf(l.pos, "lexer: rule %q: %s", rule.Name, err)
