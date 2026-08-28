@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/alecthomas/participle/v2/lexer"
 )
@@ -601,6 +602,32 @@ func maybeRef(tmpl reflect.Type, strct reflect.Value) reflect.Value {
 //
 // For all other types, an attempt will be made to convert the string to the corresponding
 // type (int, float32, etc.).
+// applyCapturePosition populates the Pos, EndPos and Tokens fields of a
+// user-defined Capture/TextUnmarshaler value, mirroring the injection done
+// for struct nodes (see strct.maybeInject*).
+func applyCapturePosition(f reflect.Value, tokens []lexer.Token) {
+	if f.Kind() == reflect.Pointer {
+		f = f.Elem()
+	}
+	if f.Kind() != reflect.Struct || len(tokens) == 0 {
+		return
+	}
+	t := f.Type()
+	if field, ok := t.FieldByName("Pos"); ok && positionType.ConvertibleTo(field.Type) {
+		f.FieldByName("Pos").Set(reflect.ValueOf(tokens[0].Pos).Convert(field.Type))
+	}
+	if field, ok := t.FieldByName("EndPos"); ok && positionType.ConvertibleTo(field.Type) {
+		last := tokens[len(tokens)-1]
+		end := last.Pos
+		end.Offset += len(last.Value)
+		end.Column += utf8.RuneCountInString(last.Value)
+		f.FieldByName("EndPos").Set(reflect.ValueOf(end).Convert(field.Type))
+	}
+	if field, ok := t.FieldByName("Tokens"); ok && field.Type == tokensType {
+		f.FieldByName("Tokens").Set(reflect.ValueOf(tokens))
+	}
+}
+
 func setField(tokens []lexer.Token, strct reflect.Value, field structLexerField, fieldValue []reflect.Value) (err error) { //nolint:gocognit
 	f := strct.FieldByIndex(field.Index)
 
@@ -640,6 +667,7 @@ func setField(tokens []lexer.Token, strct reflect.Value, field structLexerField,
 			if err != nil {
 				return Wrapf(pos, err, "failed to capture")
 			}
+			applyCapturePosition(f, tokens)
 			return nil
 		} else if d, ok := f.Addr().Interface().(encoding.TextUnmarshaler); ok {
 			for _, v := range fieldValue {
@@ -647,6 +675,7 @@ func setField(tokens []lexer.Token, strct reflect.Value, field structLexerField,
 					return Wrapf(pos, err, "failed to unmarshal text")
 				}
 			}
+			applyCapturePosition(f, tokens)
 			return nil
 		}
 	}
@@ -666,6 +695,7 @@ func setField(tokens []lexer.Token, strct reflect.Value, field structLexerField,
 				if f.Type().Elem().Kind() != reflect.Pointer {
 					eltValue = eltValue.Elem()
 				}
+				applyCapturePosition(eltValue, tokens)
 				f.Set(reflect.Append(f, eltValue))
 			}
 		} else {

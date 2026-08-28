@@ -517,6 +517,34 @@ func mustTestParser[G any](t *testing.T, options ...participle.Option) *particip
 	return parser
 }
 
+type capturePosTarget struct {
+	Pos    lexer.Position
+	EndPos lexer.Position
+	Tokens []lexer.Token
+	V      string
+}
+
+func (c *capturePosTarget) Capture(values []string) error {
+	c.V = strings.Join(values, " ")
+	return nil
+}
+
+func TestCaptureStructPosition(t *testing.T) {
+	type grammar struct {
+		C capturePosTarget `@Ident @Ident`
+	}
+
+	parser := mustTestParser[grammar](t)
+
+	actual, err := parser.ParseString("", "hello world")
+	assert.NoError(t, err)
+	assert.Equal(t, lexer.Position{Offset: 6, Line: 1, Column: 7}, actual.C.Pos)
+	assert.Equal(t, lexer.Position{Offset: 11, Line: 1, Column: 12}, actual.C.EndPos)
+	assert.Equal(t, "world", actual.C.V)
+	assert.Equal(t, 1, len(actual.C.Tokens))
+	assert.Equal(t, "world", actual.C.Tokens[0].Value)
+}
+
 func BenchmarkEBNFParser(b *testing.B) {
 	parser, err := participle.Build[EBNF]()
 	assert.NoError(b, err)
