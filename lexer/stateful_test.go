@@ -59,6 +59,40 @@ var backrefParticipationRules = lexer.Rules{
 	},
 }
 
+// A backreference inside a character class contributes members to the set
+// rather than a subexpression, so it is expanded without the grouping the
+// contexts above need: "[^\1]" holding "(?:)" would exclude a parenthesis, a
+// question mark and a colon along with the delimiter.
+var backrefCharacterClassRules = lexer.Rules{
+	"Root": {
+		{"Open", `<(.)`, lexer.Push("Body")},
+	},
+	"Body": {
+		{"Close", `\1`, lexer.Pop()},
+		{"Chunk", `[^\1]+`, nil},
+	},
+}
+
+// The same, for a class the backreference is a member of rather than excluded
+// from, and for one that also holds a POSIX name -- whose "]" closes the name
+// and not the class.
+var backrefInClassRules = lexer.Rules{
+	"Root": {
+		{"Fill", `<(.)`, lexer.Push("Fill")},
+		{"Word", `>(.)`, lexer.Push("Word")},
+	},
+	"Fill": {
+		{"Run", `[\1]+`, nil},
+		{"Paren", `\(`, nil},
+		{"FillEnd", `!`, lexer.Pop()},
+	},
+	"Word": {
+		{"Letters", `[[:alpha:]\1]+`, nil},
+		{"Paren", `\(`, nil},
+		{"WordEnd", `!`, lexer.Pop()},
+	},
+}
+
 func TestStatefulLexer(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -248,6 +282,21 @@ func TestStatefulLexer(t *testing.T) {
 			},
 			input:  "<<END@HOST\nHOST is not the terminator\nEND\ntail",
 			tokens: []string{"<<END@HOST", "\n", "HOST is not the terminator", "\n", "END", "\n", "tail"},
+		},
+		{name: "BackrefInsideNegatedCharacterClass",
+			rules:  backrefCharacterClassRules,
+			input:  `<)a(b?c)`,
+			tokens: []string{"<)", "a(b?c", ")"},
+		},
+		{name: "BackrefInsideCharacterClass",
+			rules:  backrefInClassRules,
+			input:  `<::::(:!`,
+			tokens: []string{"<:", ":::", "(", ":", "!"},
+		},
+		{name: "BackrefBesidePosixNameInCharacterClass",
+			rules:  backrefInClassRules,
+			input:  `>-a-b(c!`,
+			tokens: []string{">-", "a-b", "(", "c", "!"},
 		},
 	}
 	for _, test := range tests {

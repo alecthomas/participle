@@ -488,26 +488,32 @@ func backrefRegex(backrefCache *sync.Map, input string, groups []capture) (*rege
 		re  *regexp.Regexp
 		err error
 	)
-	pattern := backrefReplace.ReplaceAllStringFunc(input, func(s string) string {
-		var rematch = backrefReplace.FindStringSubmatch(s)
-		n, nerr := strconv.ParseInt(rematch[2], 10, 64)
+	inClass := characterClassSpans(input)
+	expanded := strings.Builder{}
+	last := 0
+	for _, match := range backrefReplace.FindAllStringSubmatchIndex(input, -1) {
+		start, end := match[0], match[1]
+		slashes := input[match[2]:match[3]]
+		expanded.WriteString(input[last:start])
+		last = end
+
+		n, nerr := strconv.ParseInt(input[match[4]:match[5]], 10, 64)
 		if nerr != nil {
 			err = nerr
-			return s
+			expanded.WriteString(input[start:end])
+			continue
 		}
 		if len(groups) == 0 || int(n) >= len(groups) {
 			err = fmt.Errorf("invalid group %d from parent with %d groups", n, len(groups))
-			return s
+			expanded.WriteString(input[start:end])
+			continue
 		}
 		// concatenate the leading \\\\ which are already escaped to the quoted match.
-		// The expansion is always a single group, so that a quantified or
-		// alternated backreference still parses when the capture is empty.
-		prefix := rematch[1][:len(rematch[1])-1]
-		if !groups[n].present {
-			return prefix + neverMatch
-		}
-		return prefix + "(?:" + regexp.QuoteMeta(groups[n].text) + ")"
-	})
+		expanded.WriteString(slashes[:len(slashes)-1])
+		expanded.WriteString(expandBackref(groups[n], inClass[start]))
+	}
+	expanded.WriteString(input[last:])
+	pattern := expanded.String()
 	if err == nil {
 		re, err = regexp.Compile("^(?:" + pattern + ")")
 	}
@@ -516,6 +522,81 @@ func backrefRegex(backrefCache *sync.Map, input string, groups []capture) (*rege
 	}
 	backrefCache.Store(key, re)
 	return re, nil
+}
+
+// expandBackref returns the text a backreference expands to, which depends on
+// where it sits: a character class holds members, everywhere else holds a
+// subexpression.
+func expandBackref(group capture, inCharacterClass bool) string {
+	if inCharacterClass {
+		// Grouping syntax is not grouping syntax inside a class. Wrapping here
+		// would add "(", "?", ":" and ")" to the set, so "[\1]" capturing "a"
+		// would also match a parenthesis. An absent capture contributes no
+		// members at all, which leaves the rest of the class to decide, or
+		// fails to compile when there is no rest -- the same as the empty
+		// capture this expansion has always produced there.
+		if !group.present {
+			return ""
+		}
+		return regexp.QuoteMeta(group.text)
+	}
+	if !group.present {
+		return neverMatch
+	}
+	// A single group, so that a quantified or alternated backreference still
+	// parses when the capture is empty.
+	return "(?:" + regexp.QuoteMeta(group.text) + ")"
+}
+
+// characterClassSpans reports for each byte of input whether it lies inside a
+// character class. RE2 has no nested classes, so one flag is enough; what it
+// does have is escapes, \Q...\E literal runs, and POSIX names such as
+// [:alpha:] whose brackets neither open nor close a class.
+func characterClassSpans(input string) []bool {
+	inClass := make([]bool, len(input))
+	open, literal := false, false
+	for i := 0; i < len(input); i++ {
+		inClass[i] = open
+		switch {
+		case literal:
+			if input[i] == '\\' && i+1 < len(input) && input[i+1] == 'E' {
+				literal = false
+				i++
+				inClass[i] = open
+			}
+		case input[i] == '\\':
+			if i+1 < len(input) {
+				literal = input[i+1] == 'Q'
+				i++
+				inClass[i] = open
+			}
+		case input[i] == '[':
+			if !open {
+				open = true
+			} else if end := posixClassEnd(input, i); end >= 0 {
+				for ; i <= end; i++ {
+					inClass[i] = true
+				}
+				i--
+			}
+		case input[i] == ']':
+			open = false
+		}
+	}
+	return inClass
+}
+
+// posixClassEnd returns the index of the "]" closing a POSIX name such as
+// [:alpha:] opening at open, or -1 when that is not what starts there.
+func posixClassEnd(input string, open int) int {
+	if open+1 >= len(input) || input[open+1] != ':' {
+		return -1
+	}
+	end := strings.Index(input[open+2:], ":]")
+	if end < 0 {
+		return -1
+	}
+	return open + 2 + end + 1
 }
 
 // backrefCacheKey builds a key identifying a pattern together with the parent
