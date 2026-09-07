@@ -3,6 +3,7 @@ package participle
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"text/scanner"
 
 	"github.com/alecthomas/participle/v2/lexer"
@@ -12,6 +13,7 @@ type generatorContext struct {
 	lexer.Definition
 	typeNodes    map[reflect.Type]node
 	symbolsToIDs map[lexer.TokenType]string
+	aliases      map[string]node
 }
 
 func newGeneratorContext(lex lexer.Definition) *generatorContext {
@@ -19,6 +21,7 @@ func newGeneratorContext(lex lexer.Definition) *generatorContext {
 		Definition:   lex,
 		typeNodes:    map[reflect.Type]node{},
 		symbolsToIDs: lexer.SymbolsByRune(lex),
+		aliases:      map[string]node{},
 	}
 }
 
@@ -53,6 +56,58 @@ func (g *generatorContext) addCustomDefs(defs []customDef) error {
 			return fmt.Errorf("duplicate definition for interface or union type %s", def.typ)
 		}
 		g.typeNodes[def.typ] = &custom{typ: def.typ, parseFn: def.parseFn}
+	}
+	return nil
+}
+
+// addAliasDefs parses each registered alias' grammar string into a node and
+// registers it by name. Alias bodies are non-capturing grammar fragments:
+// they may reference lexer tokens and literals, and embed other productions
+// via @@, but may not contain capture (@) clauses, since captures are bound
+// to a struct field of the surrounding production.
+func (g *generatorContext) addAliasDefs(defs []aliasDef) error {
+	parse := func(name, grammar string) (node, error) {
+		if strings.Contains(grammar, "@") {
+			return nil, fmt.Errorf("alias %q: aliases cannot capture (@); move captures to a struct field", name)
+		}
+		slexer, err := lexStructFromTag("", grammar)
+		if err != nil {
+			return nil, fmt.Errorf("alias %q: %w", name, err)
+		}
+		e, err := g.parseDisjunction(slexer)
+		if err != nil {
+			return nil, fmt.Errorf("alias %q: %w", name, err)
+		}
+		if e == nil {
+			return nil, fmt.Errorf("alias %q: empty grammar", name)
+		}
+		if token, _ := slexer.Peek(); !token.EOF() {
+			return nil, fmt.Errorf("alias %q: unexpected input %q", name, token.Value)
+		}
+		var hasCapture bool
+		_ = visit(e, func(n node, next func() error) error {
+			if _, ok := n.(*capture); ok {
+				hasCapture = true
+			}
+			return next()
+		})
+		if hasCapture {
+			return nil, fmt.Errorf("alias %q: aliases cannot capture (@); move captures to a struct field", name)
+		}
+		return e, nil
+	}
+	for _, def := range defs {
+		if def.name == "" {
+			return fmt.Errorf("alias: name must not be empty")
+		}
+		if _, exists := g.aliases[def.name]; exists {
+			return fmt.Errorf("alias %q: duplicate definition", def.name)
+		}
+		n, err := parse(def.name, def.grammar)
+		if err != nil {
+			return err
+		}
+		g.aliases[def.name] = n
 	}
 	return nil
 }
@@ -187,6 +242,8 @@ func (g *generatorContext) parseTermNoModifiers(slexer *structLexer, allowUnknow
 		return g.parseGroup(slexer)
 	case scanner.Ident:
 		return g.parseReference(slexer)
+	case '<':
+		return g.parseAlias(slexer)
 	case lexer.EOF:
 		_, _ = slexer.Next()
 		return nil, nil
@@ -270,6 +327,36 @@ func (g *generatorContext) parseReference(slexer *structLexer) (node, error) {
 		return nil, fmt.Errorf("unknown token type %q", token)
 	}
 	return &reference{typ: typ, identifier: token.Value}, nil
+}
+
+// A reference in the form <name> refers to a named grammar alias registered
+// with the Alias option.
+func (g *generatorContext) parseAlias(slexer *structLexer) (node, error) {
+	if token, err := slexer.Next(); err != nil || token.Type != '<' {
+		if err != nil {
+			return nil, err
+		}
+		return nil, fmt.Errorf("expected < but got %q", token)
+	}
+	token, err := slexer.Next()
+	if err != nil {
+		return nil, err
+	}
+	if token.Type != scanner.Ident {
+		return nil, fmt.Errorf("expected identifier for alias reference but got %q", token)
+	}
+	next, err := slexer.Next()
+	if err != nil {
+		return nil, err
+	}
+	if next.Type != '>' {
+		return nil, fmt.Errorf("expected > but got %q", next)
+	}
+	n, ok := g.aliases[token.Value]
+	if !ok {
+		return nil, fmt.Errorf("unknown grammar alias %q", token.Value)
+	}
+	return n, nil
 }
 
 // [ <expression> ] optionally matches <expression>.
