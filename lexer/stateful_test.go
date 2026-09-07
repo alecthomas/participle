@@ -93,6 +93,28 @@ var backrefInClassRules = lexer.Rules{
 	},
 }
 
+// A "]" that is the first member of a class stands for itself instead of
+// closing it, so "[]\1]" is a two-member class and the backreference is inside
+// one. Reading that "]" as the delimiter puts the backreference outside, where
+// it is expanded as a subexpression and the parenthesis, question mark and
+// colon join the class.
+var backrefLeadingBracketRules = lexer.Rules{
+	"Root": {
+		{"In", `<(.)`, lexer.Push("In")},
+		{"Not", `>(.)`, lexer.Push("Not")},
+	},
+	"In": {
+		{"InRun", `[]\1]+`, nil},
+		{"Paren", `\(`, nil},
+		{"InEnd", `!`, lexer.Pop()},
+	},
+	"Not": {
+		{"NotRun", `[^]\1]+`, nil},
+		{"Bracket", `\]`, nil},
+		{"NotEnd", `!`, lexer.Pop()},
+	},
+}
+
 func TestStatefulLexer(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -297,6 +319,16 @@ func TestStatefulLexer(t *testing.T) {
 			rules:  backrefInClassRules,
 			input:  `>-a-b(c!`,
 			tokens: []string{">-", "a-b", "(", "c", "!"},
+		},
+		{name: "BackrefAfterLeadingBracketInCharacterClass",
+			rules:  backrefLeadingBracketRules,
+			input:  `<a]aa(]!`,
+			tokens: []string{"<a", "]aa", "(", "]", "!"},
+		},
+		{name: "BackrefAfterLeadingBracketInNegatedCharacterClass",
+			rules:  backrefLeadingBracketRules,
+			input:  `>abc(d]!`,
+			tokens: []string{">a", "bc(d", "]", "!"},
 		},
 	}
 	for _, test := range tests {

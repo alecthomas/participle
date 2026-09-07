@@ -550,11 +550,16 @@ func expandBackref(group capture, inCharacterClass bool) string {
 
 // characterClassSpans reports for each byte of input whether it lies inside a
 // character class. RE2 has no nested classes, so one flag is enough; what it
-// does have is escapes, \Q...\E literal runs, and POSIX names such as
-// [:alpha:] whose brackets neither open nor close a class.
+// does have is escapes, \Q...\E literal runs, POSIX names such as [:alpha:]
+// whose brackets neither open nor close a class, and a "]" that is the first
+// member of a class, which is a literal rather than the delimiter: "[]a]" is
+// the two-member class RE2 accepts, not an empty class it rejects.
 func characterClassSpans(input string) []bool {
 	inClass := make([]bool, len(input))
 	open, literal := false, false
+	// Index of the "[" that opened the current class, so the first member can
+	// be recognised. -1 while no class is open.
+	start := -1
 	for i := 0; i < len(input); i++ {
 		inClass[i] = open
 		switch {
@@ -572,7 +577,7 @@ func characterClassSpans(input string) []bool {
 			}
 		case input[i] == '[':
 			if !open {
-				open = true
+				open, start = true, i
 			} else if end := posixClassEnd(input, i); end >= 0 {
 				for ; i <= end; i++ {
 					inClass[i] = true
@@ -580,10 +585,25 @@ func characterClassSpans(input string) []bool {
 				i--
 			}
 		case input[i] == ']':
-			open = false
+			if !firstClassMember(input, start, i) {
+				open, start = false, -1
+			}
 		}
 	}
 	return inClass
+}
+
+// firstClassMember reports whether the byte at i is the first member of the
+// class opened at start, where a "]" stands for itself instead of closing.
+// That is the position right after "[", or right after "[^".
+func firstClassMember(input string, start, i int) bool {
+	if start < 0 {
+		return false
+	}
+	if i == start+1 {
+		return true
+	}
+	return i == start+2 && input[start+1] == '^'
 }
 
 // posixClassEnd returns the index of the "]" closing a POSIX name such as
