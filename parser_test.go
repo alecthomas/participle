@@ -1779,6 +1779,51 @@ func TestParserWithCustomProduction(t *testing.T) {
 }
 
 type (
+	StructCaptureGrammar struct {
+		Pos   lexer.Position
+		Boxes StructCaptureBox `@@`
+	}
+
+	StructCaptureBox struct {
+		Pos lexer.Position
+		Val string `@Ident`
+	}
+)
+
+func (b *StructCaptureBox) Capture(values []string) error {
+	b.Val = values[0]
+	return nil
+}
+
+func TestStructCaptureViaExpression(t *testing.T) {
+	parser := mustTestParser[StructCaptureGrammar](t)
+	boxed, err := parser.ParseString("test", "abc")
+	assert.NoError(t, err)
+	assert.Equal(t, "abc", boxed.Boxes.Val)
+}
+
+type (
+	StructUnmarshalGrammar struct {
+		Pos lexer.Position
+		U   StructUnmarshalText `@@`
+	}
+
+	StructUnmarshalText struct {
+		Pos lexer.Position
+		Val string `@String`
+	}
+)
+
+func (u *StructUnmarshalText) UnmarshalText(_ []byte) error { return nil }
+
+func TestStructCaptureWithTextUnmarshaler(t *testing.T) {
+	parser := mustTestParser[StructUnmarshalGrammar](t)
+	boxed, err := parser.ParseString("test", `"abc"`)
+	assert.NoError(t, err)
+	assert.Equal(t, `"abc"`, boxed.U.Val)
+}
+
+type (
 	TestUnionA interface{ isTestUnionA() }
 	TestUnionB interface{ isTestUnionB() }
 
