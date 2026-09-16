@@ -96,12 +96,15 @@ func Build[G any](options ...Option) (parser *Parser[G], err error) {
 			}
 		}
 		p.lex = &mappingLexerDef{p.lex, func(t lexer.Token) (lexer.Token, error) {
-			combined := make([]Mapper, 0, len(mappers[t.Type])+len(mappers[lexer.EOF]))
-			combined = append(combined, mappers[lexer.EOF]...)
-			combined = append(combined, mappers[t.Type]...)
-
+			tokenMappers := mappers[t.Type]
 			var err error
-			for _, m := range combined {
+			for _, m := range mappers[lexer.EOF] {
+				t, err = m(t)
+				if err != nil {
+					return t, err
+				}
+			}
+			for _, m := range tokenMappers {
 				t, err = m(t)
 				if err != nil {
 					return t, err
