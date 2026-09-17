@@ -6,6 +6,7 @@ import (
 
 	require "github.com/alecthomas/assert/v2"
 	"github.com/alecthomas/participle/v2"
+	"github.com/alecthomas/participle/v2/lexer"
 )
 
 func TestEBNF(t *testing.T) {
@@ -74,4 +75,19 @@ EBNFUnionB = <string> .
 EBNFUnionC = <float> .
 `),
 		parser.String())
+}
+
+type (
+	EBNFParseable struct{}
+
+	EBNFParseableGrammar struct {
+		V EBNFParseable `@@`
+	}
+)
+
+func (EBNFParseable) Parse(_ *lexer.PeekingLexer) error { return participle.NextMatch }
+
+func TestEBNF_Parseable(t *testing.T) {
+	parser := mustTestParser[EBNFParseableGrammar](t)
+	require.Equal(t, `EBNFParseableGrammar = <ebnfparseable> .`, parser.String())
 }
