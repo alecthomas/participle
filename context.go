@@ -20,6 +20,7 @@ type contextFieldSet struct {
 type parseContext struct {
 	lexer.PeekingLexer
 	depth             int
+	parseDepth        int
 	trace             io.Writer
 	deepestError      error
 	deepestErrorDepth int
@@ -123,6 +124,18 @@ func (p *parseContext) Stop(err error, branch *parseContext) bool {
 }
 
 func (p *parseContext) hasInfiniteLookahead() bool { return p.lookahead < 0 }
+
+func (p *parseContext) enterStruct() error {
+	p.parseDepth++
+	if MaxParseDepth > 0 && p.parseDepth > MaxParseDepth {
+		p.parseDepth--
+		t := p.Peek()
+		return Errorf(t.Pos, "maximum parse depth of %d exceeded", MaxParseDepth)
+	}
+	return nil
+}
+
+func (p *parseContext) leaveStruct() { p.parseDepth-- }
 
 func (p *parseContext) printTrace(n node) func() {
 	if p.trace != nil {

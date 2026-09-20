@@ -15,6 +15,11 @@ var (
 	// MaxIterations limits the number of elements capturable by {}.
 	MaxIterations = 1000000
 
+	// MaxParseDepth limits recursive production nesting. Deeply nested input
+	// otherwise overflows the goroutine stack with a fatal error that recover
+	// cannot catch. Zero disables the limit.
+	MaxParseDepth = 1024
+
 	positionType        = reflect.TypeFor[lexer.Position]()
 	tokenType           = reflect.TypeFor[lexer.Token]()
 	tokensType          = reflect.TypeFor[[]lexer.Token]()
@@ -150,6 +155,10 @@ func (s *strct) GoString() string { return s.typ.Name() }
 
 func (s *strct) Parse(ctx *parseContext, _ reflect.Value) (out []reflect.Value, err error) {
 	defer ctx.printTrace(s)()
+	if err := ctx.enterStruct(); err != nil {
+		return nil, err
+	}
+	defer ctx.leaveStruct()
 	sv := reflect.New(s.typ).Elem()
 	start := ctx.RawCursor()
 	applyStart := len(ctx.apply)
