@@ -57,12 +57,16 @@ func unquote(s string) (string, error) {
 	s = s[1 : len(s)-1]
 	var out strings.Builder
 	for s != "" {
-		value, _, tail, err := strconv.UnquoteChar(s, quote)
+		value, multibyte, tail, err := strconv.UnquoteChar(s, quote)
 		if err != nil {
 			return "", err
 		}
 		s = tail
-		out.WriteRune(value)
+		if multibyte {
+			out.WriteRune(value)
+		} else {
+			out.WriteByte(byte(value)) //nolint:gosec // UnquoteChar returns a single byte when multibyte is false.
+		}
 	}
 	return out.String(), nil
 }

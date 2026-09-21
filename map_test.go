@@ -54,6 +54,30 @@ func TestUnquote(t *testing.T) {
 	require.Equal(t, expected, actual)
 }
 
+func TestUnquoteByteEscapes(t *testing.T) {
+	type grammar struct {
+		Text string `@String`
+	}
+	parser := mustTestParser[grammar](t, participle.Unquote())
+	for _, tc := range []struct {
+		name, input, want string
+	}{
+		{"hexadecimal byte", `"\xff"`, "\xff"},
+		{"octal byte", `"\377"`, "\xff"},
+		{"UTF-8 bytes", `"\xc3\xbf"`, "ÿ"},
+		{"mixed byte and Unicode", `"a\xff\u00ff"`, "a\xffÿ"},
+		{"Unicode escape", `"\u00ff"`, "ÿ"},
+		{"literal Unicode", `"ÿ"`, "ÿ"},
+		{"ASCII escapes", `"\x41\101"`, "AA"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			actual, err := parser.ParseString("", tc.input)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, actual.Text)
+		})
+	}
+}
+
 func TestUnquoteShortToken(t *testing.T) {
 	type grammar struct {
 		Text string `@String`
