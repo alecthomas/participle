@@ -40,3 +40,29 @@ service SearchService {
 `)
 	require.NoError(t, err)
 }
+
+func TestComments(t *testing.T) {
+	proto, err := parser.ParseString("", `
+// Package documentation
+syntax = "proto3";
+
+/* Block comment
+   describing package */
+package com.book;
+
+// Comment before message
+message Book {
+    // Field comment
+    int64 isbn = 1;
+    string title = 2; // inline comment
+    string author = 3;
+}
+`)
+	require.NoError(t, err)
+	require.Equal(t, "// Package documentation", proto.Entries[0].Comment)
+	require.Equal(t, `"proto3"`, proto.Entries[1].Syntax)
+	require.Equal(t, "/* Block comment\n   describing package */", proto.Entries[2].Comment)
+	require.Equal(t, "com.book", proto.Entries[3].Package)
+	require.Equal(t, "// Comment before message", proto.Entries[4].Comment)
+	require.Equal(t, "Book", proto.Entries[5].Message.Name)
+}

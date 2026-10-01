@@ -21,7 +21,8 @@ type Proto struct {
 type Entry struct {
 	Pos lexer.Position
 
-	Syntax  string   `  "syntax" "=" @String`
+	Comment string   `  @Comment`
+	Syntax  string   `| "syntax" "=" @String`
 	Package string   `| "package" @(Ident ( "." Ident )*)`
 	Import  string   `| "import" @String`
 	Message *Message `| @@`
@@ -254,7 +255,21 @@ type MapType struct {
 }
 
 var (
-	parser = participle.MustBuild[Proto](participle.UseLookahead(2))
+	protoLexer = lexer.MustSimple([]lexer.SimpleRule{
+		{"Comment", `//[^\r\n]*|/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/`},
+		{"Whitespace", `\s+`},
+		{"Ident", `[a-zA-Z_][a-zA-Z0-9_]*`},
+		{"String", `"(\\"|[^"])*"|'(\\'|[^'])*'`},
+		{"Float", `(?:[0-9]*\.[0-9]+|[0-9]+\.[0-9]*)(?:[eE][-+]?[0-9]+)?`},
+		{"Int", `0[xX][0-9a-fA-F]+|[0-9]+`},
+		{"Punct", `[-[!@#$%^&*()+_={}\|:;"'<,>.?/]|]`},
+	})
+
+	parser = participle.MustBuild[Proto](
+		participle.Lexer(protoLexer),
+		participle.Elide("Comment", "Whitespace"),
+		participle.UseLookahead(2),
+	)
 
 	cli struct {
 		Files []string `required existingfile arg help:"Protobuf files."`
