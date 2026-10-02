@@ -104,8 +104,10 @@ h1 {
 		}
 		switch {
 		case n.Name != "":
-			p := productions[n.Name]
-			if p.refs > mergeRefThreshold {
+			p, ok := productions[n.Name]
+			if !ok {
+				s += fmt.Sprintf("NonTerminal(%q)", n.Name)
+			} else if p.refs > mergeRefThreshold {
 				s += fmt.Sprintf("NonTerminal(%q, {href:\"#%s\"})", n.Name, n.Name)
 			} else {
 				s += generate(productions, p.Expression)
@@ -165,8 +167,10 @@ func countProductions(productions map[string]*production, n ebnf.Node) (size int
 		}
 	case *ebnf.Term:
 		if n.Name != "" {
-			productions[n.Name].refs++
-			size++
+			if p, ok := productions[n.Name]; ok {
+				p.refs++
+				size++
+			}
 		} else if n.Group != nil {
 			size += countProductions(productions, n.Group)
 		} else {
