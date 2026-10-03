@@ -1938,3 +1938,26 @@ func TestIssue216(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, &grammar{B: 4}, out)
 }
+
+func TestMaxParseDepth(t *testing.T) {
+	type expr struct {
+		Ident string `@Ident`
+		Inner *expr  `| "(" @@ ")"`
+	}
+	parser := mustTestParser[expr](t)
+
+	got, err := parser.ParseString("", "(((x)))")
+	assert.NoError(t, err)
+	assert.Equal(t, "x", got.Inner.Inner.Inner.Ident)
+
+	old := participle.MaxParseDepth
+	participle.MaxParseDepth = 8
+	t.Cleanup(func() { participle.MaxParseDepth = old })
+
+	input := strings.Repeat("(", 40) + "x" + strings.Repeat(")", 40)
+	_, err = parser.ParseString("", input)
+	assert.Error(t, err)
+	if err == nil || !strings.Contains(err.Error(), "maximum parse depth of 8 exceeded") {
+		t.Fatalf("expected depth error, got %v", err)
+	}
+}
