@@ -262,7 +262,8 @@ func (p *Parser[G]) parseInto(ctx *parseContext, _ node, rv reflect.Value) error
 	if rv.IsNil() {
 		return fmt.Errorf("target must be a non-nil pointer to a struct or interface, but is a nil %s", rv.Type())
 	}
-	pv, err := p.typeNodes[rv.Type().Elem()].Parse(ctx, rv.Elem())
+	rootNode := p.typeNodes[rv.Type().Elem()]
+	pv, err := rootNode.Parse(ctx, rv.Elem())
 	if len(pv) > 0 && pv[0].Type() == rv.Elem().Type() {
 		rv.Elem().Set(reflect.Indirect(pv[0]))
 	}
@@ -271,7 +272,11 @@ func (p *Parser[G]) parseInto(ctx *parseContext, _ node, rv reflect.Value) error
 	}
 	if pv == nil {
 		token := ctx.Peek()
-		return ctx.DeepestError(&UnexpectedTokenError{Unexpected: *token, TokenType: ctx.tokenTypeName(token.Type)})
+		unexpected := &UnexpectedTokenError{Unexpected: *token, TokenType: ctx.tokenTypeName(token.Type), production: rv.Type().Elem().Name()}
+		if root, ok := rootNode.(*strct); ok {
+			unexpected.production = root.typ.Name()
+		}
+		return ctx.DeepestError(unexpected)
 	}
 	return nil
 }
@@ -280,7 +285,7 @@ func (p *Parser[G]) rootParseable(ctx *parseContext, parseable Parseable) error 
 	if err := parseable.Parse(&ctx.PeekingLexer); err != nil {
 		if errors.Is(err, NextMatch) {
 			token := *ctx.Peek()
-			err = &UnexpectedTokenError{Unexpected: token, TokenType: ctx.tokenTypeName(token.Type)}
+			err = &UnexpectedTokenError{Unexpected: token, TokenType: ctx.tokenTypeName(token.Type), production: reflect.TypeOf(parseable).Elem().Name()}
 		} else {
 			err = &ParseError{Msg: err.Error(), Pos: ctx.Peek().Pos}
 		}

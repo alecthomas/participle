@@ -47,12 +47,16 @@ type UnexpectedTokenError struct {
 	// the token type has no symbolic name (eg. literal token types).
 	TokenType  string
 	expectNode node // used instead of Expect, delays creating the string representation until necessary
+	production string
 }
 
 func (u *UnexpectedTokenError) Error() string { return FormatError(u) }
 
 func (u *UnexpectedTokenError) Message() string {
 	message := fmt.Sprintf("unexpected token %q", u.Unexpected)
+	if u.production != "" {
+		message = u.production + ": " + message
+	}
 	if u.TokenType != "" {
 		message += " of type " + u.TokenType
 	}
