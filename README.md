@@ -591,6 +591,7 @@ There are a few areas where Participle can provide useful feedback to users of y
 1. Errors returned by [Parser.Parse*()](https://pkg.go.dev/github.com/alecthomas/participle/v2#Parser.Parse) will be:
 	1. Of type [Error](https://pkg.go.dev/github.com/alecthomas/participle/v2#Error). This will contain positional information where available.
 	2. May either be [ParseError](https://pkg.go.dev/github.com/alecthomas/participle/v2#ParseError) or [lexer.Error](https://pkg.go.dev/github.com/alecthomas/participle/v2/lexer#Error)
+	3. [UnexpectedTokenError](https://pkg.go.dev/github.com/alecthomas/participle/v2#UnexpectedTokenError) messages include the production name when available. The name follows the selected error through backtracking. Anonymous productions and errors caused only by trailing input after a complete parse have no production name.
 2. Participle will make a best effort to return as much of the AST up to the error location as possible.
 3. Any node in the AST containing a field `Pos lexer.Position` [^1] will be automatically
    populated from the nearest matching token.

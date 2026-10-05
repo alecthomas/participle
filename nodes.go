@@ -315,7 +315,7 @@ func (l *lookaheadGroup) Parse(ctx *parseContext, parent reflect.Value) (out []r
 	expectingMatch := !l.negative
 	if matchedLookahead != expectingMatch {
 		token := ctx.Peek()
-		return nil, &UnexpectedTokenError{Unexpected: *token, TokenType: ctx.tokenTypeName(token.Type)}
+		return nil, &UnexpectedTokenError{Unexpected: *token, TokenType: ctx.tokenTypeName(token.Type), production: parent.Type().Name()}
 	}
 	return []reflect.Value{}, nil // Empty match slice means a match, unlike nil
 }
@@ -390,7 +390,7 @@ func (s *sequence) Parse(ctx *parseContext, parent reflect.Value) (out []reflect
 				return nil, nil
 			}
 			token := ctx.Peek()
-			return out, &UnexpectedTokenError{Unexpected: *token, TokenType: ctx.tokenTypeName(token.Type), expectNode: n}
+			return out, &UnexpectedTokenError{Unexpected: *token, TokenType: ctx.tokenTypeName(token.Type), expectNode: n, production: parent.Type().Name()}
 		}
 		// Special-case for when children return an empty match.
 		// Appending an empty, non-nil slice to a nil slice returns a nil slice.
@@ -498,7 +498,7 @@ func (n *negation) Parse(ctx *parseContext, parent reflect.Value) (out []reflect
 	out, err = n.node.Parse(branch, parent)
 	if out != nil && err == nil {
 		// out being non-nil means that what we don't want is actually here, so we report nomatch
-		return nil, &UnexpectedTokenError{Unexpected: *notEOF, TokenType: ctx.tokenTypeName(notEOF.Type)}
+		return nil, &UnexpectedTokenError{Unexpected: *notEOF, TokenType: ctx.tokenTypeName(notEOF.Type), production: parent.Type().Name()}
 	}
 
 	// Just give the next token
