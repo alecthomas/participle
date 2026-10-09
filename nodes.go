@@ -61,6 +61,11 @@ func (p *parseable) GoString() string { return p.t.String() }
 
 func (p *parseable) Parse(ctx *parseContext, _ reflect.Value) (out []reflect.Value, err error) {
 	defer ctx.printTrace(p)()
+	cleanup, err := ctx.enter()
+	if err != nil {
+		return nil, err
+	}
+	defer cleanup()
 	rv := reflect.New(p.t)
 	v := rv.Interface().(Parseable)
 	err = v.Parse(&ctx.PeekingLexer)
@@ -84,6 +89,11 @@ func (c *custom) GoString() string { return c.typ.Name() }
 
 func (c *custom) Parse(ctx *parseContext, _ reflect.Value) (out []reflect.Value, err error) {
 	defer ctx.printTrace(c)()
+	cleanup, err := ctx.enter()
+	if err != nil {
+		return nil, err
+	}
+	defer cleanup()
 	results := c.parseFn.Call([]reflect.Value{reflect.ValueOf(&ctx.PeekingLexer)})
 	if err, _ := results[1].Interface().(error); err != nil {
 		if errors.Is(err, NextMatch) {
@@ -150,6 +160,11 @@ func (s *strct) GoString() string { return s.typ.Name() }
 
 func (s *strct) Parse(ctx *parseContext, _ reflect.Value) (out []reflect.Value, err error) {
 	defer ctx.printTrace(s)()
+	cleanup, err := ctx.enter()
+	if err != nil {
+		return nil, err
+	}
+	defer cleanup()
 	sv := reflect.New(s.typ).Elem()
 	start := ctx.RawCursor()
 	applyStart := len(ctx.apply)
@@ -267,6 +282,9 @@ func (g *group) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Va
 		branch := ctx.Branch()
 		v, err := g.expr.Parse(branch, parent)
 		if err != nil {
+			if errors.Is(err, ErrMaxDepthExceeded) {
+				return append(out, v...), err
+			}
 			ctx.MaybeUpdateError(err)
 			// Optional part failed to match.
 			if ctx.Stop(err, branch) {
@@ -311,6 +329,9 @@ func (l *lookaheadGroup) Parse(ctx *parseContext, parent reflect.Value) (out []r
 	// Create a branch to avoid advancing the parser as any match will be discarded
 	branch := ctx.Branch()
 	out, err = l.expr.Parse(branch, parent)
+	if errors.Is(err, ErrMaxDepthExceeded) {
+		return nil, err
+	}
 	matchedLookahead := err == nil && out != nil
 	expectingMatch := !l.negative
 	if matchedLookahead != expectingMatch {
@@ -338,6 +359,9 @@ func (d *disjunction) Parse(ctx *parseContext, parent reflect.Value) (out []refl
 	for _, a := range d.nodes {
 		branch := ctx.Branch()
 		if value, err := a.Parse(branch, parent); err != nil {
+			if errors.Is(err, ErrMaxDepthExceeded) {
+				return value, err
+			}
 			// If this branch progressed too far and still didn't match, error out.
 			if ctx.Stop(err, branch) {
 				return value, err
@@ -496,6 +520,9 @@ func (n *negation) Parse(ctx *parseContext, parent reflect.Value) (out []reflect
 	}
 
 	out, err = n.node.Parse(branch, parent)
+	if errors.Is(err, ErrMaxDepthExceeded) {
+		return nil, err
+	}
 	if out != nil && err == nil {
 		// out being non-nil means that what we don't want is actually here, so we report nomatch
 		return nil, &UnexpectedTokenError{Unexpected: *notEOF, TokenType: ctx.tokenTypeName(notEOF.Type)}

@@ -13,6 +13,9 @@ import (
 // overflow.
 const MaxLookahead = 99999
 
+// DefaultMaxDepth is the default maximum recursion depth for parsing.
+const DefaultMaxDepth = 1024
+
 // An Option to modify the behaviour of the Parser.
 type Option func(p *parserOptions) error
 
@@ -111,6 +114,17 @@ func Union[T any](members ...T) Option {
 	}
 }
 
+// MaxDepth sets the maximum recursion depth during parsing.
+//
+// If recursion exceeds this depth, parsing will fail with ErrMaxDepthExceeded.
+// If "n" is less than or equal to 0, no recursion depth limit is enforced.
+func MaxDepth(n int) Option {
+	return func(p *parserOptions) error {
+		p.maxDepth = n
+		return nil
+	}
+}
+
 // ParseOption modifies how an individual parse is applied.
 type ParseOption func(p *parseContext)
 
@@ -127,5 +141,15 @@ func Trace(w io.Writer) ParseOption {
 func AllowTrailing(ok bool) ParseOption {
 	return func(p *parseContext) {
 		p.allowTrailing = ok
+	}
+}
+
+// ParseMaxDepth sets the maximum recursion depth for an individual parse.
+//
+// If recursion exceeds this depth, parsing will fail with ErrMaxDepthExceeded.
+// If "n" is less than or equal to 0, no recursion depth limit is enforced.
+func ParseMaxDepth(n int) ParseOption {
+	return func(p *parseContext) {
+		p.maxDepth = n
 	}
 }

@@ -1,10 +1,14 @@
 package participle
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/alecthomas/participle/v2/lexer"
 )
+
+// ErrMaxDepthExceeded is returned when the parser exceeds the maximum recursion depth.
+var ErrMaxDepthExceeded = errors.New("maximum recursion depth exceeded")
 
 // Error represents an error while parsing.
 //

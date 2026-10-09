@@ -1938,3 +1938,51 @@ func TestIssue216(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, &grammar{B: 4}, out)
 }
+
+func TestMaxDepthDefault(t *testing.T) {
+	type expr struct {
+		Nested *expr `parser:"'(' @@ ')'"`
+		Value  int   `parser:"| @Int"`
+	}
+	parser := participle.MustBuild[expr]()
+	input := strings.Repeat("(", 300000) + "1" + strings.Repeat(")", 300000)
+	_, err := parser.ParseString("", input)
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, participle.ErrMaxDepthExceeded))
+}
+
+func TestMaxDepthConfigured(t *testing.T) {
+	type expr struct {
+		Nested *expr `parser:"'(' @@ ')'"`
+		Value  int   `parser:"| @Int"`
+	}
+	parser := participle.MustBuild[expr](participle.MaxDepth(5))
+
+	// Depth of 5 (root + 4 nested) succeeds.
+	validInput := strings.Repeat("(", 4) + "1" + strings.Repeat(")", 4)
+	_, err := parser.ParseString("", validInput)
+	assert.NoError(t, err)
+
+	// Depth of 6 (root + 5 nested) exceeds MaxDepth(5).
+	invalidInput := strings.Repeat("(", 5) + "1" + strings.Repeat(")", 5)
+	_, err = parser.ParseString("", invalidInput)
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, participle.ErrMaxDepthExceeded))
+	assert.EqualError(t, err, "1:6: maximum recursion depth exceeded")
+
+	// Per-parse override via ParseMaxDepth allows deeper nesting.
+	_, err = parser.ParseString("", invalidInput, participle.ParseMaxDepth(6))
+	assert.NoError(t, err)
+
+	// Per-parse override via ParseMaxDepth can also restrict further.
+	_, err = parser.ParseString("", validInput, participle.ParseMaxDepth(3))
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, participle.ErrMaxDepthExceeded))
+	assert.EqualError(t, err, "1:4: maximum recursion depth exceeded")
+
+	// Disabling limit with <= 0 allows arbitrary depth beyond DefaultMaxDepth.
+	deepInput := strings.Repeat("(", 1200) + "1" + strings.Repeat(")", 1200)
+	_, err = parser.ParseString("", deepInput, participle.ParseMaxDepth(0))
+	assert.NoError(t, err)
+}
+
