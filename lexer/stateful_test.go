@@ -174,6 +174,46 @@ func TestStatefulLexer(t *testing.T) {
 			input: "hello",
 			err:   "1:1: lexer: rule \"NoMatch\": did not consume any input",
 		},
+		{name: "UnmatchedOptionalCaptureGroup",
+			rules: lexer.Rules{
+				"Root": {
+					{"Ident", `[a-z]([0-9])?`, lexer.Push("Inner")},
+				},
+				"Inner": {
+					{"Ident", `[a-z]([0-9])?`, lexer.Pop()},
+				},
+			},
+			input:  `ab`,
+			tokens: []string{"a", "b"},
+		},
+		{name: "UnmatchedOptionalCaptureGroupInSubState",
+			rules: lexer.Rules{
+				"Root": {
+					{"whitespace", ` +`, nil},
+					{"Op", `\+`, nil},
+					{"Keyword", `x`, nil},
+					{"Ident", `[[:alpha:]]([[:alnum:]])*`, nil},
+					{"percent", `%`, lexer.Push("Percent")},
+				},
+				"Percent": {
+					{"Ident", `[[:alpha:]]([[:alnum:]])*`, lexer.Pop()},
+				},
+			},
+			input:  `%x + y`,
+			tokens: []string{"x", "+", "y"},
+		},
+		{name: "BackrefWithUnmatchedOptionalCaptureGroup",
+			rules: lexer.Rules{
+				"Root": {
+					{"Start", `(a)?(b)`, lexer.Push("Next")},
+				},
+				"Next": {
+					{"End", `\1\2c`, lexer.Pop()},
+				},
+			},
+			input:  `bbc`,
+			tokens: []string{"b", "bc"},
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
