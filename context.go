@@ -20,6 +20,8 @@ type contextFieldSet struct {
 type parseContext struct {
 	lexer.PeekingLexer
 	depth             int
+	maxDepth          int
+	traceDepth        int
 	trace             io.Writer
 	deepestError      error
 	deepestErrorDepth int
@@ -30,12 +32,13 @@ type parseContext struct {
 	allowTrailing     bool
 }
 
-func newParseContext(lex *lexer.PeekingLexer, def lexer.Definition, lookahead int, caseInsensitive map[lexer.TokenType]bool) parseContext {
+func newParseContext(lex *lexer.PeekingLexer, def lexer.Definition, lookahead int, caseInsensitive map[lexer.TokenType]bool, maxDepth int) parseContext {
 	return parseContext{
 		PeekingLexer:    *lex,
 		caseInsensitive: caseInsensitive,
 		symbols:         lexer.SymbolsByRune(def),
 		lookahead:       lookahead,
+		maxDepth:        maxDepth,
 	}
 }
 
@@ -124,12 +127,26 @@ func (p *parseContext) Stop(err error, branch *parseContext) bool {
 
 func (p *parseContext) hasInfiniteLookahead() bool { return p.lookahead < 0 }
 
+func (p *parseContext) enter() (func(), error) {
+	if p.maxDepth > 0 && p.depth >= p.maxDepth {
+		return nil, &wrappingParseError{
+			err: ErrMaxDepthExceeded,
+			ParseError: ParseError{
+				Msg: ErrMaxDepthExceeded.Error(),
+				Pos: p.Peek().Pos,
+			},
+		}
+	}
+	p.depth++
+	return func() { p.depth-- }, nil
+}
+
 func (p *parseContext) printTrace(n node) func() {
 	if p.trace != nil {
 		tok := p.PeekingLexer.Peek()
-		fmt.Fprintf(p.trace, "%s%q %s\n", strings.Repeat(" ", p.depth*2), tok, n.GoString())
-		p.depth++
-		return func() { p.depth-- }
+		fmt.Fprintf(p.trace, "%s%q %s\n", strings.Repeat(" ", p.traceDepth*2), tok, n.GoString())
+		p.traceDepth++
+		return func() { p.traceDepth-- }
 	}
 	return func() {}
 }

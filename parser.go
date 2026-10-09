@@ -26,6 +26,7 @@ type parserOptions struct {
 	rootType              reflect.Type
 	typeNodes             map[reflect.Type]node
 	useLookahead          int
+	maxDepth              int
 	caseInsensitive       map[string]bool
 	caseInsensitiveTokens map[lexer.TokenType]bool
 	mappers               []mapperByToken
@@ -71,6 +72,7 @@ func Build[G any](options ...Option) (parser *Parser[G], err error) {
 			lex:             lexer.TextScannerLexer,
 			caseInsensitive: map[string]bool{},
 			useLookahead:    1,
+			maxDepth:        DefaultMaxDepth,
 		},
 	}
 	for _, option := range options {
@@ -168,7 +170,7 @@ func (p *Parser[G]) ParseFromLexer(lex *lexer.PeekingLexer, options ...ParseOpti
 	if err != nil {
 		return nil, err
 	}
-	ctx := newParseContext(lex, p.lex, p.useLookahead, p.caseInsensitiveTokens)
+	ctx := newParseContext(lex, p.lex, p.useLookahead, p.caseInsensitiveTokens, p.maxDepth)
 	defer func() { *lex = ctx.PeekingLexer }()
 	for _, option := range options {
 		option(&ctx)
