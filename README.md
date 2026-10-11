@@ -584,6 +584,27 @@ thrift takes 630ms, which aligns quite closely with the benchmarks.
 
 A compiled `Parser` instance can be used concurrently. A `LexerDefinition` can be used concurrently. A `Lexer` instance cannot be used concurrently.
 
+## Fuzzing
+
+Participle parsers are well suited to Go's native fuzzing. Because a grammar is just a struct, a fuzz target can be written in a few lines and will exercise the parser, lexer and grammar-recursion machinery with arbitrary input, catching panics, hangs and pathological inputs:
+
+```go
+func FuzzParse(f *testing.F) {
+	parser, err := participle.Build[grammar]()
+	if err != nil {
+		f.Fatal(err)
+	}
+	for _, seed := range []string{"1+2", "", "(", "\xff"} {
+		f.Add(seed)
+	}
+	f.Fuzz(func(t *testing.T, in string) {
+		_, _ = parser.ParseString("", in)
+	})
+}
+```
+
+Run with `go test -fuzz=FuzzParse -fuzztime 30s ./...` (the seeds run as a regular test, so the target is also safe to commit and run in CI). A ready-to-run example is included in `fuzz_test.go`.
+
 ## Error reporting
 
 There are a few areas where Participle can provide useful feedback to users of your parser.
