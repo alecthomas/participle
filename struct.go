@@ -143,6 +143,21 @@ func collectFieldIndexes(s reflect.Type) (out [][]int, err error) {
 	return
 }
 
+// escapeControlChars rewrites control characters as Go escape sequences
+// (eg. '\n' -> "\n") so that text/scanner accepts them inside string literals.
+func escapeControlChars(s string) string {
+	var out strings.Builder
+	for _, r := range s {
+		if r < ' ' {
+			q := strconv.Quote(string(r))
+			out.WriteString(q[1 : len(q)-1])
+		} else {
+			out.WriteRune(r)
+		}
+	}
+	return out.String()
+}
+
 // tagLexer is a Lexer based on text/scanner.Scanner
 type tagLexer struct {
 	scanner  *scanner.Scanner
@@ -151,6 +166,10 @@ type tagLexer struct {
 }
 
 func newTagLexer(filename string, tag string) *tagLexer {
+	// text/scanner's char literals don't support escape sequences, so convert
+	// single-quoted literals containing escapes (eg. '\t', '\n') to
+	// double-quoted strings before scanning.
+	tag = quoteEscapedCharLiterals(tag)
 	s := &scanner.Scanner{}
 	s.Init(strings.NewReader(tag))
 	lexer := &tagLexer{
@@ -164,6 +183,75 @@ func newTagLexer(filename string, tag string) *tagLexer {
 		}
 	}
 	return lexer
+}
+
+// quoteEscapedCharLiterals rewrites single-quoted literals containing escape
+// sequences (eg. '\n', '\'', '\\') as double-quoted strings, which
+// text/scanner handles correctly.
+func quoteEscapedCharLiterals(s string) string {
+	var out strings.Builder
+	for i := 0; i < len(s); {
+		switch s[i] {
+		case '"':
+			out.WriteByte(s[i])
+			i++
+			for i < len(s) && (s[i] != '"' || s[i-1] == '\\') {
+				out.WriteByte(s[i])
+				i++
+			}
+			if i < len(s) {
+				out.WriteByte(s[i])
+				i++
+			}
+		case '`':
+			out.WriteByte(s[i])
+			i++
+			for i < len(s) && s[i] != '`' {
+				out.WriteByte(s[i])
+				i++
+			}
+			if i < len(s) {
+				out.WriteByte(s[i])
+				i++
+			}
+		case '\'':
+			j := i + 1
+			escaped := false
+			for j < len(s) {
+				if s[j] == '\\' {
+					j += 2
+					escaped = true
+					continue
+				}
+				if s[j] < ' ' {
+					j++
+					escaped = true
+					continue
+				}
+				if s[j] == '\'' {
+					break
+				}
+				j++
+			}
+			if j >= len(s) {
+				out.WriteByte(s[i])
+				i++
+				continue
+			}
+			if escaped {
+				out.WriteByte('"')
+				out.WriteString(escapeControlChars(s[i+1 : j]))
+				out.WriteByte('"')
+			} else {
+				out.WriteString(s[i : j+1])
+			}
+			i = j + 1
+		default:
+			out.WriteByte(s[i])
+			i++
+		}
+	}
+	return out.String()
 }
 
 func (t *tagLexer) Next() (lexer.Token, error) {
