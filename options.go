@@ -82,8 +82,32 @@ func ParseTypeWith[T any](parseFn func(*lexer.PeekingLexer) (T, error)) Option {
 	}
 }
 
+// Alias registers a named, reusable grammar fragment that can be referenced
+// from struct tags with <name>. It is useful for sharing a common expression
+// shape across multiple fields without repeating the tag text.
+//
+//	participle.Alias("jQName", `"@" @Name ":" @Name`),
+//
+// Grammar:
+//
+//	type Options struct {
+//		JQ string `<jQName>`
+//	}
+//
+// Aliases are expanded inline where referenced; modifiers (? * + !) and
+// grouping apply to a reference as expected. An alias may not reference
+// itself, directly or transitively.
+func Alias(name, grammar string) Option {
+	return func(p *parserOptions) error {
+		if name == "" {
+			return fmt.Errorf("alias: name must not be empty")
+		}
+		p.aliasDefs = append(p.aliasDefs, aliasDef{name: name, grammar: grammar})
+		return nil
+	}
+}
+
 // Union associates several member productions with some interface type T.
-// Given members X, Y, Z, and W for a union type U, then the EBNF rule is:
 //
 //	U = X | Y | Z | W .
 //

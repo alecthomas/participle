@@ -38,6 +38,17 @@ func lexStruct(s reflect.Type) (*structLexer, error) {
 	return slex, nil
 }
 
+// lexStructFromTag builds a structLexer over a raw grammar tag string rather
+// than a Go struct type. It is used to parse inline grammar fragments such as
+// those registered with Alias.
+func lexStructFromTag(name, tag string) (*structLexer, error) {
+	l, err := lexer.Upgrade(newTagLexer(name, tag))
+	if err != nil {
+		return nil, err
+	}
+	return &structLexer{lexer: l}, nil
+}
+
 // NumField returns the number of fields in the struct associated with this structLexer.
 func (s *structLexer) NumField() int {
 	return len(s.indexes)
