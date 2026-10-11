@@ -19,6 +19,7 @@ var conformanceLexer = lexer.MustStateful(lexer.Rules{
 		{"ExprTest", `EXPRTEST:`, lexer.Push("ExprTest")},
 		{"LiteralTest", `LITTEST:`, lexer.Push("LiteralTest")},
 		{"CaseInsensitiveTest", `CITEST:`, lexer.Push("CaseInsensitiveTest")},
+		{"QuestTest", `QTEST:`, lexer.Push("QuestTest")},
 		// Use this to test \b at very start of the string!
 		{"WordBoundaryTest", `\bWBTEST:`, lexer.Push("WordBoundaryTest")},
 	},
@@ -57,6 +58,15 @@ var conformanceLexer = lexer.MustStateful(lexer.Rules{
 	"CaseInsensitiveTest": {
 		{`ABCWord`, `[aA][bB][cC]`, nil},
 		{`CIKeyword`, `(?i)(SELECT|from|WHERE|LIKE)`, nil},
+		{"Ident", `\w+`, nil},
+		{"Whitespace", `\s+`, nil},
+	},
+	// Quest in a concatenation must "give back" for the trailing literal to
+	// match (issue #276): [A-Z][A-Z][A-Z]?T matches "EST" with the optional
+	// [A-Z] not consuming the final "T".
+	"QuestTest": {
+		{`QuestWord`, `[A-Z][A-Z][A-Z]?T`, nil},
+		{`QuestNum`, `[\+\-]?([0-9]*\.)?[0-9]+`, nil},
 		{"Ident", `\w+`, nil},
 		{"Whitespace", `\s+`, nil},
 	},
@@ -203,6 +213,20 @@ func testLexer(t *testing.T, lex lexer.Definition) {
 			{"Ident", "900"},
 			{"Whitespace", " "},
 			{"Ident", "world"},
+		}},
+		// The optional [A-Z] must "give back" so the trailing "T" matches
+		// (issue #276): [A-Z][A-Z][A-Z]?T on "EST" must be one token.
+		{"QuestGiveBack", `QTEST:EST`, []token{
+			{"QuestWord", "EST"},
+		}},
+		{"QuestNumBoth", `QTEST:12 -12.5 -.5 +.25`, []token{
+			{"QuestNum", "12"},
+			{"Whitespace", " "},
+			{"QuestNum", "-12.5"},
+			{"Whitespace", " "},
+			{"QuestNum", "-.5"},
+			{"Whitespace", " "},
+			{"QuestNum", "+.25"},
 		}},
 	}
 	symbols := lexer.SymbolsByRune(lex)
