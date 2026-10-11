@@ -41,15 +41,19 @@ type Term struct {
 func (t *Term) sealed() {}
 
 func (t *Term) String() string {
+	negation := ""
+	if t.Negation {
+		negation = "~"
+	}
 	switch {
 	case t.Name != "":
-		return t.Name + t.Repetition
+		return negation + t.Name + t.Repetition
 	case t.Literal != "":
-		return t.Literal + t.Repetition
+		return negation + t.Literal + t.Repetition
 	case t.Token != "":
-		return "<" + t.Token + ">" + t.Repetition
+		return negation + "<" + t.Token + ">" + t.Repetition
 	case t.Group != nil:
-		return t.Group.String() + t.Repetition
+		return negation + t.Group.String() + t.Repetition
 	default:
 		panic("??")
 	}
@@ -92,7 +96,7 @@ func (s *SubExpression) sealed() {}
 func (s *SubExpression) String() string {
 	out := "("
 	if s.Lookahead != LookaheadAssertionNone {
-		out += "?" + string(s.Lookahead)
+		out += "?" + string(s.Lookahead) + " "
 	}
 	out += s.Expr.String() + ")"
 	return out
