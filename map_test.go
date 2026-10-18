@@ -78,6 +78,27 @@ func TestUnquoteByteEscapes(t *testing.T) {
 	}
 }
 
+func TestUnquoteRawStrings(t *testing.T) {
+	type grammar struct {
+		Text string `@RawString`
+	}
+	parser := mustTestParser[grammar](t, participle.Unquote("RawString"))
+	for _, tc := range []struct {
+		name, input, want string
+	}{
+		{"literal backslash", "`a\\tb`", `a\tb`},
+		{"newline", "`a\nb`", "a\nb"},
+		{"carriage return", "`a\r\nb`", "a\nb"},
+		{"quotes", "`\"quoted\"`", `"quoted"`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			actual, err := parser.ParseString("", tc.input)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, actual.Text)
+		})
+	}
+}
+
 func TestUnquoteShortToken(t *testing.T) {
 	type grammar struct {
 		Text string `@String`
