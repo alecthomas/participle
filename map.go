@@ -54,6 +54,9 @@ func Unquote(types ...string) Option {
 
 func unquote(s string) (string, error) {
 	quote := s[0]
+	if quote == '`' {
+		return strconv.Unquote(s)
+	}
 	s = s[1 : len(s)-1]
 	var out strings.Builder
 	for s != "" {
