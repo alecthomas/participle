@@ -122,6 +122,7 @@ type compiledRule struct {
 	Rule
 	ignore bool
 	RE     *regexp.Regexp
+	prefix string // Every match of RE starts with this literal.
 }
 
 // compiledRules grouped by name.
@@ -250,8 +251,9 @@ func New(rules Rules) (*StatefulDefinition, error) {
 			}
 			pattern := "^(?:" + rule.Pattern + ")"
 			var (
-				re  *regexp.Regexp
-				err error
+				re     *regexp.Regexp
+				prefix string
+				err    error
 			)
 			var match = backrefReplace.FindStringSubmatch(rule.Pattern)
 			if match == nil || len(match[1])%2 == 0 {
@@ -259,11 +261,13 @@ func New(rules Rules) (*StatefulDefinition, error) {
 				if err != nil {
 					return nil, fmt.Errorf("lexer: %s.%d: %w", key, i, err)
 				}
+				prefix, _ = re.LiteralPrefix()
 			}
 			compiled[key] = append(compiled[key], compiledRule{
 				Rule:   rule,
 				ignore: len(rule.Name) > 0 && unicode.IsLower(rune(rule.Name[0])),
 				RE:     re,
+				prefix: prefix,
 			})
 		}
 	}
@@ -372,13 +376,18 @@ next:
 			m     []int
 			match []int
 		)
-		for i, candidate := range rules {
+		for i := range rules {
+			candidate := &rules[i]
 			// Special case "Return()".
 			if candidate.Rule == ReturnRule {
 				l.stack = l.stack[:len(l.stack)-1]
 				parent = l.stack[len(l.stack)-1]
 				rules = l.def.rules[parent.name]
 				continue next
+			}
+			// A failed regexp call costs far more than this check.
+			if candidate.prefix != "" && !strings.HasPrefix(l.data, candidate.prefix) {
+				continue
 			}
 			re, err := l.getPattern(candidate)
 			if err != nil {
@@ -387,7 +396,7 @@ next:
 			m = re.FindStringSubmatchIndex(l.data)
 			if m != nil && (match == nil || m[1] > match[1]) {
 				match = m
-				rule = &rules[i]
+				rule = candidate
 				if !l.def.matchLongest {
 					break
 				}
@@ -434,7 +443,7 @@ next:
 	return EOFToken(l.pos), nil
 }
 
-func (l *StatefulLexer) getPattern(candidate compiledRule) (*regexp.Regexp, error) {
+func (l *StatefulLexer) getPattern(candidate *compiledRule) (*regexp.Regexp, error) {
 	if candidate.RE != nil {
 		return candidate.RE, nil
 	}
