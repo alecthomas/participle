@@ -621,6 +621,9 @@ func setField(tokens []lexer.Token, strct reflect.Value, field structLexerField,
 	}
 
 	if f.Type() == tokenType {
+		if len(tokens) == 0 {
+			return nil // Zero-width match; nothing to capture.
+		}
 		f.Set(reflect.ValueOf(tokens[0]))
 		return nil
 	}

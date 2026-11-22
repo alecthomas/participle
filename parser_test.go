@@ -1402,6 +1402,20 @@ func TestCaptureIntoToken(t *testing.T) {
 	assert.Equal(t, expected, actual)
 }
 
+// A capture that matches zero tokens (eg. @(Ident*) at EOF) must leave a
+// lexer.Token field untouched instead of panicking.
+func TestCaptureZeroWidthMatchIntoToken(t *testing.T) {
+	type ast struct {
+		Tok lexer.Token `@(Ident*)`
+		Opt lexer.Token `@(Ident?)`
+	}
+
+	p := mustTestParser[ast](t)
+	actual, err := p.ParseString("", "")
+	assert.NoError(t, err)
+	assert.Equal(t, &ast{}, actual)
+}
+
 func TestEndPos(t *testing.T) {
 	type Ident struct {
 		Pos    lexer.Position
